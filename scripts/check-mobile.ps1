@@ -36,6 +36,16 @@ Invoke-Step 'lint' 'npm run lint && npm run format:check'
 Invoke-Step 'test' 'npm test'
 Invoke-Step 'GLB generatsiya + QR' 'npm run fixtures'
 Invoke-Step 'gltf-validator' 'npm run validate -w @hub-mobile/sample-glb'
+
+# M-A3: har reviziyaning AR varianti (animatsiyasiz) ham yaratilgan va validatordan o'tgan bo'lishi kerak.
+$glbDir = Join-Path $root 'mock/fixtures/glb'
+$arFiles = @(Get-ChildItem -Path $glbDir -Filter '*-ar.glb' -File -ErrorAction SilentlyContinue)
+$mainFiles = @(Get-ChildItem -Path $glbDir -Filter '*.glb' -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '*-ar.glb' })
+if ($arFiles.Count -eq 0 -or $arFiles.Count -ne $mainFiles.Count) {
+  Write-Host "FAIL  AR GLB: $($mainFiles.Count) asosiy, $($arFiles.Count) AR varianti" -ForegroundColor Red
+  exit 1
+}
+Write-Host "ok    AR GLB: $($arFiles.Name -join ', ')" -ForegroundColor Green
 Invoke-Step 'viewer build' 'npm run build -w @hub-mobile/viewer'
 
 $dist = Join-Path $root 'packages/viewer/dist'
