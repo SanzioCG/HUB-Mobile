@@ -1,3 +1,5 @@
+> **1.3 bilan almashtirildi** (`uhub-mobile-1.3.md`, 2026-11-03). Bu fayl tarix uchun saqlanadi.
+
 # U-HUB mobil viewer — talablar va ma'lumot formati (kontrakt `uhub-mobile/1.2`) — QORALAMA
 
 Holat: **qoralama**, 2026-11-03. Asos: 1.1 + U-HUB architect qarorlari (2026-11-03, chat) + M-A0/M-A1 savollari.

@@ -29,6 +29,12 @@ Founder mobil ishni **alohida git repoda** (`HUB-Mobile`) olib borishni tanladi.
   V-1 tayyor bo'lgach haqiqiy "M-0 namuna" GLB'si shu testlardan o'tkaziladi.
 - (−) Kontrakt 8-bo'limi (mijoz havolasi, V-2) `packages/viewer` ni U-HUB serveri beradi deb hisoblaydi.
 
+## Qo'shimcha (2026-11-03, founder)
+
+- **Viewer HUB-Mobile'da qoladi.** `packages/viewer` shu repoda build qilinadi; U-HUB versiyalangan artefaktni oladi
+  (`releases/viewer/<VIEWER_VERSION>/index.html` + `manifest.json` sha256 bilan) — taklif: `docs/contract/proposals/1.4-proposal.md`.
+- Kontrakt 1.3 1-bo'limi (monorepo) va 8-bo'limi ("U-HUB build viewer'ni yasaydi") shu qarorga mos emas — 1.4 taklifida.
+
 ## Ochiq savol
 - **Viewer bundle U-HUB'ga qanday yetadi?** (8-bo'lim, V-2 uchun.) Variantlar:
   1. reliz artefakti (`viewer.html` GitHub release'da), U-HUB uni versiya bo'yicha yuklab oladi;
