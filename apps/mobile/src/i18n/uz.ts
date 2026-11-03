@@ -84,6 +84,18 @@ export const uz = {
     yesterday: 'kecha',
     days: (n: number) => `${n} kun oldin`,
   },
+  select: {
+    oldRevision: (label: string, latest: string) =>
+      `Etiketka eski reviziyadan (${label}). Hozirgisi: ${latest}`,
+    openLatest: (latest: string) => `${latest} ni ochish`,
+    notInLatest: 'Bu detal hozirgi reviziyada yo‘q',
+    partNotFound: 'Detal modelda topilmadi',
+    showAll: "Hammasini ko'rsatish",
+    next: 'Keyingisi',
+    behindDoor: 'Eshik orqasida',
+    inDrawer: 'Tortma ichida',
+    loadingPercent: (p: number) => `Model yuklanmoqda… ${p}%`,
+  },
   scan: {
     title: 'Etiketkani skanerlash',
     hint: 'QR kodni ramka ichiga joylang. Etiketka o‘zi o‘qiladi.',
