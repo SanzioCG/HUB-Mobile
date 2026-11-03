@@ -12,6 +12,7 @@ import {
   indexParts,
   isOpenableClip,
   openableClipNames,
+  ownClipName,
   partExtras,
   revealPlan,
 } from '../src/model.js';
@@ -146,6 +147,18 @@ describe('reveal tartibi', () => {
         names,
       ).clips,
     ).toEqual(['drawer__d2__open']);
+  });
+});
+
+describe('eshik/tortma klipi (ownClipName)', () => {
+  it('M-0: eshik → door__d1__open, tortma qismlari → drawer__dN__open, korpus → null', () => {
+    const parts = [...indexParts(gltf.scene).values()];
+    const byName = (n: string) => parts.find((p) => partExtras(p)!.name === n)!;
+    expect(ownClipName(byName('Eshik'))).toBe('door__d1__open');
+    expect(ownClipName(byName('Tortma 1 fasadi'))).toBe('drawer__d2__open');
+    expect(ownClipName(byName('Tortma 3 tubi'))).toBe('drawer__d4__open');
+    expect(ownClipName(byName('Polka'))).toBeNull();
+    expect(ownClipName(null)).toBeNull();
   });
 });
 

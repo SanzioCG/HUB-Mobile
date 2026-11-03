@@ -51,6 +51,18 @@ export function findItemNode(root: Object3D): Object3D | undefined {
   return found;
 }
 
+/**
+ * Detal joylashgan eshik/tortmaning klipi — kontrakt 2.1/2.2 nomlash qolipi bo'yicha:
+ * `pivot__door__<id>` → `door__<id>__open`, `slide__drawer__<id>` → `drawer__<id>__open`.
+ */
+export function ownClipName(obj: Object3D | null): string | null {
+  for (let o = obj; o; o = o.parent) {
+    const m = /^(?:pivot__(door)|slide__(drawer))__(.+)$/.exec(o.name);
+    if (m) return `${m[1] ?? m[2]}__${m[3]}__open`;
+  }
+  return null;
+}
+
 /** `reveal` kliplari ro'yxat tartibida (takrorlar olib tashlanadi); GLB'da yo'qlari alohida. */
 export function revealPlan(extras: PartExtras, available: ReadonlySet<string>) {
   const clips: string[] = [];

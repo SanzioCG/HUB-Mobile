@@ -19,11 +19,14 @@ Xabarlar `{ type, ...maydonlar }`, obyekt yoki JSON satr. Viewer GLB'ni o'zi `fe
 | ------------------------------ | ------------------------------------------------- |
 | `load {glbUrl, token}`         | `ready`                                           |
 | `select {uid}`                 | `loaded {item, parts}`                            |
-| `showAll`                      | `selected {uid, extras}`                          |
+| `showAll`                      | `selected {uid, extras, clip}`                    |
 | `openAll`, `closeAll`          | `error {code, message}`                           |
-| `toggle {clip}`                |                                                   |
+| `toggle {clip}`                | `deselected` (bo'sh joyga bosildi)                |
 | `setMode {solid\|edges\|xray}` | xato kodlari: `bad_message`, `not_loaded`,        |
 | `setDims {on}`                 | `load_failed`, `part_not_found`, `clip_not_found` |
-| `resetView`                    |                                                   |
+| `resetView`, `deselect`        |                                                   |
+
+`selected.clip` — detal joylashgan eshik/tortma klipi (`toggle` uchun), bo'lmasa `null`.
+GLB manzili http(s) bo'lmasa (oflayn kesh, `file://`) XHR bilan olinadi.
 
 Chiquvchi: `window.ReactNativeWebView.postMessage(JSON)`, aks holda `window.parent.postMessage`.
