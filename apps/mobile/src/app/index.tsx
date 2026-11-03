@@ -1,9 +1,7 @@
-import { Centered, T } from '../components/ui';
+import { Redirect } from 'expo-router';
+import { useSession } from '../session/SessionProvider';
 
 export default function Index() {
-  return (
-    <Centered>
-      <T>U-HUB</T>
-    </Centered>
-  );
+  const { state } = useSession();
+  return <Redirect href={state.status === 'paired' ? '/projects' : '/pair'} />;
 }

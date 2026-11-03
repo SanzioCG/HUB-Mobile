@@ -10,6 +10,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SessionProvider, useSession } from '../session/SessionProvider';
 import { colors } from '../theme';
 
 export default function RootLayout() {
@@ -21,12 +22,36 @@ export default function RootLayout() {
     DMMono_400Regular,
     DMMono_500Medium,
   });
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />
+      <SessionProvider>{fontsLoaded ? <Routes /> : <Splash />}</SessionProvider>
     </SafeAreaProvider>
+  );
+}
+
+function Splash() {
+  return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+}
+
+/** Juftlanmagan — faqat juftlash; juftlangan — ilova. 401 → token o'chadi → guard juftlashga qaytaradi. */
+function Routes() {
+  const { state } = useSession();
+  if (state.status === 'loading') return <Splash />;
+  const paired = state.status === 'paired';
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack.Screen name="index" />
+      <Stack.Protected guard={!paired}>
+        <Stack.Screen name="pair" />
+      </Stack.Protected>
+      <Stack.Protected guard={paired}>
+        <Stack.Screen name="projects/index" />
+        <Stack.Screen name="projects/[id]" />
+        <Stack.Screen name="item/[projectId]/[itemId]" />
+      </Stack.Protected>
+      <Stack.Screen name="dev/spike" />
+    </Stack>
   );
 }
