@@ -10,7 +10,7 @@ import { statusLabel, statusTone, type ProjectSummary, type StatusFilter } from 
 import { StatusLine, Thumb } from '../../components/parts';
 import { Button, Dot, EmptyState, ErrorState, Segmented, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
-import { usePairedSession, useSession } from '../../session/SessionProvider';
+import { usePairedSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, space } from '../../theme';
 import { relativeTime } from '../../utils/time';
 
@@ -22,7 +22,6 @@ const FILTERS = [
 
 export default function ProjectsScreen() {
   const session = usePairedSession();
-  const { unpair } = useSession();
   const { state, refreshing, online, reload, refresh } = useProjectList();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StatusFilter>('all');
@@ -38,7 +37,7 @@ export default function ProjectsScreen() {
         <View style={styles.titleRow}>
           <T style={styles.title}>{uz.projects.title}</T>
           {__DEV__ && <Button label="Spike" onPress={() => router.push('/dev/spike')} />}
-          <Button label={uz.projects.unpair} onPress={() => void unpair()} />
+          <Button label={uz.projects.settings} onPress={() => router.push('/settings')} />
         </View>
         <View style={styles.company}>
           <Dot color={online === false ? colors.yellow : colors.green} />

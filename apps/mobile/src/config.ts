@@ -25,3 +25,12 @@ export const defaultDelivery: Delivery = ENV_GLB_DELIVERY === 'offline' ? 'offli
 export const API_TIMEOUT_MS = 15_000;
 
 export const trimSlash = (url: string) => url.trim().replace(/\/+$/, '');
+
+/**
+ * Oflayn GLB keshi chegaralari (ADR-M002, B yo'li): oxirgi 20 reviziya yoki 500 MB, LRU bo'yicha tozalanadi.
+ * Founder sozlamasi — kontraktda yo'q.
+ */
+export const CACHE_LIMITS = {
+  maxRevisions: 20,
+  maxBytes: 500 * 1024 * 1024,
+} as const;

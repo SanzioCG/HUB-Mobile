@@ -1,7 +1,7 @@
 // 3D ko'rish: WebView to'liq ekran, suzuvchi sarlavha, rejimlar, pastki panel, detal kartasi.
 // Skanerdan kelganda — tanlov holati (kontrakt 6): eski reviziya banneri, "R5 ni ochish", skaner kartasi.
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
@@ -10,9 +10,12 @@ import { formatSize, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
-import { defaultDelivery } from '../../../config';
+import type { Delivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
 import { scanBanner, type ViewTarget } from '../../../scan/banner';
+import { ensureCached, isCached } from '../../../offline/glbCache';
+import { labelsFromParts } from '../../../offline/labels';
+import { saveLabels } from '../../../offline/store';
 import { setRecentNumber } from '../../../scan/recent';
 import { getSelection, itemKey, useSelectionListener, type ScanSelection } from '../../../scan/selection';
 import { usePairedSession } from '../../../session/SessionProvider';
@@ -53,7 +56,10 @@ export default function ItemScreen() {
     qr?: string;
   }>();
   const scan = qr ? getSelection(qr) : undefined;
-  if (scan) return <ItemViewer initial={fromScan(scan)} initialScan={scan} />;
+  if (scan)
+    return (
+      <ItemViewer projectId={String(scan.result.project_id)} initial={fromScan(scan)} initialScan={scan} />
+    );
   return <ProjectItemScreen projectId={projectId} itemId={itemId} />;
 }
 
@@ -63,11 +69,39 @@ function ProjectItemScreen({ projectId, itemId }: { projectId: string; itemId: s
   if (state.status === 'error') return <ErrorState message={errorMessage(state.error)} onRetry={reload} />;
   const item = state.data.items.find((it) => it.item_id === itemId);
   if (!item) return <ErrorState message={uz.errors.notFound} />;
-  return <ItemViewer initial={fromItem(item)} />;
+  return <ItemViewer projectId={projectId} initial={fromItem(item)} />;
 }
 
-function ItemViewer({ initial, initialScan }: { initial: ViewTarget; initialScan?: ScanSelection }) {
+/**
+ * Oflayn kesh siyosati (batch M-A2, 3): reviziya keshda bo'lsa — B (file://), aks holda — A (onlayn) va fonda keshga.
+ * null — tekshirilmoqda.
+ */
+function useCachePolicy(revisionId: string): Delivery | null {
+  const [state, setState] = useState<{ revisionId: string; delivery: Delivery } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    isCached(revisionId).then(
+      (hit) => alive && setState({ revisionId, delivery: hit ? 'offline' : 'online' }),
+      () => alive && setState({ revisionId, delivery: 'online' }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [revisionId]);
+  return state?.revisionId === revisionId ? state.delivery : null;
+}
+
+function ItemViewer({
+  projectId,
+  initial,
+  initialScan,
+}: {
+  projectId: string;
+  initial: ViewTarget;
+  initialScan?: ScanSelection;
+}) {
   const session = usePairedSession();
+  const token = session?.token ?? '';
   const viewer = useRef<ViewerHandle>(null);
   const [target, setTarget] = useState(initial);
   const [scan, setScan] = useState(initialScan);
@@ -91,6 +125,7 @@ function ItemViewer({ initial, initialScan }: { initial: ViewTarget; initialScan
   const send = (msg: HostMessage) => viewer.current?.send(msg);
   const anyOpen = open.size > 0;
   const key = itemKey(target.itemId, target.revisionId);
+  const delivery = useCachePolicy(target.revisionId);
 
   const selectUid = (uid: string) => {
     expectUid.current = uid;
@@ -112,6 +147,19 @@ function ItemViewer({ initial, initialScan }: { initial: ViewTarget; initialScan
         break;
       case 'loaded':
         setProgress(null);
+        // Oflayn: etiketkalar (QR → detal) va onlayn ochilgan reviziya fonda keshga.
+        void saveLabels(
+          labelsFromParts(m.parts, {
+            project_id: Number(projectId),
+            item_id: target.itemId,
+            item_name: target.name,
+            revision_id: target.revisionId,
+            revision_label: target.revisionLabel,
+            glb_url: target.glbUrl,
+          }),
+        );
+        if (delivery === 'online')
+          void ensureCached(target.revisionId, target.glbUrl, token).catch(() => undefined);
         setClips(m.item.clips);
         setOpen(new Set());
         if (pendingUid.current) selectUid(pendingUid.current);
@@ -189,19 +237,21 @@ function ItemViewer({ initial, initialScan }: { initial: ViewTarget; initialScan
 
   return (
     <View style={styles.root}>
-      <ViewerView
-        key={`${target.revisionId}:${attempt}`}
-        ref={viewer}
-        delivery={defaultDelivery}
-        glbUrl={target.glbUrl}
-        revisionId={target.revisionId}
-        token={session?.token ?? ''}
-        onMessage={onMessage}
-        onPhase={(p, e) => {
-          setPhase(p);
-          if (e) setError(e);
-        }}
-      />
+      {delivery && (
+        <ViewerView
+          key={`${target.revisionId}:${attempt}`}
+          ref={viewer}
+          delivery={delivery}
+          glbUrl={target.glbUrl}
+          revisionId={target.revisionId}
+          token={token}
+          onMessage={onMessage}
+          onPhase={(p, e) => {
+            setPhase(p);
+            if (e) setError(e);
+          }}
+        />
+      )}
 
       <SafeAreaView style={styles.overlayTop} edges={['top']} pointerEvents="box-none">
         <View style={styles.header}>
