@@ -19,7 +19,8 @@
     "test": "npm run test --workspaces --if-present",
     "fixtures": "npm run generate -w @hub-mobile/sample-glb && npm run qr -w @hub-mobile/mock",
     "mock": "npm run dev -w @hub-mobile/mock",
-    "viewer": "npm run dev -w @hub-mobile/viewer"
+    "viewer": "npm run dev -w @hub-mobile/viewer",
+    "check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-mobile.ps1 -Quiet"
   },
   "type": "module",
   "devDependencies": {
