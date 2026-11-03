@@ -31,6 +31,11 @@ Sinov uchun bepul Cloudflare tunnel (hisob shart emas):
 
 Kod tunnelga bog'lanmagan — faqat `MOCK_PUBLIC_URL` sozlamasi. Tunnel manzili har ishga tushirishda o'zgaradi.
 
+**Zaxira sahifa** `GET /ar/launch?file=<imzolangan havola>&title=…` (tokensiz): ilova Scene Viewer'ni to'g'ridan-to'g'ri
+ocha olmasa, shu sahifani brauzerda ochadi; "AR'da ochish" tugmasi Google hujjatidagi
+`intent://arvr.google.com/scene-viewer/1.0?…#Intent;scheme=https;package=com.google.android.googlequicksearchbox;…;end;`
+havolasini ochadi. Faqat shu serverning `/files/ar/` HTTPS havolalari qabul qilinadi. Kontraktda yo'q — taklif.
+
 ## AR varianti
 
 `<revision_id>-ar.glb` — animatsiyasiz, yopiq holat, o'sha geometriya va materiallar

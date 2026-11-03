@@ -226,7 +226,12 @@ function ItemViewer({
     const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
     const res = isIos
       ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl: Linking.openURL })
-      : await openArAndroid(req, { client, startActivity: IntentLauncher.startActivityAsync, dev: __DEV__ });
+      : await openArAndroid(req, {
+          client,
+          startActivity: IntentLauncher.startActivityAsync,
+          openUrl: Linking.openURL,
+          dev: __DEV__,
+        });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };

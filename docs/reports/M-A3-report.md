@@ -71,6 +71,21 @@ emas" ko'rsatadi. Skanerdan ochilgan reviziyada `usdz_url` noma'lum (resolve'da 
 Avvalgi `TODO(contract)` va `TODO(contract-1.2)` ro'yxati o'zgarmadi (M-A2 hisoboti). `ar-link` tanasi va 10 daqiqa
 muddati hamon `TODO(contract-1.2)`.
 
+## Tuzatish (telefon sinovidan keyin): Scene Viewer ochilmagan
+
+- **Belgi:** telefon `ar-link` ni oldi (200), lekin Scene Viewer faylni bir marta ham so'ramadi.
+- **Sabab:** `expo-intent-launcher` (SDK 58) `packageName` ni faqat `className` bilan birga ishlatadi
+  (`IntentLauncherModule.kt`: `setComponent`, `setPackage` yo'q). Faqat paket berilganda intent paketsiz ketib,
+  brauzerda ochilgan; fallback ham ishlamagan, chunki brauzer "muvaffaqiyatli" ochiladi. React Native `Linking.openURL`
+  ham `intent://` ni tahlil qilmaydi.
+- **Qurilma:** Honor X9d ARCore ro'yxatida bor ("Supports Depth API", developers.google.com/ar/devices).
+- **Yechim:** (1) ARCore'ning yo'naltiruvchi komponenti `com.google.ar.core/.viewer.IntentForwardActivity`
+  (`ar_only`) — hujjatlashtirilmagan, model-viewer muhokamasi #1868 va Flutter plaginlari ishlatadi;
+  (2) ishlamasa — brauzerda `/ar/launch` sahifasi, tugma Google hujjatidagi `intent://…;package=Google app;end`
+  havolasini ochadi (`ar_preferred`, `resizable=false`).
+- **Kontraktga taklif:** AR ishga tushiruvchi sahifa (yoki `ar-link` javobida `launch_url`) — haqiqiy backend uchun.
+  `TODO(contract)`: `apps/mobile/src/ar/sceneViewer.ts`, `mock/src/app.ts`.
+
 ## Founder'dan kerak
 
 - Zaxira papkasi yo'li (`git bundle`).

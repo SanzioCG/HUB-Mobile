@@ -1,11 +1,12 @@
-// AR: Scene Viewer intent URL, paketlar fallback tartibi, ar-link xatolari (batch M-A3).
+// AR: Scene Viewer intent URL, ishga tushirish tartibi (ARCore → brauzer sahifasi), ar-link xatolari (batch M-A3).
 import type { ApiClient } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
 import { openArAndroid, openArIos } from '../src/ar/openAr';
 import {
-  AR_TARGETS,
+  ARCORE_TARGET,
   ArUnavailableError,
   launchSceneViewer,
+  launcherPageUrl,
   sceneViewerUrl,
   truncateTitle,
   type StartActivity,
@@ -38,35 +39,53 @@ describe('Scene Viewer URL', () => {
   });
 });
 
-describe('paketlar fallback tartibi', () => {
-  const calls: { packageName: string; mode: string | null }[] = [];
+describe('ishga tushirish tartibi', () => {
+  type Call = { packageName: string; className: string; mode: string | null };
   const starter =
-    (installed: string[]): StartActivity =>
-    async (action, { data, packageName }) => {
+    (works: boolean, calls: Call[]): StartActivity =>
+    async (action, { data, packageName, className }) => {
       expect(action).toBe('android.intent.action.VIEW');
-      calls.push({ packageName, mode: new URLSearchParams(data.split('?')[1]).get('mode') });
-      if (!installed.includes(packageName)) throw new Error('No Activity found to handle Intent');
+      calls.push({ packageName, className, mode: new URLSearchParams(data.split('?')[1]).get('mode') });
+      if (!works) throw new Error('No Activity found to handle Intent');
     };
-  beforeEach(() => {
-    calls.length = 0;
+
+  it('ARCore: paket VA aniq komponent beriladi (expo-intent-launcher className’siz paketni e’tiborsiz qoldiradi)', async () => {
+    const calls: Call[] = [];
+    const openUrl = jest.fn();
+    await expect(launchSceneViewer(FILE, 'M-0', starter(true, calls), openUrl)).resolves.toBe('arcore');
+    expect(calls).toEqual([
+      {
+        packageName: 'com.google.ar.core',
+        className: 'com.google.ar.core.viewer.IntentForwardActivity',
+        mode: 'ar_only',
+      },
+    ]);
+    expect(calls[0]!.packageName).toBe(ARCORE_TARGET.packageName);
+    expect(openUrl).not.toHaveBeenCalled();
   });
 
-  it('ARCore bor — ar_only bilan, Google app’ga o‘tilmaydi', async () => {
-    await expect(launchSceneViewer(FILE, 'M-0', starter(['com.google.ar.core']))).resolves.toBe(
-      'com.google.ar.core',
+  it('ARCore ishlamasa — brauzerda AR sahifasi (imzolangan havola bilan bir origin)', async () => {
+    const openUrl = jest.fn(async () => true);
+    await expect(launchSceneViewer(FILE, 'M-0 namuna', starter(false, []), openUrl)).resolves.toBe('browser');
+    const page = new URL(String((openUrl.mock.calls[0] as unknown[])[0]));
+    expect(page.origin).toBe('https://abc.trycloudflare.com');
+    expect(page.pathname).toBe('/ar/launch');
+    expect(page.searchParams.get('file')).toBe(FILE);
+    expect(page.searchParams.get('title')).toBe('M-0 namuna');
+  });
+
+  it('ikkalasi ham ishlamasa — ArUnavailableError', async () => {
+    const openUrl = jest.fn(async () => {
+      throw new Error('no browser');
+    });
+    await expect(launchSceneViewer(FILE, 'M-0', starter(false, []), openUrl)).rejects.toBeInstanceOf(
+      ArUnavailableError,
     );
-    expect(calls).toEqual([{ packageName: 'com.google.ar.core', mode: 'ar_only' }]);
   });
 
-  it('ARCore yo‘q — Google app, ar_preferred', async () => {
-    const pkg = await launchSceneViewer(FILE, 'M-0', starter(['com.google.android.googlequicksearchbox']));
-    expect(pkg).toBe('com.google.android.googlequicksearchbox');
-    expect(calls).toEqual(AR_TARGETS.map((t) => ({ packageName: t.packageName, mode: t.mode })));
-  });
-
-  it('ikkalasi ham yo‘q — ArUnavailableError', async () => {
-    await expect(launchSceneViewer(FILE, 'M-0', starter([]))).rejects.toBeInstanceOf(ArUnavailableError);
-    expect(calls).toHaveLength(2);
+  it('AR sahifasi faqat HTTPS havoladan yasaladi', () => {
+    expect(launcherPageUrl('http://x/files/ar/a.glb', 'M-0')).toBeNull();
+    expect(launcherPageUrl(FILE, 'M-0')).toMatch(/^https:\/\/abc\.trycloudflare\.com\/ar\/launch\?file=/);
   });
 });
 
@@ -74,15 +93,17 @@ describe('openArAndroid', () => {
   const req = { itemId: 'm0', revisionId: 'm0-r5', title: 'M-0 namuna' };
   const client = (arLink: ApiClient['arLink']) => ({ arLink }) as unknown as ApiClient;
   const ok = (url: string) => client(async () => ({ url, expires_at: '2026-11-03T10:10:00Z' }));
+  const deps = (c: ApiClient, start: StartActivity = jest.fn(async () => undefined), dev = false) => ({
+    client: c,
+    startActivity: start,
+    openUrl: jest.fn(async () => true),
+    dev,
+  });
 
   it('HTTPS havola → Scene Viewer ochiladi; so‘rov glb formatida', async () => {
     const arLink = jest.fn(async () => ({ url: FILE, expires_at: '' }));
     const start = jest.fn(async () => undefined);
-    await expect(
-      openArAndroid(req, { client: client(arLink), startActivity: start, dev: false }),
-    ).resolves.toEqual({
-      ok: true,
-    });
+    await expect(openArAndroid(req, deps(client(arLink), start))).resolves.toEqual({ ok: true });
     expect(arLink).toHaveBeenCalledWith('m0', 'm0-r5', 'glb');
     expect(start).toHaveBeenCalledTimes(1);
   });
@@ -90,11 +111,11 @@ describe('openArAndroid', () => {
   it('http:// havola → ishga tushirilmaydi; dev’da aniq sabab', async () => {
     const start = jest.fn(async () => undefined);
     const http = ok('http://10.0.0.5:8787/files/ar/m0-r5-ar.glb?exp=1&sig=a');
-    expect(await openArAndroid(req, { client: http, startActivity: start, dev: true })).toEqual({
+    expect(await openArAndroid(req, deps(http, start, true))).toEqual({
       ok: false,
       message: uz.ar.insecureDev,
     });
-    expect(await openArAndroid(req, { client: http, startActivity: start, dev: false })).toEqual({
+    expect(await openArAndroid(req, deps(http, start, false))).toEqual({
       ok: false,
       message: uz.ar.insecure,
     });
@@ -105,27 +126,19 @@ describe('openArAndroid', () => {
     const offline = client(async () => {
       throw new ApiError('network', 'x');
     });
-    expect(await openArAndroid(req, { client: offline, startActivity: jest.fn(), dev: false })).toEqual({
-      ok: false,
-      message: uz.ar.offline,
-    });
+    expect(await openArAndroid(req, deps(offline))).toEqual({ ok: false, message: uz.ar.offline });
     const missing = client(async () => {
       throw new ApiError('http', 'x', 409, 'conflict', 'AR varianti topilmadi');
     });
-    expect(await openArAndroid(req, { client: missing, startActivity: jest.fn(), dev: false })).toEqual({
-      ok: false,
-      message: 'AR varianti topilmadi',
-    });
+    expect(await openArAndroid(req, deps(missing))).toEqual({ ok: false, message: 'AR varianti topilmadi' });
   });
 
-  it('AR paketlari yo‘q → "Bu qurilmada AR mavjud emas"', async () => {
+  it('ARCore ham, brauzer ham ishlamasa → "Bu qurilmada AR mavjud emas"', async () => {
     const start: StartActivity = async () => {
       throw new Error('no activity');
     };
-    expect(await openArAndroid(req, { client: ok(FILE), startActivity: start, dev: false })).toEqual({
-      ok: false,
-      message: uz.ar.unavailable,
-    });
+    const d = { ...deps(ok(FILE), start), openUrl: jest.fn(async () => Promise.reject(new Error('x'))) };
+    expect(await openArAndroid(req, d)).toEqual({ ok: false, message: uz.ar.unavailable });
   });
 });
 
