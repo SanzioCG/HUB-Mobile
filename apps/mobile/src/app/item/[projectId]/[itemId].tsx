@@ -1,10 +1,12 @@
 // 3D ko'rish: WebView to'liq ekran, suzuvchi sarlavha, rejimlar, pastki panel, detal kartasi.
 // Skanerdan kelganda — tanlov holati (kontrakt 6): eski reviziya banneri, "R5 ni ochish", skaner kartasi.
+import * as IntentLauncher from 'expo-intent-launcher';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
+import { openArAndroid } from '../../../ar/openAr';
 import { useProject } from '../../../api/hooks';
 import { formatSize, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
@@ -18,7 +20,7 @@ import { labelsFromParts } from '../../../offline/labels';
 import { saveLabels } from '../../../offline/store';
 import { setRecentNumber } from '../../../scan/recent';
 import { getSelection, itemKey, useSelectionListener, type ScanSelection } from '../../../scan/selection';
-import { usePairedSession } from '../../../session/SessionProvider';
+import { usePairedSession, useSession } from '../../../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, space } from '../../../theme';
 import type { HostMessage, PartExtras, ViewerMessage, ViewMode } from '../../../viewer/bridge';
 import { ViewerView, type ViewerHandle, type ViewerPhase } from '../../../viewer/ViewerView';
@@ -101,7 +103,9 @@ function ItemViewer({
   initialScan?: ScanSelection;
 }) {
   const session = usePairedSession();
+  const { client } = useSession();
   const token = session?.token ?? '';
+  const [arBusy, setArBusy] = useState(false);
   const viewer = useRef<ViewerHandle>(null);
   const [target, setTarget] = useState(initial);
   const [scan, setScan] = useState(initialScan);
@@ -210,6 +214,19 @@ function ItemViewer({
   };
 
   const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });
+
+  // AR (kontrakt 3): Android — Scene Viewer; ar-link imzolangan havolasi bilan.
+  const arAvailable = Platform.OS === 'android';
+  const openAr = async () => {
+    setArBusy(true);
+    setNotice(uz.ar.loading);
+    const res = await openArAndroid(
+      { itemId: target.itemId, revisionId: target.revisionId, title: target.name },
+      { client, startActivity: IntentLauncher.startActivityAsync, dev: __DEV__ },
+    );
+    setNotice(res.ok ? null : res.message);
+    setArBusy(false);
+  };
 
   const retry = () => {
     setError(null);
@@ -360,7 +377,11 @@ function ItemViewer({
                 send({ type: 'setDims', on: !dims });
               }}
             />
-            <Button label={uz.viewer.ar} disabled />
+            <Button
+              label={uz.viewer.ar}
+              disabled={!arAvailable || arBusy || phase !== 'loaded'}
+              onPress={() => void openAr()}
+            />
             <Button label={uz.viewer.reset} onPress={() => send({ type: 'resetView' })} />
           </View>
         </SafeAreaView>

@@ -79,6 +79,16 @@ export interface ResolveResponse {
   latest_glb_url: string | null;
 }
 
+/** TODO(contract-1.2): `POST /mobile/ar-link` — imzolangan 10 daqiqalik havola (qoralama 3–4). */
+export interface ArLinkResponse {
+  url: string;
+  /** ISO-8601. */
+  expires_at: string;
+}
+
+/** TODO(contract-1.2): so'rov tanasi `{item_id, revision_id, format}` — qoralamada [TASDIQ]. */
+export type ArFormat = 'usdz' | 'glb';
+
 /** TODO(contract-1.2): xato tanasi har doim `{ error, message }` (qoralama 4). */
 export interface ErrorBody {
   error: string;

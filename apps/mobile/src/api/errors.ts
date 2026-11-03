@@ -26,6 +26,10 @@ export class ApiError extends Error {
 
 export const isUnauthorized = (e: unknown) => e instanceof ApiError && e.status === 401;
 
+/** Server yetmadi (tarmoq/timeout) — keshdagi javob ko'rsatiladi. HTTP xatosi (401, 404…) — kesh emas. */
+export const isOfflineError = (e: unknown) =>
+  e instanceof ApiError && (e.kind === 'network' || e.kind === 'timeout');
+
 /** Foydalanuvchiga ko'rsatiladigan matn. */
 export function errorMessage(e: unknown): string {
   if (!(e instanceof ApiError)) return e instanceof Error ? e.message : String(e);

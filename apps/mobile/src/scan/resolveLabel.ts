@@ -1,7 +1,6 @@
 // QR matni → resolve natijasi (kontrakt 6, 1–2-qadamlar). Oflaynda — keshlangan natijalar va etiketkalardan.
 import type { ApiClient } from '../api/client';
-import { ApiError, errorMessage } from '../api/errors';
-import { isOfflineError } from '../api/hooks';
+import { ApiError, errorMessage, isOfflineError } from '../api/errors';
 import { uz } from '../i18n/uz';
 import { offlineResolve } from '../offline/labels';
 import { loadOfflineData, saveResolve } from '../offline/store';

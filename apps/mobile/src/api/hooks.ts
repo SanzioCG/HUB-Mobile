@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadProject, loadProjects, saveProject, saveProjects } from '../offline/store';
 import { useSession } from '../session/SessionProvider';
-import { ApiError } from './errors';
+import { isOfflineError } from './errors';
 import { latestUpdate, mergeProjects, sortByUpdated } from './projects';
 import type { ProjectDetail, ProjectSummary } from './types';
 
@@ -10,10 +10,6 @@ export type Loadable<T> =
   | { status: 'error'; error: unknown }
   /** `offline` — server yetmadi, oxirgi saqlangan javob ko'rsatilmoqda. */
   | { status: 'ok'; data: T; offline?: boolean };
-
-/** Server yetmadi (tarmoq/timeout) — keshdagi javob ko'rsatiladi. HTTP xatosi (401, 404…) — kesh emas. */
-export const isOfflineError = (e: unknown) =>
-  e instanceof ApiError && (e.kind === 'network' || e.kind === 'timeout');
 
 /** Loyihalar ro'yxati; pull-to-refresh `updated_since` bilan faqat o'zgarganlarni oladi. Oflaynda — oxirgi javob. */
 export function useProjectList() {
