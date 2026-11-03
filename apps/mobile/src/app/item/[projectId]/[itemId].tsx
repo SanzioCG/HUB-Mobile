@@ -219,13 +219,15 @@ function ItemViewer({
   // AR (kontrakt 3): Android — AR sahifasi Chrome'da (WebXR), iOS — Quick Look (Safari); ar-link imzolangan havolasi bilan.
   const isIos = Platform.OS === 'ios';
   const arAvailable = Platform.OS === 'android' || (isIos && target.usdzUrl !== null);
+  // Linking.openURL ichida `this` ishlatadi — metodni kontekstsiz uzatib bo'lmaydi.
+  const openUrl = (url: string) => Linking.openURL(url);
   const openAr = async () => {
     setArBusy(true);
     setNotice(uz.ar.loading);
     const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
     const res = isIos
-      ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl: Linking.openURL })
-      : await openArAndroid(req, { client, openUrl: Linking.openURL, dev: __DEV__ });
+      ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl })
+      : await openArAndroid(req, { client, openUrl, dev: __DEV__ });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };
