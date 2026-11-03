@@ -75,7 +75,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { backgroundColor: colors.panel2 },
-  thumb: { width: size.thumb, height: size.thumb, borderRadius: radius.sm, backgroundColor: colors.graphite },
+  pressed: { backgroundColor: colors.surface },
+  thumb: { width: size.thumb, height: size.thumb, borderRadius: radius.sm, backgroundColor: colors.surface },
   status: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
 });

@@ -1,4 +1,5 @@
 import { uz } from '../i18n/uz';
+import { ERROR } from './types';
 
 /**
  * Barcha API xatolari shu tipga keltiriladi.
@@ -43,8 +44,31 @@ export function errorMessage(e: unknown): string {
     case 'config':
       return uz.errors.config;
     case 'http':
-      if (e.status === 401) return uz.errors.unauthorized;
-      if (e.status === 404) return uz.errors.notFound;
-      return e.serverMessage ?? uz.errors.server(e.status ?? 0);
+      // Kontrakt 4: matn — serverning `message` i; bo'lmasa `error` kodi bo'yicha zaxira matn.
+      if (e.serverMessage) return e.serverMessage;
+      return codeMessage(e.code) ?? statusMessage(e.status);
   }
+}
+
+function codeMessage(code: string | undefined): string | undefined {
+  switch (code) {
+    case ERROR.badQr:
+      return uz.errors.badQr;
+    case ERROR.notFound:
+      return uz.errors.notFound;
+    case ERROR.tokenRevoked:
+      return uz.errors.tokenRevoked;
+    case ERROR.pairCodeExpired:
+      return uz.errors.pairCodeExpired;
+    case ERROR.rateLimited:
+      return uz.errors.rateLimited;
+    default:
+      return undefined;
+  }
+}
+
+function statusMessage(status: number | undefined): string {
+  if (status === 401) return uz.errors.unauthorized;
+  if (status === 404) return uz.errors.notFound;
+  return uz.errors.server(status ?? 0);
 }

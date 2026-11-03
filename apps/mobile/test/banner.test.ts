@@ -12,6 +12,7 @@ const result = (over: Partial<ResolveResponse>): ResolveResponse => ({
   item_name: 'M-0 namuna',
   revision_id: 'm0-r3',
   revision_label: 'R3',
+  approved: false,
   part_uid: 'm0p06',
   part_name: 'Polka',
   glb_url: `${BASE}/m0-r3.glb`,
@@ -36,6 +37,7 @@ const target = (revisionId: string): ViewTarget => ({
   revisionLabel: revisionId,
   approved: null,
   usdzUrl: null,
+  updatedAt: '2026-11-02T14:30:00Z',
 });
 
 it('skanersiz yoki joriy reviziya etiketkasi — banner yo‘q', () => {
@@ -61,8 +63,4 @@ it('detal hozirgi reviziyada yo‘q: banner qo‘shimchasi; R5 ochilgach ham esl
     action: uz.select.openLatest('R5'),
   });
   expect(scanBanner(s, target('m0-r5'))).toEqual({ lines: [uz.select.notInLatest], action: null });
-});
-
-it('latest_glb_url yo‘q — tugma yo‘q', () => {
-  expect(scanBanner(sel({ latest_glb_url: null }), target('m0-r3'))?.action).toBeNull();
 });

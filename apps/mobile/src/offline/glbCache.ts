@@ -55,7 +55,17 @@ const inFlight = new Map<string, Promise<File>>();
  * Reviziya keshda bo'lishini ta'minlaydi: bor bo'lsa — LRU vaqti yangilanadi; yo'q bo'lsa — yuklab olinadi
  * (`.part` → `glTF` tekshiruvi → ko'chirish) va chegaradan oshganlar LRU bo'yicha o'chiriladi.
  */
-export function ensureCached(revisionId: string, url: string, token: string): Promise<File> {
+export interface CacheMeta {
+  name: string;
+  revisionLabel: string;
+}
+
+export function ensureCached(
+  revisionId: string,
+  url: string,
+  token: string,
+  meta?: CacheMeta,
+): Promise<File> {
   const running = inFlight.get(revisionId);
   if (running) return running;
   const job = (async () => {
@@ -76,7 +86,14 @@ export function ensureCached(revisionId: string, url: string, token: string): Pr
       }
       await part.move(file);
     }
-    index[revisionId] = { revisionId, bytes: file.size ?? 0, lastUsed: Date.now() };
+    const prev = index[revisionId];
+    index[revisionId] = {
+      revisionId,
+      bytes: file.size ?? 0,
+      lastUsed: Date.now(),
+      name: meta?.name ?? prev?.name,
+      revisionLabel: meta?.revisionLabel ?? prev?.revisionLabel,
+    };
     for (const old of planEviction(Object.values(index), CACHE_LIMITS, revisionId)) {
       const f = glbFile(old);
       if (f.exists) f.delete();
@@ -87,6 +104,15 @@ export function ensureCached(revisionId: string, url: string, token: string): Pr
   })().finally(() => inFlight.delete(revisionId));
   inFlight.set(revisionId, job);
   return job;
+}
+
+/** Bitta reviziyani keshdan o'chirish (Offline tabi). */
+export async function removeCached(revisionId: string): Promise<void> {
+  const f = glbFile(revisionId);
+  if (f.exists) f.delete();
+  const index = await loadIndex();
+  delete index[revisionId];
+  await saveIndex(index);
 }
 
 export async function clearCache(): Promise<void> {

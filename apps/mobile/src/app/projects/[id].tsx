@@ -73,14 +73,17 @@ export default function ProjectScreen() {
 }
 
 const meta = (p: ProjectDetail) =>
-  `${statusLabel(p.status)} · ${uz.projects.items(p.items_count)} · ${relativeTime(p.updated_at)}`;
+  `${statusLabel(p.status)} · ${uz.projects.items(p.items.length)} · ${relativeTime(p.updated_at)}`;
 
 function ItemRow({ projectId, item, cached }: { projectId: string; item: ProjectItem; cached?: CacheEntry }) {
   const rev = item.revision_label;
+  // Kontrakt 4: export_status ≠ ready — GLB yo'q, buyum ochilmaydi.
+  const ready = item.export_status === 'ready' && item.glb_url !== null;
   return (
     <Pressable
+      disabled={!ready}
       onPress={() => router.push(`/item/${projectId}/${item.item_id}`)}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed, !ready && styles.rowDisabled]}
     >
       <Thumb uri={item.thumb_url} />
       <View style={styles.rowText}>
@@ -88,10 +91,16 @@ function ItemRow({ projectId, item, cached }: { projectId: string; item: Project
         <T mono muted>
           {formatSize(item.size_mm)}
         </T>
-        <StatusLine
-          tone={item.approved ? 'green' : 'yellow'}
-          label={`${item.approved ? uz.status.approved : uz.status.unapproved} · ${rev}`}
-        />
+        {item.export_status === 'pending' ? (
+          <StatusLine tone="muted" label={uz.project.exportPending} />
+        ) : item.export_status === 'failed' ? (
+          <StatusLine tone="yellow" label={uz.project.exportFailed} />
+        ) : (
+          <StatusLine
+            tone={item.approved ? 'green' : 'yellow'}
+            label={`${item.approved ? uz.status.approved : uz.status.unapproved} · ${rev}`}
+          />
+        )}
         {cached && (
           <T muted mono>
             {uz.project.offlineAvailable(formatMb(cached.bytes))}
@@ -123,6 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     minHeight: hit,
   },
-  rowPressed: { backgroundColor: colors.panel2 },
+  rowPressed: { backgroundColor: colors.surface },
+  rowDisabled: { opacity: 0.55 },
   rowText: { flex: 1, gap: space.xs, justifyContent: 'center' },
 });

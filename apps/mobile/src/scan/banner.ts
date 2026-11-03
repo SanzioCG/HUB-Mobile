@@ -15,6 +15,8 @@ export interface ViewTarget {
   approved: boolean | null;
   /** Kontrakt 4: iOS Quick Look uchun. null — USDZ yo'q yoki noma'lum (skaner). */
   usdzUrl: string | null;
+  /** "…" paneli: loyiha yangilangan sana (ISO-8601) yoki null. */
+  updatedAt: string | null;
 }
 
 /** Kontrakt 6.3: eski reviziya etiketkasi → sariq banner; `part_in_latest=false` — qo'shimcha qator. */

@@ -11,7 +11,7 @@ const PROJECTS = [
     id: 101,
     number: 51,
     name: 'Oshxona — Chilonzor',
-    status: 'production',
+    status: 'validated',
     items_count: 1,
     updated_at: '2026-11-02T14:30:00Z',
     thumb_url: null,
@@ -118,7 +118,8 @@ describe('xatolar ApiError ga keltiriladi', () => {
       code: 'not_found',
       serverMessage: 'Loyiha topilmadi',
     });
-    expect(errorMessage(e)).toBe(uz.errors.notFound);
+    // Kontrakt 1.3: server `message` i ko'rsatiladi.
+    expect(errorMessage(e)).toBe('Loyiha topilmadi');
   });
 
   it('boshqa kompaniya etiketkasi — 404 not_found (1.2, 403 emas)', async () => {

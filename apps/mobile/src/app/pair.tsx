@@ -1,8 +1,10 @@
 // Juftlash: 6 raqam (raqamli klaviatura, avto-yuborish). Kontrakt 4: POST /mobile/pair.
+import { router } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, errorMessage } from '../api/errors';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Button, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
 import { useSession } from '../session/SessionProvider';
@@ -10,6 +12,7 @@ import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
 
 const CODE_LENGTH = 6;
 
+/** Kontrakt 4: mantiq `error` kodiga (410 pair_code_expired, 429 rate_limited — server `message` i bilan). */
 function pairErrorText(e: unknown): string {
   if (e instanceof ApiError && e.kind === 'http') {
     if (e.status === 401) return uz.pair.invalidCode;
@@ -55,6 +58,16 @@ export default function PairScreen() {
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.body}>
           <T style={styles.title}>{uz.pair.title}</T>
+          <Button
+            label={uz.pair.scanQr}
+            primary
+            onPress={() => router.push('/scan')}
+            right={<Ionicons name="qr-code-outline" size={size.icon} color={colors.white} />}
+          />
+          <T muted style={styles.hint}>
+            {uz.pair.scanHint}
+          </T>
+          <T style={styles.manual}>{uz.pair.manual}</T>
           <T muted style={styles.hint}>
             {uz.pair.hint}
           </T>
@@ -136,6 +149,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: 'center', padding: space.xl, gap: space.lg },
   title: { fontFamily: fonts.semibold, fontSize: fontSize.title },
   hint: { fontSize: fontSize.md },
+  manual: { fontFamily: fonts.semibold, fontSize: fontSize.lg, marginTop: space.lg },
   cells: { flexDirection: 'row', gap: space.sm, justifyContent: 'center', marginTop: space.lg },
   cell: {
     width: size.pinCell,
@@ -145,7 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cellActive: { backgroundColor: colors.active },
+  cellActive: { backgroundColor: colors.border },
   cellText: { fontSize: fontSize.title, color: colors.white },
   hidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   status: { minHeight: hit, alignItems: 'center', justifyContent: 'center' },

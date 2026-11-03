@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { uz } from '../i18n/uz';
 import { colors, duration, fontSize, fonts, hit, radius, size, space } from '../theme';
-import type { PartExtras } from '../viewer/bridge';
+import type { MaterialInfo, PartExtras } from '../viewer/bridge';
 import { Button, T } from './ui';
 
 /** Skaner tanlovi kartasi (kontrakt 6, maket): joylashuv, "Hammasini ko'rsatish", "Keyingisi". */
@@ -23,6 +23,8 @@ interface Props {
   onClose: () => void;
   /** Berilsa — skaner varianti. */
   scan?: ScanCardActions;
+  /** Plita materiali `extras.uhub` (kontrakt 2.5) — viewer `selected.material`. */
+  material?: MaterialInfo | null;
 }
 
 /**
@@ -35,14 +37,15 @@ export function locationOf(part: PartExtras): string | null {
   return null;
 }
 
-export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan }: Props) {
+export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, material }: Props) {
   const [slide] = useState(() => new Animated.Value(1));
   useEffect(() => {
     slide.setValue(1);
     Animated.timing(slide, { toValue: 0, duration: duration.sheet, useNativeDriver: true }).start();
   }, [part.uid, slide]);
 
-  const edges = Object.entries(part.edges ?? {});
+  // Kontrakt 2.1: har doim 4 kalit (L1 L2 W1 W2), null — kromkasiz. Furniturada `edges` yo'q.
+  const edges = Object.entries(part.edges ?? {}) as [string, string | null][];
   return (
     <Animated.View
       style={[
@@ -87,12 +90,24 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan }: Pro
       </Row>
       <Row label={uz.part.material}>
         <T>{part.material}</T>
+        {material && (
+          <T muted>
+            {[
+              `${uz.part.code}: ${material.code}`,
+              `${uz.part.supplier}: ${material.supplier}`,
+              `${uz.part.kind}: ${material.kind}`,
+              material.thickness_mm !== null ? `${uz.part.thickness}: ${material.thickness_mm} mm` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </T>
+        )}
       </Row>
       <Row label={uz.part.edges}>
         {edges.length ? (
           edges.map(([k, v]) => (
-            <T key={k}>
-              <T mono>{k}</T> {v}
+            <T key={k} muted={v === null}>
+              <T mono>{k}</T> {v ?? uz.part.edgeless}
             </T>
           ))
         ) : (
@@ -147,7 +162,7 @@ const styles = StyleSheet.create({
     width: hit,
     height: hit,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel2,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
