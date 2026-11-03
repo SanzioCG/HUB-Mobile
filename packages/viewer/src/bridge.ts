@@ -33,6 +33,26 @@ export interface LoadedItem {
 }
 
 export type ViewMode = 'solid' | 'edges' | 'xray';
+export type ViewName = 'front' | 'side' | 'top' | 'iso';
+export type GroupName = 'carcass' | 'fronts' | 'hardware';
+
+/** Kontrakt 2.1: `pivot__door__<id>` dagi eshik ma'lumoti. */
+export interface DoorInfo {
+  hinge_side: string;
+  open_angle_deg: number;
+  leaf: number;
+  leaves: number;
+}
+
+/** Kontrakt 2.5: detal plitasi materialining `extras.uhub`. */
+export interface MaterialInfo {
+  id: string;
+  code: string;
+  supplier: string;
+  name: string;
+  kind: string;
+  thickness_mm: number | null;
+}
 
 export type HostMessage =
   | { type: 'load'; glbUrl: string; token: string }
@@ -45,9 +65,16 @@ export type HostMessage =
   | { type: 'setDims'; on: boolean }
   | { type: 'resetView' }
   /** Tanlovni bekor qilish (karta yopildi); kliplar holati o'zgarmaydi. */
-  | { type: 'deselect' };
+  | { type: 'deselect' }
+  /** O'ng panel: kamera ko'rinishi. */
+  | { type: 'setView'; view: ViewName }
+  /** O'ng panel: qatlam (`group__<group>`) ko'rinishi. */
+  | { type: 'setGroupVisible'; group: GroupName; on: boolean }
+  /** O'ng panel: modelni ekranga sig'dirish. */
+  | { type: 'fit' };
 
-export type ErrorCode = 'bad_message' | 'not_loaded' | 'load_failed' | 'part_not_found' | 'clip_not_found';
+export type ErrorCode =
+  'bad_message' | 'not_loaded' | 'load_failed' | 'part_not_found' | 'clip_not_found' | 'contract_mismatch';
 
 export type ViewerMessage =
   | { type: 'ready' }
@@ -55,14 +82,27 @@ export type ViewerMessage =
   | { type: 'progress'; loaded: number; total: number | null }
   | { type: 'loaded'; item: LoadedItem; parts: PartExtras[] }
   /** `clip` — detal joylashgan eshik/tortma klipi (`pivot__door__<id>` → `door__<id>__open`), bo'lmasa null. */
-  | { type: 'selected'; uid: string; extras: PartExtras; clip: string | null }
+  | {
+      type: 'selected';
+      uid: string;
+      extras: PartExtras;
+      clip: string | null;
+      /** Eshik detali bo'lsa — pivot tugunidagi ma'lumot (2.1). */
+      door: DoorInfo | null;
+      /** Plita materiali `extras.uhub` (2.5). */
+      material: MaterialInfo | null;
+    }
   /** Bo'sh joyga bosildi — tanlov bekor. */
   | { type: 'deselected' }
-  | { type: 'error'; code: ErrorCode; message: string };
+  | { type: 'error'; code: ErrorCode; message: string }
+  /** Dev: ishlash ko'rsatkichlari (renderer.info asosida), har ~2 s. */
+  | { type: 'stats'; load_ms: number; fps: number; triangles: number; textures_mb: number };
 
 export type ParseResult = { ok: true; msg: HostMessage } | { ok: false; error: string };
 
 const MODES: readonly ViewMode[] = ['solid', 'edges', 'xray'];
+const VIEWS: readonly ViewName[] = ['front', 'side', 'top', 'iso'];
+const GROUPS: readonly GroupName[] = ['carcass', 'fronts', 'hardware'];
 const isStr = (v: unknown): v is string => typeof v === 'string';
 const nonEmpty = (v: unknown): v is string => isStr(v) && v.length > 0;
 
@@ -96,6 +136,15 @@ export function parseIncoming(raw: unknown): ParseResult {
     case 'setDims':
       if (typeof m.on !== 'boolean') return bad('on');
       return { ok: true, msg: { type: 'setDims', on: m.on } };
+    case 'setView':
+      if (!VIEWS.includes(m.view as ViewName)) return bad('view');
+      return { ok: true, msg: { type: 'setView', view: m.view as ViewName } };
+    case 'setGroupVisible':
+      if (!GROUPS.includes(m.group as GroupName)) return bad('group');
+      if (typeof m.on !== 'boolean') return bad('on');
+      return { ok: true, msg: { type: 'setGroupVisible', group: m.group as GroupName, on: m.on } };
+    case 'fit':
+      return { ok: true, msg: { type: 'fit' } };
     case 'showAll':
     case 'openAll':
     case 'closeAll':

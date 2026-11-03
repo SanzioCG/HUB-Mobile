@@ -6,6 +6,7 @@ import {
   type PartExtras,
   type ViewerMessage,
 } from './bridge.js';
+import { parseUhubConfig } from './model.js';
 import { Viewer } from './viewer.js';
 
 const container = document.getElementById('app')!;
@@ -13,7 +14,12 @@ let viewer: Viewer | null = null;
 const bridge = createBridge((msg) => viewer?.handle(msg));
 viewer = new Viewer(container, bridge);
 
-if (isStandalone()) {
+// Kontrakt 8: backend `/s/<token>` bundle ichiga konfiguratsiya qo'yadi — bo'lsa undan, bo'lmasa postMessage'dan.
+const config = parseUhubConfig(document.getElementById('uhub-config')?.textContent);
+if (config) {
+  if (config.title) document.title = config.title;
+  viewer.handle({ type: 'load', glbUrl: config.glb_url, token: '' });
+} else if (isStandalone()) {
   // Dev / brauzer rejimi: GLB manzili URL parametridan, standart — mock'dagi M-0.
   const q = new URLSearchParams(location.search);
   const glbUrl = q.get('glb') ?? `http://${location.hostname || 'localhost'}:8787/files/glb/m0-r5.glb`;
