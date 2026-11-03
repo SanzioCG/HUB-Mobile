@@ -230,3 +230,86 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     expect(uhub<PartExtras>(byPartName(doc, 'Eshik')).reveal).toEqual([]);
   });
 });
+
+/** Sahna bounding box'i (dunyo koordinatalarida, metr): har mesh POSITION min/max burchaklari × dunyo matritsasi. */
+function sceneBounds(doc: Document): { min: number[]; max: number[] } {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh();
+    if (!mesh) continue;
+    const m = node.getWorldMatrix();
+    for (const prim of mesh.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION')!;
+      const lo = pos.getMin([]);
+      const hi = pos.getMax([]);
+      for (const x of [lo[0]!, hi[0]!])
+        for (const y of [lo[1]!, hi[1]!])
+          for (const z of [lo[2]!, hi[2]!]) {
+            const p = [
+              m[0] * x + m[4] * y + m[8] * z + m[12],
+              m[1] * x + m[5] * y + m[9] * z + m[13],
+              m[2] * x + m[6] * y + m[10] * z + m[14],
+            ];
+            for (let i = 0; i < 3; i++) {
+              min[i] = Math.min(min[i]!, p[i]!);
+              max[i] = Math.max(max[i]!, p[i]!);
+            }
+          }
+    }
+  }
+  return { min, max };
+}
+
+describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s — AR varianti (Scene Viewer)', (rev) => {
+  const arRoundTrip = async () => {
+    const bytes = await io.writeBinary(buildM0(rev, { ar: true }));
+    return { doc: await io.readBinary(bytes), bytes };
+  };
+
+  it('animatsiyalar soni 0, gltf-validator 0 error', async () => {
+    const { doc, bytes } = await arRoundTrip();
+    expect(doc.getRoot().listAnimations()).toHaveLength(0);
+    const report = await validateGlb(bytes);
+    expect(report.messages.filter((m) => m.severity === 0)).toEqual([]);
+  });
+
+  it('o‘lchamlar asosiy GLB bilan bir xil (bounding box ±0.1 mm) va 600 × 900 × 560 mm', async () => {
+    const ar = sceneBounds((await arRoundTrip()).doc);
+    const main = sceneBounds((await roundTrip(rev)).doc);
+    for (let i = 0; i < 3; i++) {
+      expect(Math.abs(ar.min[i]! - main.min[i]!)).toBeLessThanOrEqual(0.0001);
+      expect(Math.abs(ar.max[i]! - main.max[i]!)).toBeLessThanOrEqual(0.0001);
+    }
+    const size = [0, 1, 2].map((i) => Math.round((ar.max[i]! - ar.min[i]!) * 1000));
+    expect(size).toEqual([600, 900, 560]);
+    expect(ar.min[1]).toBeCloseTo(0, 6); // pol sathida
+    expect(ar.max[2]).toBeCloseTo(0, 6); // old qirra z = 0
+  });
+
+  it('o‘sha detallar va materiallar; Scene Viewer tavsiyasi: ≤ 10 material, ≤ 100 000 uchburchak', async () => {
+    const { doc } = await arRoundTrip();
+    const main = (await roundTrip(rev)).doc;
+    expect(partNodes(doc).map((n) => uhub<PartExtras>(n).uid)).toEqual(
+      partNodes(main).map((n) => uhub<PartExtras>(n).uid),
+    );
+    expect(
+      doc
+        .getRoot()
+        .listMaterials()
+        .map((m) => m.getName()),
+    ).toEqual(
+      main
+        .getRoot()
+        .listMaterials()
+        .map((m) => m.getName()),
+    );
+    expect(doc.getRoot().listMaterials().length).toBeLessThanOrEqual(10);
+    const triangles = doc
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())
+      .reduce((s, p) => s + p.getIndices()!.getCount() / 3, 0);
+    expect(triangles).toBeLessThanOrEqual(100_000);
+  });
+});

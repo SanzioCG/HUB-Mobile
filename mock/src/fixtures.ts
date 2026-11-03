@@ -8,7 +8,8 @@ export const QR_DIR = path.join(FIXTURES_DIR, 'qr');
 
 export async function readGlbFixtures(): Promise<Record<string, Uint8Array>> {
   const glbs: Record<string, Uint8Array> = {};
-  for (const id of M0_REVISION_IDS) {
+  // Har reviziya: asosiy GLB va AR varianti (`<revision_id>-ar.glb`, M-A3).
+  for (const id of M0_REVISION_IDS.flatMap((r) => [r, `${r}-ar`])) {
     try {
       glbs[id] = await readFile(path.join(GLB_DIR, `${id}.glb`));
     } catch {
