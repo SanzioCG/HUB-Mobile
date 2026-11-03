@@ -71,6 +71,6 @@ iOS: o'lchanmagan (Expo Go iOS qurilmasi yo'q).
 
 ## Oqibatlar
 
-- Sozlama: `EXPO_PUBLIC_GLB_DELIVERY` (`online` | `offline`), `app.config.ts` → `extra.glbDelivery`.
+- Sozlama: `EXPO_PUBLIC_GLB_DELIVERY` (`online` | `offline`), `apps/mobile/src/config.ts` (to‘g‘ridan-to‘g‘ri `process.env`).
 - Viewer bundle'i ilovaga asset sifatida kiradi (`npm run copy-viewer`: `packages/viewer/dist` → `assets/viewer`).
 - Har ikki yo'lda viewer va bridge protokoli bir xil; farq faqat `source` va `load.glbUrl` da.

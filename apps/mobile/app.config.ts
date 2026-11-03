@@ -38,12 +38,8 @@ const config: ExpoConfig = {
     // Faqat dev build: Android'da HTTP (cleartext) — LAN mock uchun.
     ['expo-build-properties', { android: { usesCleartextTraffic: IS_DEV_BUILD } }],
   ],
-  extra: {
-    // Server manzili: EXPO_PUBLIC_API_URL (.env) ustun; bo'lmasa dev'da Expo server IP'si + 8787 (src/config.ts).
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? null,
-    // GLB yetkazish yo'li (ADR-M002): 'online' (A) yoki 'offline' (B).
-    glbDelivery: process.env.EXPO_PUBLIC_GLB_DELIVERY ?? 'online',
-  },
+  // Server manzili (EXPO_PUBLIC_API_URL) va GLB yetkazish yo'li (EXPO_PUBLIC_GLB_DELIVERY) — src/config.ts da
+  // to'g'ridan-to'g'ri o'qiladi, `extra` orqali emas.
 };
 
 export default config;
