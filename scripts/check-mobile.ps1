@@ -46,5 +46,25 @@ if ($files.Count -ne 1 -or $files[0].Name -ne 'index.html') {
 }
 $kb = '{0:N1}' -f ($files[0].Length / 1KB)
 Write-Host "ok    viewer bundle: packages/viewer/dist/index.html ($kb KB)" -ForegroundColor Green
+
+# ---- apps/mobile (M-A1) ----
+Invoke-Step 'mobile typecheck' 'npm run types -w @hub-mobile/mobile'
+Invoke-Step 'mobile lint' 'npm run lint -w @hub-mobile/mobile'
+Invoke-Step 'mobile jest' 'npm run jest -w @hub-mobile/mobile'
+Invoke-Step 'expo-doctor' 'npm run doctor -w @hub-mobile/mobile'
+Invoke-Step 'viewer asset nusxasi' 'npm run copy-viewer -w @hub-mobile/mobile'
+
+$asset = Join-Path $root 'apps/mobile/assets/viewer/viewer.html'
+if (-not (Test-Path $asset)) {
+  Write-Host "FAIL  viewer asset yo'q: apps/mobile/assets/viewer/viewer.html" -ForegroundColor Red
+  exit 1
+}
+$assetLen = (Get-Item $asset).Length
+if ($assetLen -ne $files[0].Length) {
+  Write-Host "FAIL  viewer asset hajmi dist bilan mos emas ($assetLen != $($files[0].Length))" -ForegroundColor Red
+  exit 1
+}
+$akb = '{0:N1}' -f ($assetLen / 1KB)
+Write-Host "ok    viewer asset: apps/mobile/assets/viewer/viewer.html ($akb KB)" -ForegroundColor Green
 Write-Host 'check-mobile: hammasi o''tdi' -ForegroundColor Green
 exit 0
