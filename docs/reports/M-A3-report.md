@@ -90,7 +90,15 @@ Telefonda (Honor X9d) diagnostika:
 `<model-viewer>` backend'ning o'zida joylashtirilgan (CDN emas). `TODO(contract)`: `apps/mobile/src/ar/arPage.ts`,
 `mock/src/app.ts`.
 
-**Ochiq:** rulet o'lchovi (±1 %) WebXR'da qayta qilinishi kerak — o'lchov jadvali yuqorida.
+Ilovadagi AR tugmasi bo'yicha yana ikki topilma (`d7d3c14`):
+- `Linking.openURL` ichida `this` ishlatiladi — uni `openUrl: Linking.openURL` ko'rinishida kontekstsiz uzatish TypeError
+  bergan va "AR mavjud emas" ko'rsatilgan. Endi `(url) => Linking.openURL(url)`; dev'da xatoning asl sababi ham chiqadi.
+- Expo ishlab turganda yangi fayl (`src/ar/arPage.ts`) qo'shilganda Metro uni ko'rmagan ("Unable to resolve") va telefon
+  eski bundle bilan qolgan. Yechim: `npx expo start -c` va Expo Go'da ilovani to'liq yopib qayta ochish.
+
+**Natija:** ilovadagi AR tugmasi → Chrome → WebXR — telefonda **ishladi** (founder tasdiqladi).
+
+**Ochiq:** rulet o'lchovi (±1 %) WebXR'da qilinishi kerak — o'lchov jadvali yuqorida.
 
 ## Founder'dan kerak
 
