@@ -2,7 +2,7 @@
 import { API_TIMEOUT_MS } from '../config';
 import { ApiError } from './errors';
 import {
-  errorCodeOf,
+  parseErrorBody,
   type PairResponse,
   type ProjectDetail,
   type ProjectSummary,
@@ -58,9 +58,9 @@ export function createClient(opts: ClientOptions) {
     }
 
     if (!res.ok) {
-      const code = errorCodeOf(await res.json().catch(() => null));
+      const { code, message } = parseErrorBody(await res.json().catch(() => null));
       if (res.status === 401 && auth) opts.onUnauthorized?.();
-      throw new ApiError('http', `${method} ${path}: HTTP ${res.status}`, res.status, code);
+      throw new ApiError('http', `${method} ${path}: HTTP ${res.status}`, res.status, code, message);
     }
     if (res.status === 204) return undefined as T;
     try {

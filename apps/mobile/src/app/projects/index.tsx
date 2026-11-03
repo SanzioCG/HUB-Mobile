@@ -10,7 +10,7 @@ import { statusLabel, statusTone, type ProjectSummary, type StatusFilter } from 
 import { StatusLine, Thumb } from '../../components/parts';
 import { Button, Dot, EmptyState, ErrorState, Segmented, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
-import { usePairedSession, useSession } from '../../session/SessionProvider';
+import { usePairedSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, space } from '../../theme';
 import { relativeTime } from '../../utils/time';
 
@@ -22,7 +22,6 @@ const FILTERS = [
 
 export default function ProjectsScreen() {
   const session = usePairedSession();
-  const { unpair } = useSession();
   const { state, refreshing, online, reload, refresh } = useProjectList();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StatusFilter>('all');
@@ -38,7 +37,7 @@ export default function ProjectsScreen() {
         <View style={styles.titleRow}>
           <T style={styles.title}>{uz.projects.title}</T>
           {__DEV__ && <Button label="Spike" onPress={() => router.push('/dev/spike')} />}
-          <Button label={uz.projects.unpair} onPress={() => void unpair()} />
+          <Button label={uz.projects.settings} onPress={() => router.push('/settings')} />
         </View>
         <View style={styles.company}>
           <Dot color={online === false ? colors.yellow : colors.green} />
@@ -46,12 +45,7 @@ export default function ProjectsScreen() {
             {online === false ? uz.projects.offline : uz.projects.connected} · {session?.company.name}
           </T>
         </View>
-        <Button
-          label={uz.projects.scanner}
-          primary
-          disabled
-          right={<T style={styles.soon}>{uz.common.soon}</T>}
-        />
+        <Button label={uz.projects.scanner} primary onPress={() => router.push('/scan')} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -114,7 +108,6 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   title: { flex: 1, fontFamily: fonts.semibold, fontSize: fontSize.title },
   company: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  soon: { color: colors.white, fontSize: fontSize.sm, opacity: 0.8 },
   search: {
     minHeight: hit,
     backgroundColor: colors.panel,

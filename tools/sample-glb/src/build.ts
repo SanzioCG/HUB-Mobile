@@ -1,6 +1,7 @@
 import { Document, type Material, type Node } from '@gltf-transform/core';
 import { CONTRACT_VERSION, clipName, nodeName, type AssetMeta, type ItemDimensions } from './contract.js';
 import {
+  DOOR_EXTRAS,
   DOOR_IDS,
   DOOR_PIVOT_MM,
   DRAWER_IDS,
@@ -10,6 +11,7 @@ import {
   MATERIALS,
   PROTOTYPE,
   REVISIONS,
+  drawerRailBoxes,
   partExtras,
   partsForRevision,
   type MaterialKey,
@@ -101,14 +103,15 @@ function quatY(deg: number): [number, number, number, number] {
 
 export function buildM0(rev: Revision): Document {
   const doc = new Document();
-  const { revisionId, snapshot } = REVISIONS[rev];
+  const { revisionId, revisionLabel, snapshot } = REVISIONS[rev];
+  // 2.4 (1.2): `approved` GLB'da yo'q — holat faqat API'dan.
   const meta: AssetMeta = {
     contract: CONTRACT_VERSION,
     project_number: ITEM.projectNumber,
     item_id: ITEM.itemId,
     revision_id: revisionId,
+    revision_label: revisionLabel,
     snapshot,
-    approved: false,
     generated_at: GENERATED_AT,
   };
   const asset = doc.getRoot().getAsset();
@@ -124,6 +127,14 @@ export function buildM0(rev: Revision): Document {
       .setMetallicFactor(0)
       .setRoughnessFactor(0.7);
   }
+
+  const primitive = (g: ReturnType<typeof boxGeometry>, material: Material) =>
+    doc
+      .createPrimitive()
+      .setMaterial(material)
+      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(g.pos).setBuffer(buffer))
+      .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(g.nrm).setBuffer(buffer))
+      .setIndices(doc.createAccessor().setType('SCALAR').setArray(g.idx).setBuffer(buffer));
 
   const item = doc
     .createNode(nodeName.item(ITEM.itemId))
@@ -142,10 +153,20 @@ export function buildM0(rev: Revision): Document {
     doors.set(id, pivot);
   }
   const drawers = new Map<string, Node>();
+  const mids = new Map<string, Node>();
   for (const id of DRAWER_IDS) {
     const slide = doc.createNode(nodeName.drawer(id));
     fronts.addChild(slide);
     drawers.set(id, slide);
+    // 2.1 (1.2): relsning o'rta elementi — slide bolasi, o'sha klipda yurishning yarmi.
+    const railMesh = doc.createMesh(`rail__${id}__mid`);
+    for (const r of drawerRailBoxes(id)) {
+      const g = boxGeometry(toM(r.box), toM(r.center));
+      railMesh.addPrimitive(primitive(g, materials.rail));
+    }
+    const mid = doc.createNode(nodeName.drawerMid(id)).setMesh(railMesh);
+    slide.addChild(mid);
+    mids.set(id, mid);
   }
 
   for (const p of partsForRevision(rev)) {
@@ -162,13 +183,7 @@ export function buildM0(rev: Revision): Document {
     }
     const c = toM(p.center);
     const g = boxGeometry(toM(p.box), [c[0] - origin[0], c[1] - origin[1], c[2] - origin[2]]);
-    const prim = doc
-      .createPrimitive()
-      .setMaterial(materials[p.material])
-      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(g.pos).setBuffer(buffer))
-      .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(g.nrm).setBuffer(buffer))
-      .setIndices(doc.createAccessor().setType('SCALAR').setArray(g.idx).setBuffer(buffer));
-    const mesh = doc.createMesh(nodeName.part(p.uid)).addPrimitive(prim);
+    const mesh = doc.createMesh(nodeName.part(p.uid)).addPrimitive(primitive(g, materials[p.material]));
     const node = doc
       .createNode(nodeName.part(p.uid))
       .setMesh(mesh)
@@ -184,23 +199,32 @@ export function buildM0(rev: Revision): Document {
       .setType('SCALAR')
       .setArray(new Float32Array([0, dur]))
       .setBuffer(buffer);
-  // Chap petlya: eshik old tomonga (+Z) ochilishi uchun Y atrofida manfiy burchak.
+  // Burchak — `extras.uhub.door.open_deg`. Chap petlya: old tomonga (+Z) ochilishi uchun Y atrofida manfiy burchak.
+  const doorSign = DOOR_EXTRAS.hinge_side === 'left' ? -1 : 1;
   const doorChannel = (pivot: Node) => ({
     target: pivot,
     path: 'rotation' as const,
-    values: new Float32Array([...quatY(0), ...quatY(-PROTOTYPE.doorOpenDeg)]),
+    values: new Float32Array([...quatY(0), ...quatY(doorSign * DOOR_EXTRAS.open_deg)]),
     type: 'VEC4' as const,
   });
-  const drawerChannel = (slide: Node) => ({
-    target: slide,
+  const travel = PROTOTYPE.drawerTravelMm * MM;
+  const translate = (target: Node, z: number) => ({
+    target,
     path: 'translation' as const,
-    values: new Float32Array([0, 0, 0, 0, 0, PROTOTYPE.drawerTravelMm * MM]),
+    values: new Float32Array([0, 0, 0, 0, 0, z]),
     type: 'VEC3' as const,
   });
-  type Channel = ReturnType<typeof doorChannel> | ReturnType<typeof drawerChannel>;
+  // Tortma: slide to'liq yurish; `__mid` slide bolasi, shuning uchun lokal −yarim → dunyoda +yarim yurish.
+  // TODO(contract-1.2): "yurishning yarmi" ota ramkasidami yoki dunyodami — qoralamada aniq emas; dunyo deb olindi.
+  const drawerChannels = (id: string) => [
+    translate(drawers.get(id)!, travel),
+    translate(mids.get(id)!, -travel / 2),
+  ];
+  type Channel = ReturnType<typeof doorChannel> | ReturnType<typeof translate>;
 
   const addClip = (name: string, channels: Channel[]) => {
-    const anim = doc.createAnimation(name);
+    // TODO(contract-1.2): burchak/yurish katalogdan tasdiqlanmagan → `extras.uhub.prototype = true` (qoralama 2.2).
+    const anim = doc.createAnimation(name).setExtras({ uhub: { prototype: true } });
     for (const ch of channels) {
       const sampler = doc
         .createAnimationSampler()
@@ -220,9 +244,9 @@ export function buildM0(rev: Revision): Document {
     addClip(clipName.door(id), [doorChannel(pivot)]);
     all.push(doorChannel(pivot));
   }
-  for (const [id, slide] of drawers) {
-    addClip(clipName.drawer(id), [drawerChannel(slide)]);
-    all.push(drawerChannel(slide));
+  for (const id of drawers.keys()) {
+    addClip(clipName.drawer(id), drawerChannels(id));
+    all.push(...drawerChannels(id));
   }
   addClip(clipName.all, all);
 

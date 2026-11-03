@@ -66,16 +66,43 @@ describe('klip nomini topish', () => {
   });
 });
 
-describe('part__ ota-tugunni topish', () => {
-  it('M-0: har mesh o‘z part__ tuguniga olib boradi', () => {
+describe('detal tugunini uid bo‘yicha topish (kontrakt 1.2)', () => {
+  it('M-0: har detal mesh’i o‘z detaliga olib boradi; rels (__mid) detal emas', () => {
     const parts = indexParts(gltf.scene);
     expect(parts.size).toBe(22);
+    const seen = new Set<string>();
     gltf.scene.traverse((o) => {
       if (!(o as Mesh).isMesh) return;
-      const part = findPartAncestor(o)!;
-      expect(part.name).toBe(`part__${partExtras(part)!.uid}`);
+      const part = findPartAncestor(o);
+      const inRail = /__mid$/.test(o.parent?.name ?? '') || /__mid$/.test(o.name);
+      if (inRail) {
+        expect(part).toBeNull();
+        return;
+      }
+      expect(parts.get(partExtras(part!)!.uid)).toBe(part);
+      seen.add(partExtras(part!)!.uid);
     });
+    expect(seen.size).toBe(22);
     expect(findItemNode(gltf.scene)?.name).toBe('item__m0');
+  });
+
+  it('ruxsat etilmagan belgili uid (A1/B2.c) uid bo‘yicha topiladi, tugun nomi kodlangan', () => {
+    const node = indexParts(gltf.scene).get('A1/B2.c')!;
+    expect(node).toBeDefined();
+    expect(node.name).toMatch(/^part__x[a-z2-7]+$/);
+    expect(findPartAncestor(node)).toBe(node);
+  });
+
+  it('nomi part__ bo‘lmagan, lekin extras.uhub.uid bor tugun ham detal', () => {
+    const root = new Group();
+    const p = new Group();
+    p.name = 'anything';
+    p.userData = { uhub: { ...extras([]), uid: 'q1' } };
+    const child = new Object3D();
+    p.add(child);
+    root.add(p);
+    expect(indexParts(root).get('q1')).toBe(p);
+    expect(findPartAncestor(child)).toBe(p);
   });
 
   it('chuqur bola (furnitura, kontur chizig‘i) → eng yaqin part__', () => {
@@ -159,6 +186,8 @@ describe('eshik/tortma klipi (ownClipName)', () => {
     expect(ownClipName(byName('Tortma 3 tubi'))).toBe('drawer__d4__open');
     expect(ownClipName(byName('Polka'))).toBeNull();
     expect(ownClipName(null)).toBeNull();
+    const mid = gltf.scene.getObjectByName('slide__drawer__d3__mid')!;
+    expect(ownClipName(mid)).toBe('drawer__d3__open');
   });
 });
 
@@ -206,6 +235,45 @@ describe('ClipPlayer (M-0)', () => {
     expect(drawerZ()).toBeLessThan(0.45);
     step(p, 1);
     expect(p.names.every((n) => p.isOpen(n))).toBe(true);
+    p.dispose();
+  });
+
+  it('reveal ketma-ket: keyingi klip oldingisi tugagach boshlanadi', async () => {
+    const p = new ClipPlayer(gltf.scene, gltf.animations);
+    const seq = p.openSequence(['door__d1__open', 'drawer__d2__open']);
+    step(p, 0.4); // eshik yarmida, tortma hali joyida
+    expect(drawerZ()).toBeCloseTo(0);
+    step(p, 0.5); // eshik tugadi → tortma boshlanadi
+    await Promise.resolve();
+    step(p, 1);
+    await expect(seq).resolves.toBe(true);
+    expect(p.isOpen('door__d1__open') && p.isOpen('drawer__d2__open')).toBe(true);
+    expect(drawerZ()).toBeCloseTo(0.45);
+    p.dispose();
+  });
+
+  it('reveal ketma-ketligi bekor qilinsa keyingi klip boshlanmaydi', async () => {
+    const p = new ClipPlayer(gltf.scene, gltf.animations);
+    void p.playAll(-1);
+    step(p, 1);
+    let cancel = false;
+    const seq = p.openSequence(['door__d1__open', 'drawer__d3__open'], () => cancel);
+    cancel = true;
+    step(p, 1);
+    await expect(seq).resolves.toBe(false);
+    expect(p.isOpen('drawer__d3__open')).toBe(false);
+    p.dispose();
+  });
+
+  it('tortma ochilganda __mid dunyoda yurishning yarmida', () => {
+    const p = new ClipPlayer(gltf.scene, gltf.animations);
+    void p.play('drawer__d2__open', 1);
+    step(p, 1);
+    gltf.scene.updateMatrixWorld(true);
+    const mid = node('slide__drawer__d2__mid').getWorldPosition(new Vector3());
+    const slide = node('slide__drawer__d2').getWorldPosition(new Vector3());
+    expect(slide.z).toBeCloseTo(0.45);
+    expect(mid.z).toBeCloseTo(0.225);
     p.dispose();
   });
 

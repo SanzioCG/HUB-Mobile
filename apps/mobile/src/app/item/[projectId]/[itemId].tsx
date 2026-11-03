@@ -1,18 +1,25 @@
 // 3D ko'rish: WebView to'liq ekran, suzuvchi sarlavha, rejimlar, pastki panel, detal kartasi.
-import { useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+// Skanerdan kelganda — tanlov holati (kontrakt 6): eski reviziya banneri, "R5 ni ochish", skaner kartasi.
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
 import { useProject } from '../../../api/hooks';
-import { formatSize, revisionLabel, type ProjectItem } from '../../../api/types';
+import { formatSize, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
-import { PartSheet } from '../../../components/PartSheet';
+import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
-import { defaultDelivery } from '../../../config';
+import type { Delivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
+import { scanBanner, type ViewTarget } from '../../../scan/banner';
+import { ensureCached, isCached } from '../../../offline/glbCache';
+import { labelsFromParts } from '../../../offline/labels';
+import { saveLabels } from '../../../offline/store';
+import { setRecentNumber } from '../../../scan/recent';
+import { getSelection, itemKey, useSelectionListener, type ScanSelection } from '../../../scan/selection';
 import { usePairedSession } from '../../../session/SessionProvider';
-import { colors, fontSize, fonts, radius, space } from '../../../theme';
+import { colors, fontSize, fonts, hit, radius, space } from '../../../theme';
 import type { HostMessage, PartExtras, ViewerMessage, ViewMode } from '../../../viewer/bridge';
 import { ViewerView, type ViewerHandle, type ViewerPhase } from '../../../viewer/ViewerView';
 
@@ -22,40 +29,162 @@ const MODES = [
   { key: 'xray', label: uz.viewer.modeXray },
 ] as const satisfies readonly { key: ViewMode; label: string }[];
 
-export default function ItemScreen() {
-  const { projectId, itemId } = useLocalSearchParams<{ projectId: string; itemId: string }>();
-  const { state, reload } = useProject(projectId);
+const fromItem = (it: ProjectItem): ViewTarget => ({
+  itemId: it.item_id,
+  name: it.name,
+  sizeMm: it.size_mm,
+  glbUrl: it.glb_url,
+  revisionId: it.revision_id,
+  revisionLabel: it.revision_label,
+  approved: it.approved,
+});
 
+const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
+  itemId: r.item_id,
+  name: r.item_name,
+  sizeMm: null,
+  glbUrl: r.glb_url,
+  revisionId: r.revision_id,
+  revisionLabel: r.revision_label,
+  approved: null,
+});
+
+export default function ItemScreen() {
+  const { projectId, itemId, qr } = useLocalSearchParams<{
+    projectId: string;
+    itemId: string;
+    qr?: string;
+  }>();
+  const scan = qr ? getSelection(qr) : undefined;
+  if (scan)
+    return (
+      <ItemViewer projectId={String(scan.result.project_id)} initial={fromScan(scan)} initialScan={scan} />
+    );
+  return <ProjectItemScreen projectId={projectId} itemId={itemId} />;
+}
+
+function ProjectItemScreen({ projectId, itemId }: { projectId: string; itemId: string }) {
+  const { state, reload } = useProject(projectId);
   if (state.status === 'loading') return <SkeletonList rows={1} />;
   if (state.status === 'error') return <ErrorState message={errorMessage(state.error)} onRetry={reload} />;
   const item = state.data.items.find((it) => it.item_id === itemId);
   if (!item) return <ErrorState message={uz.errors.notFound} />;
-  return <ItemViewer item={item} />;
+  return <ItemViewer projectId={projectId} initial={fromItem(item)} />;
 }
 
-function ItemViewer({ item }: { item: ProjectItem }) {
+/**
+ * Oflayn kesh siyosati (batch M-A2, 3): reviziya keshda bo'lsa — B (file://), aks holda — A (onlayn) va fonda keshga.
+ * null — tekshirilmoqda.
+ */
+function useCachePolicy(revisionId: string): Delivery | null {
+  const [state, setState] = useState<{ revisionId: string; delivery: Delivery } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    isCached(revisionId).then(
+      (hit) => alive && setState({ revisionId, delivery: hit ? 'offline' : 'online' }),
+      () => alive && setState({ revisionId, delivery: 'online' }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [revisionId]);
+  return state?.revisionId === revisionId ? state.delivery : null;
+}
+
+function ItemViewer({
+  projectId,
+  initial,
+  initialScan,
+}: {
+  projectId: string;
+  initial: ViewTarget;
+  initialScan?: ScanSelection;
+}) {
   const session = usePairedSession();
+  const token = session?.token ?? '';
   const viewer = useRef<ViewerHandle>(null);
+  const [target, setTarget] = useState(initial);
+  const [scan, setScan] = useState(initialScan);
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<ViewerPhase>('preparing');
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>('solid');
   const [dims, setDims] = useState(false);
   const [clips, setClips] = useState<string[]>([]);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const [selected, setSelected] = useState<{ part: PartExtras; clip: string | null } | null>(null);
+  const [selected, setSelected] = useState<{ part: PartExtras; clip: string | null; byScan: boolean } | null>(
+    null,
+  );
+  /** Model yuklangach tanlanadigan uid (skaner / "R5 ni ochish"). */
+  const pendingUid = useRef<string | null>(initialScan?.result.part_uid ?? null);
+  /** Viewer'ga `select` yuborilgan uid — `selected` javobi skaner kartasini ochadi. */
+  const expectUid = useRef<string | null>(null);
 
   const send = (msg: HostMessage) => viewer.current?.send(msg);
   const anyOpen = open.size > 0;
+  const key = itemKey(target.itemId, target.revisionId);
+  const delivery = useCachePolicy(target.revisionId);
+
+  const selectUid = (uid: string) => {
+    expectUid.current = uid;
+    setNotice(null);
+    send({ type: 'select', uid });
+  };
+
+  // Ketma-ket skanerlash: o'sha buyum va reviziya — model qayta yuklanmaydi, faqat tanlov (kontrakt 6.6).
+  useSelectionListener((sel) => {
+    if (itemKey(sel.result.item_id, sel.result.revision_id) !== key) return;
+    setScan(sel);
+    selectUid(sel.result.part_uid);
+  });
 
   const onMessage = (m: ViewerMessage) => {
-    if (m.type === 'loaded') {
-      setClips(m.item.clips);
-      setOpen(new Set());
-    } else if (m.type === 'selected') {
-      setSelected({ part: m.extras, clip: m.clip });
-    } else if (m.type === 'deselected') {
-      setSelected(null);
+    switch (m.type) {
+      case 'progress':
+        setProgress(m.total ? Math.round((100 * m.loaded) / m.total) : null);
+        break;
+      case 'loaded':
+        setProgress(null);
+        // Oflayn: etiketkalar (QR → detal) va onlayn ochilgan reviziya fonda keshga.
+        void saveLabels(
+          labelsFromParts(m.parts, {
+            project_id: Number(projectId),
+            item_id: target.itemId,
+            item_name: target.name,
+            revision_id: target.revisionId,
+            revision_label: target.revisionLabel,
+            glb_url: target.glbUrl,
+          }),
+        );
+        if (delivery === 'online')
+          void ensureCached(target.revisionId, target.glbUrl, token).catch(() => undefined);
+        setClips(m.item.clips);
+        setOpen(new Set());
+        if (pendingUid.current) selectUid(pendingUid.current);
+        pendingUid.current = null;
+        break;
+      case 'selected': {
+        const byScan = expectUid.current === m.uid;
+        expectUid.current = null;
+        setSelected({ part: m.extras, clip: m.clip, byScan });
+        if (byScan) {
+          // reveal kliplari viewer'da ochildi — tugma holati mos bo'lsin
+          setOpen((s) => new Set([...s, ...m.extras.reveal]));
+          if (scan) void setRecentNumber(scan.qr, m.extras.number);
+        }
+        break;
+      }
+      case 'deselected':
+        setSelected(null);
+        break;
+      case 'error':
+        if (m.code === 'part_not_found') {
+          expectUid.current = null;
+          setNotice(uz.select.partNotFound); // model ochiq qoladi (kontrakt 6.7)
+        }
+        break;
     }
   };
 
@@ -74,44 +203,97 @@ function ItemViewer({ item }: { item: ProjectItem }) {
     setOpen(anyOpen ? new Set() : new Set(clips));
   };
 
+  const showAll = () => {
+    send({ type: 'showAll' });
+    setSelected(null);
+    setOpen(new Set());
+  };
+
+  const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });
+
   const retry = () => {
     setError(null);
     setSelected(null);
     setAttempt((a) => a + 1);
   };
 
+  // "R5 ni ochish": joriy reviziya; detal unda bo'lsa — o'sha uid qayta tanlanadi.
+  const openLatest = () => {
+    const r = scan?.result;
+    if (!r?.latest_glb_url || !r.latest_revision_id) return;
+    pendingUid.current = r.part_in_latest ? r.part_uid : null;
+    setSelected(null);
+    setNotice(null);
+    setPhase('preparing');
+    setTarget({
+      ...target,
+      glbUrl: r.latest_glb_url,
+      revisionId: r.latest_revision_id,
+      revisionLabel: r.latest_revision_label ?? r.latest_revision_id,
+    });
+  };
+
+  const banner = scanBanner(scan, target);
+
   return (
     <View style={styles.root}>
-      <ViewerView
-        key={attempt}
-        ref={viewer}
-        delivery={defaultDelivery}
-        glbUrl={item.glb_url}
-        revisionId={item.revision_id}
-        token={session?.token ?? ''}
-        onMessage={onMessage}
-        onPhase={(p, e) => {
-          setPhase(p);
-          if (e) setError(e);
-        }}
-      />
+      {delivery && (
+        <ViewerView
+          key={`${target.revisionId}:${attempt}`}
+          ref={viewer}
+          delivery={delivery}
+          glbUrl={target.glbUrl}
+          revisionId={target.revisionId}
+          token={token}
+          onMessage={onMessage}
+          onPhase={(p, e) => {
+            setPhase(p);
+            if (e) setError(e);
+          }}
+        />
+      )}
 
       <SafeAreaView style={styles.overlayTop} edges={['top']} pointerEvents="box-none">
         <View style={styles.header}>
           <BackButton />
           <View style={styles.headerText}>
             <T style={styles.title} numberOfLines={1}>
-              {item.name}
+              {target.name}
             </T>
             <T mono muted>
-              {formatSize(item.size_mm)}
+              {target.sizeMm
+                ? `${formatSize(target.sizeMm)} · ${target.revisionLabel}`
+                : target.revisionLabel}
             </T>
           </View>
         </View>
-        {!item.approved && (
+        {banner && (
+          <View style={styles.banner}>
+            <Dot color={colors.yellow} />
+            <View style={styles.bannerText}>
+              {banner.lines.map((l) => (
+                <T key={l} style={styles.bannerLine}>
+                  {l}
+                </T>
+              ))}
+            </View>
+            {banner.action && (
+              <Pressable onPress={openLatest} style={styles.bannerAction} accessibilityRole="button">
+                <T style={styles.bannerActionText}>{banner.action}</T>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {!banner && target.approved === false && (
           <View style={styles.badge}>
             <Dot color={colors.yellow} />
-            <T style={styles.badgeText}>{uz.viewer.unapproved(revisionLabel(item.revision_id))}</T>
+            <T style={styles.badgeText}>{uz.viewer.unapproved(target.revisionLabel)}</T>
+          </View>
+        )}
+        {notice && (
+          <View style={styles.badge}>
+            <Dot color={colors.yellow} />
+            <T style={styles.badgeText}>{notice}</T>
           </View>
         )}
         <View style={styles.modes}>
@@ -129,7 +311,13 @@ function ItemViewer({ item }: { item: ProjectItem }) {
       {(phase === 'preparing' || phase === 'loading') && (
         <View style={styles.center} pointerEvents="none">
           <Spinner />
-          <T muted>{phase === 'preparing' ? uz.viewer.preparing : uz.viewer.loading}</T>
+          <T muted>
+            {phase === 'preparing'
+              ? uz.viewer.preparing
+              : progress !== null
+                ? uz.select.loadingPercent(progress)
+                : uz.viewer.loading}
+          </T>
         </View>
       )}
       {phase === 'error' && (
@@ -148,6 +336,11 @@ function ItemViewer({ item }: { item: ProjectItem }) {
             setSelected(null);
             send({ type: 'deselect' });
           }}
+          scan={
+            selected.byScan
+              ? { location: locationOf(selected.part), onShowAll: showAll, onNext: nextScan }
+              : undefined
+          }
         />
       ) : (
         <SafeAreaView style={styles.overlayBottom} edges={['bottom']}>
@@ -190,6 +383,27 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1, paddingVertical: space.sm },
   title: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginHorizontal: space.md,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.yellow,
+  },
+  bannerText: { flex: 1, gap: space.xxs },
+  bannerLine: { fontSize: fontSize.sm },
+  bannerAction: {
+    minHeight: hit,
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.active,
+  },
+  bannerActionText: { fontFamily: fonts.bold, color: colors.white, fontSize: fontSize.sm },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',

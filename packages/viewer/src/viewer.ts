@@ -162,7 +162,15 @@ export class Viewer {
     const seq = ++this.loadSeq;
     let gltf: GLTF;
     try {
-      gltf = await this.loader.parseAsync(await fetchBytes(url, token), '');
+      // Progress xabari ko'pi bilan har 100 ms da (va oxirida) — RN ko'prigini to'ldirmaslik uchun.
+      let last = 0;
+      const bytes = await fetchBytes(url, token, (loaded, total) => {
+        const now = performance.now();
+        if (seq !== this.loadSeq || (now - last < 100 && loaded !== total)) return;
+        last = now;
+        this.bridge.post({ type: 'progress', loaded, total });
+      });
+      gltf = await this.loader.parseAsync(bytes, '');
     } catch (e) {
       if (seq === this.loadSeq) this.error('load_failed', `${url}: ${(e as Error).message}`);
       return;
@@ -232,11 +240,8 @@ export class Viewer {
     // Avvalgi tanlovdan ochiq qolgan, endi kerak bo'lmagan kliplar yopiladi.
     for (const name of m.clips.names)
       if (m.clips.isOpen(name) && !clips.includes(name)) void m.clips.play(name, -1);
-    for (const name of clips) {
-      await m.clips.play(name, 1);
-      if (seq !== this.selectSeq) return;
-    }
-    this.focus(node);
+    const done = await m.clips.openSequence(clips, () => seq !== this.selectSeq);
+    if (done) this.focus(node);
   }
 
   private showAll(m: Loaded): void {

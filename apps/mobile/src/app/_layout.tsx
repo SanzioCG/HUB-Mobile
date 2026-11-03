@@ -50,6 +50,8 @@ function Routes() {
         <Stack.Screen name="projects/index" />
         <Stack.Screen name="projects/[id]" />
         <Stack.Screen name="item/[projectId]/[itemId]" />
+        <Stack.Screen name="scan" options={{ animation: 'fade' }} />
+        <Stack.Screen name="settings" />
       </Stack.Protected>
       <Stack.Screen name="dev/spike" />
     </Stack>

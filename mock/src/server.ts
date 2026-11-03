@@ -9,6 +9,7 @@ const app = buildApp({
   store: await createStore(glbs),
   glbs,
   devToken: config.devToken,
+  signSecret: config.signSecret,
   pairCode: config.pairCode,
   qrDir: QR_DIR,
   logger: true,

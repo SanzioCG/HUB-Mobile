@@ -54,6 +54,18 @@ export class ClipPlayer {
     return new Promise((resolve) => this.pending.set(a, resolve));
   }
 
+  /**
+   * Kliplarni ro'yxat tartibida ketma-ket ochadi (kontrakt 6: `reveal`): keyingisi oldingisi tugagach boshlanadi.
+   * `cancelled()` true bo'lsa to'xtaydi (yangi tanlov keldi). Tugallanganda true.
+   */
+  async openSequence(names: readonly string[], cancelled: () => boolean = () => false): Promise<boolean> {
+    for (const name of names) {
+      await this.play(name, 1);
+      if (cancelled()) return false;
+    }
+    return true;
+  }
+
   toggle(name: string): Promise<void> {
     return this.play(name, this.isOpen(name) ? -1 : 1);
   }

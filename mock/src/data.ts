@@ -2,7 +2,7 @@
 // haqiqiy backend ham detal ro'yxatini eksport qilingan modeldan biladi.
 import { NodeIO } from '@gltf-transform/core';
 
-/** GLB ichidagi `part__` extras.uhub (kontrakt 2.1) — mock faqat kerakli maydonlarni o'qiydi. */
+/** GLB ichidagi detal extras.uhub (kontrakt 2.1) — mock faqat kerakli maydonlarni o'qiydi. */
 export interface PartInfo {
   uid: string;
   number: string;
@@ -12,8 +12,9 @@ export interface PartInfo {
 
 export interface RevisionData {
   revision_id: string;
+  /** TODO(contract-1.2): GLB `asset.extras.uhub.revision_label` (qoralama 2.4). */
+  revision_label: string;
   snapshot: string;
-  approved: boolean;
   parts: Map<string, PartInfo>;
 }
 
@@ -24,6 +25,8 @@ export interface ItemData {
   size_mm: [number, number, number];
   /** Eskidan yangiga; oxirgisi — joriy reviziya. */
   revisions: RevisionData[];
+  /** Kontrakt 1.2 (2.4): tasdiqlash holati faqat API'dan (GLB'da yo'q). */
+  approved: boolean;
 }
 
 export interface ProjectData {
@@ -58,14 +61,15 @@ export async function readRevision(bytes: Uint8Array): Promise<RevisionData> {
   if (!meta) throw new Error('GLB: asset.extras.uhub yo‘q');
   const parts = new Map<string, PartInfo>();
   for (const node of doc.getRoot().listNodes()) {
-    if (!node.getName().startsWith('part__')) continue;
-    const x = node.getExtras().uhub as PartInfo;
-    parts.set(x.uid, { uid: x.uid, number: x.number, name: x.name, qr: x.qr });
+    // Kontrakt 1.2 (2.1): detal `extras.uhub.uid` bo'yicha (tugun nomiga tayanilmaydi).
+    const x = node.getExtras().uhub as Partial<PartInfo> | undefined;
+    if (typeof x?.uid !== 'string') continue;
+    parts.set(x.uid, { uid: x.uid, number: String(x.number), name: String(x.name), qr: String(x.qr) });
   }
   return {
     revision_id: String(meta.revision_id),
+    revision_label: String(meta.revision_label ?? meta.revision_id),
     snapshot: String(meta.snapshot),
-    approved: meta.approved === true,
     parts,
   };
 }
@@ -78,7 +82,13 @@ export async function createStore(glbs: Record<string, Uint8Array>): Promise<Sto
     if (!bytes) throw new Error(`fixture yo'q: ${id}.glb (npm run fixtures)`);
     revisions.push(await readRevision(bytes));
   }
-  const m0: ItemData = { item_id: 'm0', name: 'M-0 namuna', size_mm: [600, 900, 560], revisions };
+  const m0: ItemData = {
+    item_id: 'm0',
+    name: 'M-0 namuna',
+    size_mm: [600, 900, 560],
+    revisions,
+    approved: false,
+  };
   return {
     user: USER,
     company: COMPANY,

@@ -7,7 +7,7 @@ import { Button, Segmented, T } from '../../components/ui';
 import { defaultApiUrl, defaultDelivery, type Delivery } from '../../config';
 import { uz } from '../../i18n/uz';
 import { colors, fontSize, fonts, hit, radius, space } from '../../theme';
-import { clearCache } from '../../viewer/delivery';
+import { clearCache } from '../../offline/glbCache';
 import { ViewerView, type ViewerPhase, type ViewerTimings } from '../../viewer/ViewerView';
 
 const ms = (v: number | null) => (v === null ? uz.common.dash : `${v} ms`);
@@ -52,7 +52,7 @@ export default function SpikeScreen() {
         </View>
         <View style={styles.row}>
           <Button label={uz.spike.load} primary onPress={start} style={styles.grow} />
-          <Button label={uz.spike.clear} onPress={clearCache} />
+          <Button label={uz.spike.clear} onPress={() => void clearCache()} />
         </View>
         <T mono style={styles.metrics}>
           {[

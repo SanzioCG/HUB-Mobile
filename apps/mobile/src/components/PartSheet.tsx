@@ -7,6 +7,13 @@ import { colors, duration, fontSize, fonts, hit, radius, size, space } from '../
 import type { PartExtras } from '../viewer/bridge';
 import { Button, T } from './ui';
 
+/** Skaner tanlovi kartasi (kontrakt 6, maket): joylashuv, "Hammasini ko'rsatish", "Keyingisi". */
+export interface ScanCardActions {
+  location: string | null;
+  onShowAll: () => void;
+  onNext: () => void;
+}
+
 interface Props {
   part: PartExtras;
   /** Detal joylashgan eshik/tortma klipi (viewer `selected.clip`); bo'lmasa tugma yo'q. */
@@ -14,9 +21,21 @@ interface Props {
   clipOpen: boolean;
   onToggle: (clip: string) => void;
   onClose: () => void;
+  /** Berilsa — skaner varianti. */
+  scan?: ScanCardActions;
 }
 
-export function PartSheet({ part, clip, clipOpen, onToggle, onClose }: Props) {
+/**
+ * Detal joylashuvi `reveal` kliplaridan (eshik orqasida / tortma ichida).
+ * TODO(contract): aniq joylashuv ("2-tortma ichida") kontraktda yo'q — tartib raqami bilinmaydi.
+ */
+export function locationOf(part: PartExtras): string | null {
+  if (part.reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
+  if (part.reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
+  return null;
+}
+
+export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan }: Props) {
   const [slide] = useState(() => new Animated.Value(1));
   useEffect(() => {
     slide.setValue(1);
@@ -37,6 +56,7 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose }: Props) {
             № {part.number}
           </T>
           <T style={styles.name}>{part.name}</T>
+          {scan?.location && <T muted>{scan.location}</T>}
         </View>
         <Pressable
           onPress={onClose}
@@ -48,6 +68,19 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose }: Props) {
           <Ionicons name="close" size={size.icon} color={colors.text} />
         </Pressable>
       </View>
+
+      {scan && (
+        <View style={styles.actions}>
+          <Button label={uz.select.showAll} onPress={scan.onShowAll} style={styles.grow} />
+          <Button
+            label={uz.select.next}
+            primary
+            onPress={scan.onNext}
+            style={styles.grow}
+            right={<Ionicons name="scan" size={size.icon} color={colors.white} />}
+          />
+        </View>
+      )}
 
       <Row label={uz.part.size}>
         <T mono>{part.size_mm.join(' × ')} mm</T>
@@ -122,4 +155,6 @@ const styles = StyleSheet.create({
   label: { width: 88 },
   value: { flex: 1, gap: space.xxs },
   toggle: { marginTop: space.xs },
+  actions: { flexDirection: 'row', gap: space.sm },
+  grow: { flex: 1 },
 });

@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { loadProject, loadProjects, saveProject, saveProjects } from '../offline/store';
 import { useSession } from '../session/SessionProvider';
+import { ApiError } from './errors';
 import { latestUpdate, mergeProjects, sortByUpdated } from './projects';
 import type { ProjectDetail, ProjectSummary } from './types';
 
 export type Loadable<T> =
-  { status: 'loading' } | { status: 'error'; error: unknown } | { status: 'ok'; data: T };
+  | { status: 'loading' }
+  | { status: 'error'; error: unknown }
+  /** `offline` — server yetmadi, oxirgi saqlangan javob ko'rsatilmoqda. */
+  | { status: 'ok'; data: T; offline?: boolean };
 
-/** Loyihalar ro'yxati; pull-to-refresh `updated_since` bilan faqat o'zgarganlarni oladi. */
+/** Server yetmadi (tarmoq/timeout) — keshdagi javob ko'rsatiladi. HTTP xatosi (401, 404…) — kesh emas. */
+export const isOfflineError = (e: unknown) =>
+  e instanceof ApiError && (e.kind === 'network' || e.kind === 'timeout');
+
+/** Loyihalar ro'yxati; pull-to-refresh `updated_since` bilan faqat o'zgarganlarni oladi. Oflaynda — oxirgi javob. */
 export function useProjectList() {
   const { client } = useSession();
   const [state, setState] = useState<Loadable<ProjectSummary[]>>({ status: 'loading' });
@@ -23,10 +32,17 @@ export function useProjectList() {
           data.current = list;
           setState({ status: 'ok', data: list });
           setOnline(true);
+          void saveProjects(list);
         },
-        (error: unknown) => {
-          setState({ status: 'error', error });
+        async (error: unknown) => {
           setOnline(false);
+          const cached = isOfflineError(error) ? await loadProjects() : null;
+          if (cached) {
+            data.current = cached;
+            setState({ status: 'ok', data: cached, offline: true });
+          } else {
+            setState({ status: 'error', error });
+          }
         },
       ),
     [client],
@@ -46,6 +62,7 @@ export function useProjectList() {
       data.current = merged;
       setState({ status: 'ok', data: merged });
       setOnline(true);
+      void saveProjects(merged);
     } catch {
       setOnline(false); // ro'yxat saqlanadi, nuqta sariq
     } finally {
@@ -62,7 +79,7 @@ export function useProjectList() {
 
 const projectCache = new Map<string, ProjectDetail>();
 
-/** Loyiha tafsiloti; keshdagi nusxa darhol ko'rsatiladi va fonda yangilanadi. */
+/** Loyiha tafsiloti; xotiradagi nusxa darhol ko'rsatiladi va fonda yangilanadi. Oflaynda — oxirgi saqlangan javob. */
 export function useProject(id: string) {
   const { client } = useSession();
   const [state, setState] = useState<Loadable<ProjectDetail>>(() => {
@@ -76,10 +93,12 @@ export function useProject(id: string) {
         (p) => {
           projectCache.set(id, p);
           setState({ status: 'ok', data: p });
+          void saveProject(p);
         },
-        (error: unknown) => {
-          // keshdagi nusxa bo'lsa, u ko'rinishda qoladi
-          if (!projectCache.has(id)) setState({ status: 'error', error });
+        async (error: unknown) => {
+          const stored = isOfflineError(error) ? (projectCache.get(id) ?? (await loadProject(id))) : null;
+          if (stored) setState({ status: 'ok', data: stored, offline: true });
+          else if (!projectCache.has(id)) setState({ status: 'error', error });
         },
       ),
     [client, id],

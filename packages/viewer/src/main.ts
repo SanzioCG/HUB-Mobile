@@ -107,6 +107,8 @@ function devPanel(
       for (const p of m.parts) select.append(new Option(`${p.number}. ${p.name}`, p.uid));
     } else if (m.type === 'selected') {
       showCard(m.extras);
+    } else if (m.type === 'progress') {
+      status.textContent = m.total ? `${Math.round((100 * m.loaded) / m.total)}%` : `${m.loaded} B`;
     } else if (m.type === 'deselected') {
       card.replaceChildren();
     } else if (m.type === 'error') {

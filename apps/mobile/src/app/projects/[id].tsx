@@ -1,32 +1,53 @@
 // Loyiha: nom, meta, tasdiqlanmagan buyum eslatmasi, buyumlar ro'yxati.
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../api/errors';
 import { useProject } from '../../api/hooks';
-import {
-  formatSize,
-  revisionLabel,
-  statusLabel,
-  type ProjectDetail,
-  type ProjectItem,
-} from '../../api/types';
+import { formatSize, statusLabel, type ProjectDetail, type ProjectItem } from '../../api/types';
 import { Header, StatusLine, Thumb } from '../../components/parts';
 import { Dot, EmptyState, ErrorState, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
 import { colors, hit, radius, space } from '../../theme';
 import { relativeTime } from '../../utils/time';
+import { cachedEntries } from '../../offline/glbCache';
+import { formatMb, type CacheEntry } from '../../offline/policy';
+
+/** Keshdagi reviziyalar; ekranga qaytilganda yangilanadi. */
+function useCachedRevisions(): Record<string, CacheEntry> {
+  const [entries, setEntries] = useState<Record<string, CacheEntry>>({});
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void cachedEntries().then((e) => alive && setEntries(e));
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+  return entries;
+}
 
 export default function ProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, reload } = useProject(id);
   const p = state.status === 'ok' ? state.data : null;
+  const offline = state.status === 'ok' && state.offline === true;
+  const cached = useCachedRevisions();
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <Header
         title={p ? `№ ${p.number} · ${p.name}` : uz.common.loading}
-        meta={p && <T muted>{meta(p)}</T>}
+        meta={
+          p && (
+            <T muted>
+              {offline ? `${uz.projects.offline} · ` : ''}
+              {meta(p)}
+            </T>
+          )
+        }
       />
       {state.status === 'loading' && <SkeletonList rows={3} />}
       {state.status === 'error' && <ErrorState message={errorMessage(state.error)} onRetry={reload} />}
@@ -43,7 +64,7 @@ export default function ProjectScreen() {
               </View>
             ) : undefined
           }
-          renderItem={({ item }) => <ItemRow projectId={id} item={item} />}
+          renderItem={({ item }) => <ItemRow projectId={id} item={item} cached={cached[item.revision_id]} />}
           ListEmptyComponent={<EmptyState text={uz.project.empty} />}
         />
       )}
@@ -54,8 +75,8 @@ export default function ProjectScreen() {
 const meta = (p: ProjectDetail) =>
   `${statusLabel(p.status)} · ${uz.projects.items(p.items_count)} · ${relativeTime(p.updated_at)}`;
 
-function ItemRow({ projectId, item }: { projectId: string; item: ProjectItem }) {
-  const rev = revisionLabel(item.revision_id);
+function ItemRow({ projectId, item, cached }: { projectId: string; item: ProjectItem; cached?: CacheEntry }) {
+  const rev = item.revision_label;
   return (
     <Pressable
       onPress={() => router.push(`/item/${projectId}/${item.item_id}`)}
@@ -71,6 +92,11 @@ function ItemRow({ projectId, item }: { projectId: string; item: ProjectItem }) 
           tone={item.approved ? 'green' : 'yellow'}
           label={`${item.approved ? uz.status.approved : uz.status.unapproved} · ${rev}`}
         />
+        {cached && (
+          <T muted mono>
+            {uz.project.offlineAvailable(formatMb(cached.bytes))}
+          </T>
+        )}
       </View>
     </Pressable>
   );
