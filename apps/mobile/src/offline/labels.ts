@@ -55,9 +55,11 @@ export function offlineResolve(qr: string, data: OfflineData): ResolveResponse |
   if (!rec) return null;
 
   const latest = data.projects[String(rec.project_id)]?.items.find((it) => it.item_id === rec.item_id);
-  if (!latest || latest.revision_id === rec.revision_id) {
+  // Kontrakt 2.4: `approved` faqat API'dan — oflaynda keshlangan javob bo'yicha; eski reviziya uchun noma'lum → false.
+  if (!latest || latest.revision_id === rec.revision_id || !latest.glb_url) {
     return {
       ...rec,
+      approved: latest?.revision_id === rec.revision_id ? latest.approved : false,
       is_latest: true,
       part_in_latest: true,
       latest_revision_id: rec.revision_id,
@@ -68,6 +70,7 @@ export function offlineResolve(qr: string, data: OfflineData): ResolveResponse |
   const latestLabels = Object.values(data.labels).filter((l) => l.revision_id === latest.revision_id);
   return {
     ...rec,
+    approved: false,
     is_latest: false,
     part_in_latest: latestLabels.length ? latestLabels.some((l) => l.part_uid === rec.part_uid) : true,
     latest_revision_id: latest.revision_id,

@@ -47,12 +47,12 @@ function Routes() {
         <Stack.Screen name="pair" />
       </Stack.Protected>
       <Stack.Protected guard={paired}>
-        <Stack.Screen name="projects/index" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="projects/[id]" />
         <Stack.Screen name="item/[projectId]/[itemId]" />
-        <Stack.Screen name="scan" options={{ animation: 'fade' }} />
-        <Stack.Screen name="settings" />
       </Stack.Protected>
+      {/* Skaner juftlanmagan holatda ham: "QR bilan ulash" (kontrakt 4.1). */}
+      <Stack.Screen name="scan" options={{ animation: 'fade' }} />
       <Stack.Screen name="dev/spike" />
     </Stack>
   );

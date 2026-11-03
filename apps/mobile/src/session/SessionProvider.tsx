@@ -19,7 +19,8 @@ interface SessionValue {
   apiUrl: string | null;
   setApiUrl(url: string): Promise<void>;
   client: ApiClient;
-  pair(code: string): Promise<void>;
+  /** `server` berilsa (juftlash QR'i, kontrakt 4.1) — avval shu manzil saqlanadi. Bir vaqtda bitta server. */
+  pair(code: string, server?: string): Promise<void>;
   unpair(): Promise<void>;
 }
 
@@ -45,8 +46,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const pair = useCallback(
-    async (code: string) => {
-      const res = await createClient({ baseUrl: apiUrl }).pair(code);
+    async (code: string, server?: string) => {
+      const base = server ? trimSlash(server) : apiUrl;
+      const res = await createClient({ baseUrl: base }).pair(code);
+      if (server && base) {
+        await saveApiUrl(base);
+        setApiUrlState(base);
+      }
       const session = { token: res.device_token, user: res.user, company: res.company };
       await saveSession(session);
       setState({ status: 'paired', session });

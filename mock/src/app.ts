@@ -1,4 +1,4 @@
-// Mock mobil API — kontrakt uhub-mobile/1.2 (QORALAMA: docs/contract/uhub-mobile-1.2-draft.md), 4-bo'lim.
+// Mock mobil API — kontrakt uhub-mobile/1.3 (docs/contract/uhub-mobile-1.3.md), 4-bo'lim.
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -20,18 +20,29 @@ export interface AppOptions {
   now?: () => number;
   /** QR PNG'lar katalogi (faqat /dev/qr uchun). */
   qrDir?: string;
+  /** Juftlash QR matni (kontrakt 4.1) — /dev/qr sahifasining tepasida. */
+  pairQr?: string;
   logger?: boolean;
 }
+
+/** Mock: muddati o'tgan / ishlatilgan juftlash kodi (410 pair_code_expired sinovi uchun). */
+export const EXPIRED_PAIR_CODES = ['111111'];
+/** Kontrakt 4: juftlashda ko'p urinish → 429. Mock: 1 daqiqada 5 tadan ko'p muvaffaqiyatsiz urinish (IP bo'yicha). */
+export const PAIR_RATE = { windowMs: 60_000, maxFailures: 5 };
+
+/** Kontrakt 4.1: juftlash QR matni. */
+export const pairQrText = (server: string, code: string) =>
+  `uhub-pair:1?server=${encodeURIComponent(server)}&code=${encodeURIComponent(code)}`;
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 /** QR: `uhub:p/<project_number>/<part_uid>/<snapshot>`. uid'da `/` bo'lishi mumkin (snapshot'da yo'q). */
 const QR_RE = /^uhub:p\/(\d+)\/(.+)\/([^/]+)$/;
-/** TODO(contract-1.2): `ar-link` muddati 10 daqiqa (qoralama 4). */
+/** Kontrakt 4: `ar-link` muddati 10 daqiqa. */
 export const AR_LINK_TTL_MS = 10 * 60 * 1000;
 const AR_FORMATS = ['usdz', 'glb'] as const;
 type ArFormat = (typeof AR_FORMATS)[number];
 
-/** Kontrakt 1.2 (4): xato tanasi har doim `{ error, message }`. TODO(contract-1.2): qoralamadan. */
+/** Kontrakt 4: xato tanasi har doim `{ error, message }` (o'zbekcha `message`). */
 const fail = (reply: FastifyReply, status: number, error: string, message: string) =>
   reply.code(status).send({ error, message });
 
@@ -42,6 +53,10 @@ export function buildApp(opts: AppOptions) {
   const now = opts.now ?? Date.now;
   const app = Fastify({ logger: opts.logger ?? false });
   const tokens = new Set<string>([opts.devToken]);
+  /** Kontrakt 4: uzilgan qurilma tokeni → `401 token_revoked` (noma'lum token — `token_invalid`). */
+  const revoked = new Set<string>();
+  /** IP → muvaffaqiyatsiz juftlash urinishlari vaqtlari. */
+  const pairFailures = new Map<string, number[]>();
 
   app.register(cors, {
     origin: true,
@@ -59,7 +74,12 @@ export function buildApp(opts: AppOptions) {
     if (url.startsWith('/files/ar/')) return;
     if (!url.startsWith('/mobile/') && !url.startsWith('/files/')) return;
     const token = bearer(req);
-    if (!token || !tokens.has(token)) return fail(reply, 401, 'unauthorized', 'Qurilma tokeni yaroqsiz');
+    if (token && revoked.has(token)) {
+      // Kontrakt 4: takroriy DELETE /mobile/device ham 204.
+      if (req.method === 'DELETE' && url === '/mobile/device') return reply.code(204).send();
+      return fail(reply, 401, 'token_revoked', 'Qurilma uzilgan. Qayta ulang.');
+    }
+    if (!token || !tokens.has(token)) return fail(reply, 401, 'token_invalid', 'Qurilma tokeni yaroqsiz');
   });
 
   const base = (req: FastifyRequest) => `${req.protocol}://${req.host}`;
@@ -75,15 +95,29 @@ export function buildApp(opts: AppOptions) {
     status: p.status,
     items_count: p.items.length,
     updated_at: p.updated_at,
-    thumb_url: null, // TODO(contract): mock'da eskiz yo'q; null ruxsat etiladimi — 1.2 da ham [OCHIQ].
+    thumb_url: null, // kontrakt 4: null bo'la oladi (mock'da eskiz yo'q)
   });
 
   app.post<{ Body: { code?: unknown } | null }>('/mobile/pair', async (req, reply) => {
-    if (req.body?.code !== opts.pairCode)
-      return fail(reply, 401, 'invalid_code', 'Kod noto‘g‘ri yoki muddati o‘tgan');
+    const t = now();
+    const recent = (pairFailures.get(req.ip) ?? []).filter((x) => t - x < PAIR_RATE.windowMs);
+    if (recent.length >= PAIR_RATE.maxFailures)
+      return fail(reply, 429, 'rate_limited', 'Juda ko‘p urinish. Bir daqiqadan keyin qayta urinib ko‘ring.');
+    const code = req.body?.code;
+    if (code !== opts.pairCode) {
+      pairFailures.set(req.ip, [...recent, t]);
+      if (typeof code === 'string' && EXPIRED_PAIR_CODES.includes(code))
+        return fail(
+          reply,
+          410,
+          'pair_code_expired',
+          'Kod muddati o‘tgan yoki ishlatilgan. Desktopda yangi kod oling.',
+        );
+      // TODO(contract): noto'g'ri juftlash kodi uchun `error` kodi kontraktda yo'q (4-bo'lim jadvali) — `invalid_code`.
+      return fail(reply, 401, 'invalid_code', 'Kod noto‘g‘ri.');
+    }
     const token = randomBytes(24).toString('hex');
     tokens.add(token);
-    // TODO(contract): `user` va `company` obyektlarining maydonlari — 1.2 da ham [OCHIQ].
     return { device_token: token, user: store.user, company: store.company };
   });
 
@@ -92,7 +126,7 @@ export function buildApp(opts: AppOptions) {
     const since = req.query.updated_since;
     if (since !== undefined && since !== '') {
       const t = Date.parse(since);
-      if (Number.isNaN(t)) return fail(reply, 400, 'bad_updated_since', 'updated_since ISO-8601 emas');
+      if (Number.isNaN(t)) return fail(reply, 400, 'bad_request', 'updated_since ISO-8601 emas');
       list = list.filter((p) => Date.parse(p.updated_at) > t);
     }
     return list.map(projectSummary);
@@ -100,10 +134,14 @@ export function buildApp(opts: AppOptions) {
 
   app.get<{ Params: { id: string } }>('/mobile/projects/:id', async (req, reply) => {
     const p = store.projects.find((x) => String(x.id) === req.params.id);
-    // Boshqa kompaniya loyihasi — 404 (kontrakt 1.2, 4).
+    // Boshqa kompaniya loyihasi — 404 (kontrakt 4).
     if (!p || !own(p)) return notFound(reply, 'Loyiha topilmadi');
     return {
-      ...projectSummary(p),
+      id: p.id,
+      number: p.number,
+      name: p.name,
+      status: p.status,
+      updated_at: p.updated_at,
       items: p.items.map((it) => {
         const rev = latest(it);
         return {
@@ -111,11 +149,13 @@ export function buildApp(opts: AppOptions) {
           name: it.name,
           revision_id: rev.revision_id,
           revision_label: rev.revision_label,
-          size_mm: it.size_mm,
-          glb_url: glbUrl(req, rev.revision_id),
-          usdz_url: null, // TODO(contract): USDZ V-1b da; null ruxsat etiladimi — 1.2 da ham [OCHIQ].
-          thumb_url: null,
           approved: it.approved,
+          size_mm: it.size_mm,
+          export_status: it.export_status,
+          // Kontrakt 4: glb_url faqat export_status ≠ ready bo'lsa null.
+          glb_url: it.export_status === 'ready' ? glbUrl(req, rev.revision_id) : null,
+          usdz_url: null, // V-1b gacha doim null
+          thumb_url: null,
         };
       }),
     };
@@ -123,20 +163,20 @@ export function buildApp(opts: AppOptions) {
 
   app.get<{ Querystring: { qr?: string } }>('/mobile/resolve', async (req, reply) => {
     const qr = req.query.qr ?? '';
-    // TODO(contract): `uhub:` bilan boshlanmaydigan QR uchun status/kod — 1.2 da ham [OCHIQ]; 400 not_uhub.
-    if (!qr.startsWith('uhub:')) return fail(reply, 400, 'not_uhub', 'Bu U-HUB etiketkasi emas');
+    // Kontrakt 4: `uhub:` bo'lmagan QR'ni ilova yubormaydi; kelsa — oddiy noto'g'ri parametr.
+    if (!qr.startsWith('uhub:')) return fail(reply, 400, 'bad_request', 'Bu U-HUB etiketkasi emas');
     const m = QR_RE.exec(qr);
-    if (!m) return notFound(reply, 'Etiketka topilmadi');
+    if (!m) return fail(reply, 400, 'bad_qr', 'Etiketka o‘qilmadi');
     const [, numStr, uid, snapshot] = m as unknown as [string, string, string, string];
     const project = store.projects.find((p) => p.number === Number(numStr));
-    // Boshqa kompaniya etiketkasi ham 404 (kontrakt 1.2, 4: mavjudligi oshkor bo'lmaydi).
-    if (!project || !own(project)) return notFound(reply, 'Etiketka topilmadi');
+    // Boshqa kompaniya etiketkasi ham 404 (kontrakt 4: mavjudligi oshkor bo'lmaydi).
+    if (!project || !own(project)) return notFound(reply, 'Bu detal topilmadi');
     for (const item of project.items) {
       const rev = item.revisions.find((r) => r.snapshot === snapshot);
       const part = rev?.parts.get(uid);
       if (!rev || !part) continue;
       const cur = latest(item);
-      // TODO(contract): `is_latest=true` da `latest_*` (null yoki o'sha qiymatlar) — 1.2 da ham [OCHIQ]; o'sha qiymatlar.
+      // Kontrakt 4: latest_* doim to'ldiriladi; is_latest=true bo'lsa o'sha qiymatlar.
       return {
         project_id: project.id,
         project_number: project.number,
@@ -144,6 +184,7 @@ export function buildApp(opts: AppOptions) {
         item_name: item.name,
         revision_id: rev.revision_id,
         revision_label: rev.revision_label,
+        approved: item.approved,
         part_uid: uid,
         part_name: part.name,
         glb_url: glbUrl(req, rev.revision_id),
@@ -154,7 +195,7 @@ export function buildApp(opts: AppOptions) {
         latest_glb_url: glbUrl(req, cur.revision_id),
       };
     }
-    return notFound(reply, 'Etiketka topilmadi');
+    return notFound(reply, 'Bu detal topilmadi');
   });
 
   // ---------- AR imzolangan havola (kontrakt 1.2, 3–4) ----------
@@ -162,7 +203,7 @@ export function buildApp(opts: AppOptions) {
   const sign = (file: string, exp: number) =>
     createHmac('sha256', opts.signSecret).update(`${file}|${exp}`).digest('hex');
 
-  // TODO(contract-1.2): so'rov tanasi `{item_id, revision_id, format}` — qoralamada [TASDIQ].
+  // Kontrakt 4: so'rov tanasi `{item_id, revision_id, format: "glb"|"usdz"}`.
   app.post<{ Body: { item_id?: unknown; revision_id?: unknown; format?: unknown } | null }>(
     '/mobile/ar-link',
     async (req, reply) => {
@@ -237,8 +278,10 @@ export function buildApp(opts: AppOptions) {
   });
 
   app.delete('/mobile/device', async (req, reply) => {
-    tokens.delete(bearer(req)!);
-    // TODO(contract): javob tanasi — 1.2 da ham [OCHIQ]; 204 No Content.
+    // Kontrakt 4: 204, tanasiz; keyin token → 401 token_revoked (takroriy chaqiruv ham 204 — onRequest).
+    const token = bearer(req)!;
+    tokens.delete(token);
+    revoked.add(token);
     return reply.code(204).send();
   });
 
@@ -254,10 +297,17 @@ export function buildApp(opts: AppOptions) {
 
   // Faqat mock: etiketka QR'larini ekrandan skanerlash uchun (token talab qilinmaydi).
   app.get('/dev/qr', async (_req, reply) => {
-    const files = opts.qrDir ? await listPngs(opts.qrDir) : [];
-    const html = files
-      .map((f) => `<figure><img src="/dev/qr/${f}" width="320"><figcaption>${f}</figcaption></figure>`)
-      .join('\n');
+    const files = (opts.qrDir ? await listPngs(opts.qrDir) : []).filter((f) => f !== 'pair.png');
+    // Juftlash QR'i (kontrakt 4.1) — birinchi: ilovada "QR bilan ulash".
+    const pair = opts.pairQr
+      ? `<figure style="border:2px solid #3988FF;padding:12px;display:inline-block"><img src="/dev/qr/pair.png" width="360">` +
+        `<figcaption><b>Juftlash QR</b><br><code>${esc(opts.pairQr)}</code></figcaption></figure><hr>`
+      : '';
+    const html =
+      pair +
+      files
+        .map((f) => `<figure><img src="/dev/qr/${f}" width="320"><figcaption>${f}</figcaption></figure>`)
+        .join('\n');
     return reply
       .type('text/html; charset=utf-8')
       .send(

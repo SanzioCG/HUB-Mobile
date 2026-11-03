@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
   input: {
     minHeight: hit,
-    backgroundColor: colors.panel2,
+    backgroundColor: colors.surface,
     borderRadius: radius.sm,
     paddingHorizontal: space.md,
     color: colors.text,

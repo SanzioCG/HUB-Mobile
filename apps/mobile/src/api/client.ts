@@ -2,6 +2,7 @@
 import { API_TIMEOUT_MS } from '../config';
 import { ApiError } from './errors';
 import {
+  normalizeStatus,
   parseErrorBody,
   type ArFormat,
   type ArLinkResponse,
@@ -76,12 +77,17 @@ export function createClient(opts: ClientOptions) {
 
   return {
     pair: (code: string) => request<PairResponse>('POST', '/mobile/pair', { body: { code }, auth: false }),
+    // Kontrakt 4: noma'lum `status` — `draft` deb ko'rsatiladi.
     projects: (updatedSince?: string) =>
       request<ProjectSummary[]>(
         'GET',
         `/mobile/projects${updatedSince ? `?updated_since=${q(updatedSince)}` : ''}`,
-      ),
-    project: (id: number | string) => request<ProjectDetail>('GET', `/mobile/projects/${q(String(id))}`),
+      ).then((list) => list.map((p) => ({ ...p, status: normalizeStatus(p.status) }))),
+    project: (id: number | string) =>
+      request<ProjectDetail>('GET', `/mobile/projects/${q(String(id))}`).then((p) => ({
+        ...p,
+        status: normalizeStatus(p.status),
+      })),
     resolve: (qr: string) => request<ResolveResponse>('GET', `/mobile/resolve?qr=${q(qr)}`),
     unpairDevice: () => request<void>('DELETE', '/mobile/device'),
     arLink: (itemId: string, revisionId: string, format: ArFormat) =>

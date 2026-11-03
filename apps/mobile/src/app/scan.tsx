@@ -1,12 +1,15 @@
-// QR skaner (kontrakt 6): qorong'i kamera, markazda accent ramka, chiroq, yo'riqnoma, "Oxirgi skanerlar".
+// QR skaner (kontrakt 6, 4.1): qorong'i kamera, markazda accent ramka, chiroq, yo'riqnoma, "Oxirgi skanerlar".
+// Prefikslar: `uhub:` — etiketka, `uhub-pair:` — juftlash (server manzili bilan), boshqasi — "Bu U-HUB etiketkasi emas".
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Centered, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
+import { errorMessage } from '../api/errors';
+import { classifyQr, parsePairQr, type PairQr } from '../scan/pairQr';
 import { useSession } from '../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
 import { hapticError, hapticSuccess } from '../scan/haptics';
@@ -22,7 +25,8 @@ const CORNER_W = 4;
 export default function ScanScreen() {
   /** `from` — skaner ochilgan 3D ekrandagi buyum kaliti (itemKey). */
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const { client } = useSession();
+  const { client, state, pair, unpair } = useSession();
+  const paired = state.status === 'paired';
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -48,10 +52,45 @@ export default function ScanScreen() {
     });
   };
 
+  /** Juftlash QR'i: server manzili saqlanadi va pair; juftlangan bo'lsa — avval tasdiq, keyin eski qurilma uziladi. */
+  const pairWith = async (p: PairQr) => {
+    try {
+      if (paired) await unpair();
+      await pair(p.code, p.server);
+      hapticSuccess();
+      router.replace('/projects');
+    } catch (e) {
+      hapticError();
+      setMessage(errorMessage(e));
+    }
+  };
+
+  const onPairQr = (data: string) =>
+    new Promise<void>((resolve) => {
+      const p = parsePairQr(data);
+      if (!p) {
+        hapticError();
+        setMessage(uz.pair.badPairQr);
+        return resolve();
+      }
+      if (!paired) return void pairWith(p).finally(resolve);
+      Alert.alert(uz.pair.otherServerTitle, uz.pair.otherServerText(p.server), [
+        { text: uz.pair.cancel, style: 'cancel', onPress: () => resolve() },
+        { text: uz.pair.otherServerOk, onPress: () => void pairWith(p).finally(resolve) },
+      ]);
+    });
+
   const onScanned = async ({ data }: BarcodeScanningResult) => {
     if (busy || !debounce(data)) return;
     setBusy(true);
     try {
+      const kind = classifyQr(data);
+      if (kind === 'pair') return await onPairQr(data);
+      if (kind === 'label' && !paired) {
+        hapticError();
+        setMessage(uz.pair.needPair);
+        return;
+      }
       const res = await resolveLabel(client, data);
       if (!res.ok) {
         hapticError();
@@ -226,7 +265,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconActive: { backgroundColor: colors.active },
+  iconActive: { backgroundColor: colors.border },
   pressed: { opacity: 0.7 },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: space.lg },
   frame: { width: FRAME, height: FRAME },

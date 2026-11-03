@@ -5,6 +5,9 @@ export interface CacheEntry {
   bytes: number;
   /** Oxirgi ochilgan/yuklangan vaqt (ms). */
   lastUsed: number;
+  /** Offline tabi uchun: buyum nomi va R-belgi (bo'lmasa — revision_id ko'rsatiladi). */
+  name?: string;
+  revisionLabel?: string;
 }
 
 export interface CacheLimits {

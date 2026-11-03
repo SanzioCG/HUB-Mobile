@@ -1,18 +1,22 @@
-// U-HUB qorong'i uslubi (kontrakt 1-bo'lim + M-A1 tokenlari). Komponentlarda rang va o'lcham faqat shu yerdan.
+// U-HUB mobil dizayn palitrasi (docs/design/mobile-design-concept.png, M-A4). Komponentlarda rang va o'lcham faqat shu yerdan.
 
 export const colors = {
-  bg: '#111214',
-  panel: '#191A1D',
-  panel2: '#222428',
-  active: '#2C2F35',
+  /** Asosiy tugmalar, faol holat, tanlov konturi. */
   accent: '#3988FF',
-  text: '#E6E8EB',
-  textMuted: '#8B929B',
+  /** Faqat brend elementlari (logo, splash, onboarding). */
+  accentSecondary: '#6A5CFF',
+  accentTertiary: '#00C2FF',
+  bg: '#0B0D0F',
+  panel: '#15181C',
+  surface: '#22262B',
+  border: '#333A41',
+  text: '#F3F5F6',
+  /** Ikkinchi matn: fon 7.6:1, panel 7.0:1, surface 6.0:1 (WCAG AA). */
+  textMuted: '#9AA3AD',
+  /** Holat nuqtalari: panel ustida sariq 10.6:1, yashil 8.0:1. */
   yellow: '#F2C14E',
   green: '#4CC38A',
   white: '#FFFFFF',
-  /** Thumb bo'lmaganda joy (grafit) va skeleton — panel2. */
-  graphite: '#222428',
   scrim: 'rgba(0,0,0,0.5)',
 } as const;
 

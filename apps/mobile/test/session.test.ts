@@ -12,7 +12,11 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
-const SESSION = { token: 'tok', user: { id: 7, name: 'Dizayner' }, company: { id: 1, name: 'Namuna' } };
+const SESSION = {
+  token: 'tok',
+  user: { id: 7, name: 'Dizayner', role: 'designer' as const },
+  company: { id: 1, name: 'Namuna' },
+};
 
 const respond401 = (async () =>
   new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })) as unknown as typeof fetch;

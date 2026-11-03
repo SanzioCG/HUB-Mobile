@@ -1,5 +1,8 @@
 // Materiallar: rejim (Solid / Qirralar / X-ray), QR tanlovidagi shaffoflik va tanlangan detal konturi.
+// Kontrakt 1.3 / integratsiya 4: shaffoflik uchun material NUSXASI olinadi — asl material hech qachon o'zgarmaydi
+// (bir material ko'p detalda ishlatiladi). Kontur butun detal tuguniga (primitive'larga emas).
 import {
+  BoxHelper,
   EdgesGeometry,
   LineBasicMaterial,
   LineSegments,
@@ -15,22 +18,21 @@ const XRAY_OPACITY = 0.25;
 interface MeshState {
   orig: Material | Material[];
   edges?: LineSegments;
-  outline?: LineSegments;
 }
 
 const edgeMat = new LineBasicMaterial({ color: 0x1b1d21 });
 const edgeMatXray = new LineBasicMaterial({ color: 0x9aa3b2, transparent: true, opacity: 0.6 });
-const outlineMat = new LineBasicMaterial({ color: ACCENT, depthTest: false, transparent: true });
 
+/** Asl material → shaffof nusxa (opacity bo'yicha keshlanadi). Asl material o'zgartirilmaydi. */
 const fadeCache = new WeakMap<Material, Map<number, Material>>();
-function faded(m: Material, opacity: number): Material {
+export function faded(m: Material, opacity: number): Material {
   let byOpacity = fadeCache.get(m);
   if (!byOpacity) fadeCache.set(m, (byOpacity = new Map()));
   let f = byOpacity.get(opacity);
   if (!f) {
     f = m.clone();
     f.transparent = true;
-    f.opacity = opacity;
+    f.opacity = Math.min(opacity, m.opacity); // shisha (BLEND, 0.3) bundan ham shaffofroq bo'lmaydi
     f.depthWrite = false;
     byOpacity.set(opacity, f);
   }
@@ -39,13 +41,14 @@ function faded(m: Material, opacity: number): Material {
 
 export class Look {
   private readonly meshes = new Map<Mesh, MeshState>();
+  private outline: BoxHelper | null = null;
   mode: ViewMode = 'solid';
   /** Tanlangan detal (tugun va uning ichidagi meshlar). */
   selected: Object3D | null = null;
   /** QR oqimi: qolgan detallar shaffof. */
   ghost = false;
 
-  constructor(root: Object3D) {
+  constructor(private readonly root: Object3D) {
     root.traverse((o) => {
       const mesh = o as Mesh;
       if (mesh.isMesh) this.meshes.set(mesh, { orig: mesh.material });
@@ -54,6 +57,11 @@ export class Look {
 
   get meshList(): Mesh[] {
     return [...this.meshes.keys()];
+  }
+
+  /** Mesh'ning asl materiali(lar)i (testlar va diagnostika uchun). */
+  originalOf(mesh: Mesh): Material | Material[] | undefined {
+    return this.meshes.get(mesh)?.orig;
   }
 
   isGhosted(mesh: Mesh): boolean {
@@ -73,20 +81,44 @@ export class Look {
       mesh.material = Array.isArray(st.orig) ? st.orig.map(pick) : pick(st.orig);
 
       const showEdges = this.mode !== 'solid';
-      if (showEdges && !st.edges) st.edges = this.lines(mesh, edgeMat, 1);
+      if (showEdges && !st.edges) st.edges = this.lines(mesh);
       if (st.edges) {
         st.edges.visible = showEdges;
         st.edges.material = this.mode === 'xray' ? edgeMatXray : edgeMat;
       }
-      if (selected && !st.outline) st.outline = this.lines(mesh, outlineMat, 10);
-      if (st.outline) st.outline.visible = selected;
+    }
+    this.applyOutline();
+  }
+
+  /** Tanlangan detal butun tuguni atrofida accent kontur. */
+  private applyOutline(): void {
+    if (this.outline && this.outline.userData.target !== this.selected) {
+      this.outline.removeFromParent();
+      this.outline.geometry.dispose();
+      this.outline = null;
+    }
+    if (this.selected && !this.outline) {
+      const box = new BoxHelper(this.selected, ACCENT);
+      const mat = box.material as LineBasicMaterial;
+      mat.depthTest = false;
+      mat.transparent = true;
+      box.renderOrder = 10;
+      box.raycast = () => {}; // tanlashga xalaqit bermasin
+      box.userData.target = this.selected;
+      (this.root.parent ?? this.root).add(box);
+      this.outline = box;
     }
   }
 
-  private lines(mesh: Mesh, mat: LineBasicMaterial, renderOrder: number): LineSegments {
-    const l = new LineSegments(new EdgesGeometry(mesh.geometry, 20), mat);
-    l.renderOrder = renderOrder;
-    l.raycast = () => {}; // tanlashga xalaqit bermasin
+  /** Har kadrda: kontur harakatlanayotgan detalga (tortma, eshik) ergashadi. */
+  update(): void {
+    this.outline?.update();
+  }
+
+  private lines(mesh: Mesh): LineSegments {
+    const l = new LineSegments(new EdgesGeometry(mesh.geometry, 20), edgeMat);
+    l.renderOrder = 1;
+    l.raycast = () => {};
     mesh.add(l);
     return l;
   }
@@ -95,7 +127,9 @@ export class Look {
     for (const [mesh, st] of this.meshes) {
       mesh.material = st.orig;
       st.edges?.geometry.dispose();
-      st.outline?.geometry.dispose();
     }
+    this.outline?.removeFromParent();
+    this.outline?.geometry.dispose();
+    this.outline = null;
   }
 }

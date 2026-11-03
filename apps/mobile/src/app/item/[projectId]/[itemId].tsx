@@ -8,6 +8,7 @@ import { errorMessage } from '../../../api/errors';
 import { openArAndroid, openArIos } from '../../../ar/openAr';
 import { useProject } from '../../../api/hooks';
 import { formatSize, type ProjectItem } from '../../../api/types';
+import { ViewerRail } from '../../../components/ViewerRail';
 import { BackButton } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
@@ -21,7 +22,7 @@ import { setRecentNumber } from '../../../scan/recent';
 import { getSelection, itemKey, useSelectionListener, type ScanSelection } from '../../../scan/selection';
 import { usePairedSession, useSession } from '../../../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, space } from '../../../theme';
-import type { HostMessage, PartExtras, ViewerMessage, ViewMode } from '../../../viewer/bridge';
+import type { HostMessage, MaterialInfo, PartExtras, ViewerMessage, ViewMode } from '../../../viewer/bridge';
 import { ViewerView, type ViewerHandle, type ViewerPhase } from '../../../viewer/ViewerView';
 
 const MODES = [
@@ -30,7 +31,8 @@ const MODES = [
   { key: 'xray', label: uz.viewer.modeXray },
 ] as const satisfies readonly { key: ViewMode; label: string }[];
 
-const fromItem = (it: ProjectItem): ViewTarget => ({
+/** Faqat `export_status: ready` buyum (glb_url bor) ochiladi — kontrakt 4. */
+const fromItem = (it: ProjectItem & { glb_url: string }, updatedAt: string): ViewTarget => ({
   itemId: it.item_id,
   name: it.name,
   sizeMm: it.size_mm,
@@ -39,6 +41,7 @@ const fromItem = (it: ProjectItem): ViewTarget => ({
   revisionLabel: it.revision_label,
   approved: it.approved,
   usdzUrl: it.usdz_url,
+  updatedAt,
 });
 
 const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
@@ -50,6 +53,7 @@ const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
   revisionLabel: r.revision_label,
   approved: null,
   usdzUrl: null, // resolve javobida usdz_url yo'q
+  updatedAt: null,
 });
 
 export default function ItemScreen() {
@@ -72,7 +76,18 @@ function ProjectItemScreen({ projectId, itemId }: { projectId: string; itemId: s
   if (state.status === 'error') return <ErrorState message={errorMessage(state.error)} onRetry={reload} />;
   const item = state.data.items.find((it) => it.item_id === itemId);
   if (!item) return <ErrorState message={uz.errors.notFound} />;
-  return <ItemViewer projectId={projectId} initial={fromItem(item)} />;
+  if (item.export_status !== 'ready' || item.glb_url === null)
+    return (
+      <ErrorState
+        message={item.export_status === 'failed' ? uz.project.exportFailed : uz.project.exportPending}
+      />
+    );
+  return (
+    <ItemViewer
+      projectId={projectId}
+      initial={fromItem({ ...item, glb_url: item.glb_url }, state.data.updated_at)}
+    />
+  );
 }
 
 /**
@@ -119,9 +134,13 @@ function ItemViewer({
   const [dims, setDims] = useState(false);
   const [clips, setClips] = useState<string[]>([]);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const [selected, setSelected] = useState<{ part: PartExtras; clip: string | null; byScan: boolean } | null>(
-    null,
-  );
+  const [stats, setStats] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{
+    part: PartExtras;
+    clip: string | null;
+    byScan: boolean;
+    material: MaterialInfo | null;
+  } | null>(null);
   /** Model yuklangach tanlanadigan uid (skaner / "R5 ni ochish"). */
   const pendingUid = useRef<string | null>(initialScan?.result.part_uid ?? null);
   /** Viewer'ga `select` yuborilgan uid — `selected` javobi skaner kartasini ochadi. */
@@ -164,7 +183,10 @@ function ItemViewer({
           }),
         );
         if (delivery === 'online')
-          void ensureCached(target.revisionId, target.glbUrl, token).catch(() => undefined);
+          void ensureCached(target.revisionId, target.glbUrl, token, {
+            name: target.name,
+            revisionLabel: target.revisionLabel,
+          }).catch(() => undefined);
         setClips(m.item.clips);
         setOpen(new Set());
         if (pendingUid.current) selectUid(pendingUid.current);
@@ -173,7 +195,7 @@ function ItemViewer({
       case 'selected': {
         const byScan = expectUid.current === m.uid;
         expectUid.current = null;
-        setSelected({ part: m.extras, clip: m.clip, byScan });
+        setSelected({ part: m.extras, clip: m.clip, byScan, material: m.material });
         if (byScan) {
           // reveal kliplari viewer'da ochildi — tugma holati mos bo'lsin
           setOpen((s) => new Set([...s, ...m.extras.reveal]));
@@ -184,7 +206,14 @@ function ItemViewer({
       case 'deselected':
         setSelected(null);
         break;
+      case 'stats':
+        if (__DEV__) setStats(`${m.load_ms} ms · ${m.fps} fps · ${m.triangles} △ · ${m.textures_mb} MB`);
+        break;
       case 'error':
+        if (m.code === 'contract_mismatch') {
+          setPhase('error');
+          setError(uz.viewer.contractMismatch);
+        }
         if (m.code === 'part_not_found') {
           expectUid.current = null;
           setNotice(uz.select.partNotFound); // model ochiq qoladi (kontrakt 6.7)
@@ -317,6 +346,11 @@ function ItemViewer({
             <T style={styles.badgeText}>{notice}</T>
           </View>
         )}
+        {stats && (
+          <T mono muted style={styles.stats}>
+            {stats}
+          </T>
+        )}
         <View style={styles.modes}>
           <Segmented
             options={MODES}
@@ -341,6 +375,17 @@ function ItemViewer({
           </T>
         </View>
       )}
+      {!selected && (
+        <ViewerRail
+          send={send}
+          disabled={phase !== 'loaded'}
+          info={{
+            revisionLabel: target.revisionLabel,
+            approved: target.approved,
+            updatedAt: target.updatedAt,
+          }}
+        />
+      )}
       {phase === 'error' && (
         <View style={styles.errorBox}>
           <ErrorState message={`${uz.viewer.loadFailed}\n${error ?? ''}`} onRetry={retry} />
@@ -351,6 +396,7 @@ function ItemViewer({
         <PartSheet
           part={selected.part}
           clip={selected.clip}
+          material={selected.material}
           clipOpen={selected.clip ? open.has(selected.clip) : false}
           onToggle={toggleClip}
           onClose={() => {
@@ -401,6 +447,7 @@ function ItemViewer({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  stats: { marginHorizontal: space.md, fontSize: fontSize.sm - 2 },
   overlayTop: { position: 'absolute', top: 0, left: 0, right: 0, gap: space.sm },
   header: {
     flexDirection: 'row',
@@ -431,7 +478,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
-    backgroundColor: colors.active,
+    backgroundColor: colors.border,
   },
   bannerActionText: { fontFamily: fonts.bold, color: colors.white, fontSize: fontSize.sm },
   badge: {

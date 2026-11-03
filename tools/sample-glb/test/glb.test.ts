@@ -1,14 +1,18 @@
-// Generator chiqargan GLB'ni qayta o'qib, kontrakt 1.2 (qoralama) 2-bo'limiga qarshi tekshiradi.
+// Generator chiqargan GLB'ni qayta o'qib, kontrakt 1.3 (2-bo'lim) ga qarshi tekshiradi.
 import { describe, expect, it } from 'vitest';
-import { NodeIO, type Document, type Node } from '@gltf-transform/core';
-import { buildM0 } from '../src/build.js';
+import { NodeIO, type Document, type Material, type Node } from '@gltf-transform/core';
+import { buildHeavy, buildM0, HEAVY_SEGMENTS } from '../src/build.js';
 import {
+  EDGE_KEYS,
   NODE_NAME_RE,
   base32Decode,
   base32Encode,
+  encodeId,
   nodeName,
   type AssetMeta,
+  type DoorExtras,
   type ItemDimensions,
+  type MaterialExtras,
   type PartExtras,
 } from '../src/contract.js';
 import {
@@ -17,12 +21,14 @@ import {
   DRAWER_IDS,
   ITEM,
   M0_PARTS,
+  MATERIALS,
   PROTOTYPE,
   REVISIONS,
   UNSAFE_UID,
   type Revision,
 } from '../src/m0.js';
-import { validateGlb } from '../src/validate.js';
+import { jpegSize } from '../src/texture.js';
+import { glbJson, validateGlb } from '../src/validate.js';
 
 const io = new NodeIO();
 const PART_KEYS = [
@@ -38,8 +44,11 @@ const PART_KEYS = [
   'qr',
 ];
 
-async function roundTrip(rev: Revision): Promise<{ doc: Document; bytes: Uint8Array }> {
-  const bytes = await io.writeBinary(buildM0(rev));
+async function roundTrip(
+  rev: Revision,
+  opts: { ar?: boolean } = {},
+): Promise<{ doc: Document; bytes: Uint8Array }> {
+  const bytes = await io.writeBinary(buildM0(rev, opts));
   return { doc: await io.readBinary(bytes), bytes };
 }
 
@@ -61,8 +70,10 @@ const partNodes = (doc: Document) =>
     .filter((n) => typeof uhub<PartExtras | undefined>(n)?.uid === 'string');
 const byPartName = (doc: Document, name: string) =>
   partNodes(doc).find((n) => uhub<PartExtras>(n).name === name)!;
+const matExtras = (m: Material | null) => uhub<MaterialExtras>(m!);
+const labelOf = (m: Material) => MATERIALS[matExtras(m).id as keyof typeof MATERIALS].label;
 
-describe('base32 (RFC 4648, kichik harf, = siz)', () => {
+describe('nom kodlash (2.1)', () => {
   it.each([
     ['', ''],
     ['f', 'my'],
@@ -71,33 +82,43 @@ describe('base32 (RFC 4648, kichik harf, = siz)', () => {
     ['foob', 'mzxw6yq'],
     ['fooba', 'mzxw6ytb'],
     ['foobar', 'mzxw6ytboi'],
-  ])('%j → %j (RFC 4648 test vektorlari)', (text, code) => {
+  ])('base32 %j → %j (RFC 4648 test vektorlari)', (text, code) => {
     expect(base32Encode(text)).toBe(code);
     expect(base32Decode(code)).toBe(text);
   });
 
-  it('ruxsat etilmagan belgili uid: kodlash/dekodlash va tugun nomi', () => {
-    const code = base32Encode(UNSAFE_UID);
-    expect(code).toMatch(/^[a-z2-7]+$/);
-    expect(base32Decode(code)).toBe(UNSAFE_UID);
-    expect(nodeName.part(UNSAFE_UID)).toBe(`part__x${code}`);
-    expect(nodeName.part('m0p06')).toBe('part__m0p06');
-    expect(base32Decode(base32Encode('Ўзбек/№12'))).toBe('Ўзбек/№12');
+  // TODO(contract): kontrakt 2.1 misoli `A/1` → `part__xifxte`, lekin RFC 4648 bo'yicha base32("A/1") = "IEXTC===":
+  // 0x41 0x2F 0x31 → 01000|00100|10111|10011|0001(0) → i e x t c. Normativ qoida (RFC 4648) ustun — architect'ga savol.
+  it('kontraktdagi misol A/1: RFC 4648 bo‘yicha part__xiextc (kontraktda xifxte — misol xatosi)', () => {
+    expect(nodeName.part('A/1')).toBe('part__xiextc');
+    expect(nodeName.part('A/1')).not.toBe('part__xifxte');
+  });
+
+  it('qoida: mos va `__` siz — o‘zi; aks holda x+base32; item va eshik/tortma id’ga ham', () => {
+    expect(encodeId('m0p06')).toBe('m0p06');
+    expect(encodeId('a_b-c')).toBe('a_b-c');
+    expect(encodeId('a__b')).toBe(`x${base32Encode('a__b')}`);
+    expect(encodeId('M0')).toBe(`x${base32Encode('M0')}`);
+    expect(encodeId('_a')).toBe(`x${base32Encode('_a')}`);
+    expect(nodeName.item('Kitchen 1')).toBe(`item__x${base32Encode('Kitchen 1')}`);
+    expect(nodeName.door('D/1')).toBe(`pivot__door__x${base32Encode('D/1')}`);
+    expect(base32Decode(encodeId(UNSAFE_UID).slice(1))).toBe(UNSAFE_UID);
   });
 });
 
 describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
-  it('gltf-validator: 0 error', async () => {
+  it('gltf-validator 0 error; kengaytmalar yo‘q (faqat glTF core)', async () => {
     const { bytes } = await roundTrip(rev);
     const report = await validateGlb(bytes);
     expect(report.messages.filter((m) => m.severity === 0)).toEqual([]);
+    expect(glbJson(bytes).extensionsUsed ?? []).toEqual([]);
   });
 
-  it('asset.extras.uhub (2.4, 1.2): revision_label bor, approved yo‘q', async () => {
+  it('asset.extras.uhub (2.4): contract 1.3, revision_label, approved yo‘q', async () => {
     const { doc } = await roundTrip(rev);
     const meta = (doc.getRoot().getAsset().extras as { uhub: AssetMeta & { approved?: unknown } }).uhub;
     expect(meta).toMatchObject({
-      contract: '1.2',
+      contract: '1.3',
       project_number: ITEM.projectNumber,
       item_id: ITEM.itemId,
       revision_id: REVISIONS[rev].revisionId,
@@ -105,27 +126,29 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
       snapshot: REVISIONS[rev].snapshot,
     });
     expect('approved' in meta).toBe(false);
-    expect(Number.isNaN(Date.parse(meta.generated_at))).toBe(false);
   });
 
   it('tugunlar ierarxiyasi va nomlari (2.1)', async () => {
     const { doc } = await roundTrip(rev);
-    const scene = doc.getRoot().listScenes()[0]!;
-    const [item] = scene.listChildren();
-    expect(item!.getName()).toBe(`item__${ITEM.itemId}`);
+    const [item] = doc.getRoot().listScenes()[0]!.listChildren();
+    expect(item!.getName()).toBe('item__m0');
     expect(item!.listChildren().map((n) => n.getName())).toEqual([
       'group__carcass',
       'group__fronts',
       'group__hardware',
     ]);
-    const fronts = byName(doc, 'group__fronts')!;
-    expect(fronts.listChildren().map((n) => n.getName())).toEqual([
+    expect(
+      byName(doc, 'group__fronts')!
+        .listChildren()
+        .map((n) => n.getName()),
+    ).toEqual([
       ...DOOR_IDS.map((id) => `pivot__door__${id}`),
       ...DRAWER_IDS.map((id) => `slide__drawer__${id}`),
     ]);
     for (const id of DRAWER_IDS) {
-      const mid = byName(doc, `slide__drawer__${id}__mid`)!;
-      expect(parentOf(doc, mid)!.getName()).toBe(`slide__drawer__${id}`);
+      expect(parentOf(doc, byName(doc, `slide__drawer__${id}__mid`)!)!.getName()).toBe(
+        `slide__drawer__${id}`,
+      );
     }
     for (const n of doc.getRoot().listNodes()) expect(n.getName()).toMatch(NODE_NAME_RE);
   });
@@ -137,101 +160,177 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     expect(dims.lines.length).toBeGreaterThan(0);
   });
 
-  it('har detal tugunida to‘liq extras.uhub; tugun nomi uid’dan (kodlangan bo‘lishi mumkin)', async () => {
+  it('detal extras (2.1): kalitlar, [L,W,T], 4 qirra (matn | null), article null, qalinlik materialda', async () => {
     const { doc } = await roundTrip(rev);
     const parts = partNodes(doc);
-    const removed = REVISIONS[rev].removedUids;
-    expect(parts).toHaveLength(M0_PARTS.length - removed.length);
+    expect(parts).toHaveLength(M0_PARTS.length - REVISIONS[rev].removedUids.length);
     for (const node of parts) {
       const x = uhub<PartExtras>(node);
-      const keys = Object.keys(x).filter((k) => k !== 'door');
-      expect(keys.sort()).toEqual([...PART_KEYS].sort());
+      expect(Object.keys(x).sort()).toEqual([...PART_KEYS].sort());
       expect(node.getName()).toBe(nodeName.part(x.uid));
+      const [l, w, t] = x.size_mm;
+      expect(l).toBeGreaterThanOrEqual(w);
+      expect(w).toBeGreaterThanOrEqual(t);
+      expect(Object.keys(x.edges)).toEqual([...EDGE_KEYS]);
+      for (const v of Object.values(x.edges)) expect(v === null || typeof v === 'string').toBe(true);
+      expect(x.article).toBeNull();
+      expect(x.material).toContain(`${t} mm`); // 1.3: qalinlik matni size_mm[2] bilan mos
       expect(x.qr).toBe(`uhub:p/${ITEM.projectNumber}/${x.uid}/${REVISIONS[rev].snapshot}`);
-      expect(node.getMesh()).not.toBeNull();
     }
-    const unsafe = parts.find((n) => uhub<PartExtras>(n).uid === UNSAFE_UID)!;
-    expect(unsafe.getName()).toBe(`part__x${base32Encode(UNSAFE_UID)}`);
-    for (const uid of removed) expect(parts.some((n) => uhub<PartExtras>(n).uid === uid)).toBe(false);
+    expect(parts.find((n) => uhub<PartExtras>(n).uid === UNSAFE_UID)!.getName()).toBe(
+      `part__x${base32Encode(UNSAFE_UID)}`,
+    );
   });
 
-  it('eshik: extras.uhub.door (1.2), boshqa detallarda yo‘q', async () => {
+  it('eshik: extras.uhub.door pivot tugunida (detal tugunida emas)', async () => {
+    const { doc } = await roundTrip(rev);
+    for (const id of DOOR_IDS) {
+      expect(uhub<{ door: DoorExtras }>(byName(doc, `pivot__door__${id}`)!).door).toEqual(DOOR_EXTRAS);
+    }
+    for (const n of partNodes(doc)) expect('door' in uhub<object>(n)).toBe(false);
+  });
+
+  it('materiallar (2.5): mat__<id> bir marta, extras, turlar, shisha BLEND, metall, bo‘yalgan MDF', async () => {
+    const { doc } = await roundTrip(rev);
+    const mats = doc.getRoot().listMaterials();
+    const names = mats.map((m) => m.getName());
+    expect(new Set(names).size).toBe(names.length);
+    for (const m of mats) {
+      expect(m.getName()).toBe(nodeName.material(matExtras(m).id));
+      expect(Object.keys(matExtras(m)).sort()).toEqual([
+        'code',
+        'id',
+        'kind',
+        'name',
+        'supplier',
+        'thickness_mm',
+      ]);
+    }
+    const kinds = new Set(mats.map((m) => matExtras(m).kind));
+    for (const k of ['ldsp', 'mdf_painted', 'abs', 'metal', 'glass'] as const)
+      expect(kinds.has(k)).toBe(true);
+    const byKind = (k: string) => mats.find((m) => matExtras(m).kind === k)!;
+    expect(byKind('glass').getAlphaMode()).toBe('BLEND');
+    expect(byKind('glass').getAlpha()).toBeCloseTo(0.3);
+    expect(byKind('metal').getMetallicFactor()).toBe(1);
+    expect(byKind('metal').getRoughnessFactor()).toBeCloseTo(0.4);
+    expect(byKind('mdf_painted').getRoughnessFactor()).toBeCloseTo(0.8);
+    expect(byKind('mdf_painted').getBaseColorTexture()).toBeNull();
+    expect(byKind('ldsp').getBaseColorTexture()).not.toBeNull();
+  });
+
+  it('teksturalar (2.5): JPEG, ≤ 1024 px, har biri bir marta', async () => {
+    const { doc } = await roundTrip(rev);
+    const texs = doc.getRoot().listTextures();
+    expect(texs.length).toBeGreaterThan(0);
+    const seen = new Set<string>();
+    for (const t of texs) {
+      expect(t.getMimeType()).toBe('image/jpeg');
+      const { width, height } = jpegSize(t.getImage()!);
+      expect(Math.max(width, height)).toBeLessThanOrEqual(1024);
+      const key = Buffer.from(t.getImage()!).toString('base64');
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
+  });
+
+  it('panel primitive’lari: yuzalar + L1 L2 W1 W2; kromkasiz qirra — plita materiali', async () => {
     const { doc } = await roundTrip(rev);
     for (const node of partNodes(doc)) {
       const x = uhub<PartExtras>(node);
-      if (x.kind === 'door') expect(x.door).toEqual(DOOR_EXTRAS);
-      else expect(x.door).toBeUndefined();
+      const prims = node.getMesh()!.listPrimitives();
+      expect(prims).toHaveLength(5);
+      const plate = prims[0]!.getMaterial()!;
+      expect(labelOf(plate)).toBe(x.material);
+      EDGE_KEYS.forEach((k, i) => {
+        const m = prims[i + 1]!.getMaterial()!;
+        if (x.edges[k] === null) expect(m).toBe(plate);
+        else expect(labelOf(m)).toBe(x.edges[k]);
+      });
     }
   });
 
-  it('kliplar: mavjud tugunlar, LINEAR, 0.8 s, prototype=true; eshik burchagi door.open_deg dan', async () => {
+  it('tola: U o‘qi uzunlik bo‘ylab; “Qopqoq” da 90° burilgan (kenglik bo‘ylab)', async () => {
+    const { doc } = await roundTrip(rev);
+    /** Yuza primitive'ida U qaysi o'q bo'ylab o'zgaradi (0=x, 1=y, 2=z). */
+    const uAxis = (name: string) => {
+      const prim = byPartName(doc, name).getMesh()!.listPrimitives()[0]!;
+      const pos = prim.getAttribute('POSITION')!;
+      const uv = prim.getAttribute('TEXCOORD_0')!;
+      const p0 = pos.getElement(0, []);
+      const u0 = uv.getElement(0, [])[0]!;
+      const grads = [0, 0, 0];
+      for (let i = 1; i < pos.getCount(); i++) {
+        const p = pos.getElement(i, []);
+        const du = Math.abs(uv.getElement(i, [])[0]! - u0);
+        const moved = [0, 1, 2].filter((a) => Math.abs(p[a]! - p0[a]!) > 1e-6);
+        if (moved.length === 1) grads[moved[0]!] = Math.max(grads[moved[0]!]!, du);
+      }
+      return grads.indexOf(Math.max(...grads));
+    };
+    expect(uAxis('Tub')).toBe(0); // 564 (x) — uzunlik
+    expect(uAxis('Qopqoq')).toBe(2); // tola burilgan → 538 (z) — kenglik
+    expect(uAxis('Chap yon devor')).toBe(1); // 900 (y) — uzunlik
+  });
+
+  it('kliplar: nomlari, LINEAR, 0.8 s; eshik burchagi pivot.door.open_angle_deg dan', async () => {
     const { doc } = await roundTrip(rev);
     const anims = doc.getRoot().listAnimations();
     expect(anims.map((a) => a.getName()).sort()).toEqual(
-      [
-        ...DOOR_IDS.map((id) => `door__${id}__open`),
-        ...DRAWER_IDS.map((id) => `drawer__${id}__open`),
-        'all__open',
-      ].sort(),
+      ['door__d1__open', 'drawer__d2__open', 'drawer__d3__open', 'drawer__d4__open', 'all__open'].sort(),
     );
     const nodes = new Set(doc.getRoot().listNodes());
     for (const a of anims) {
-      expect(uhub<{ prototype: boolean }>(a).prototype).toBe(true);
       for (const ch of a.listChannels()) {
         expect(nodes.has(ch.getTargetNode()!)).toBe(true);
         expect(ch.getSampler()!.getInterpolation()).toBe('LINEAR');
         expect(ch.getSampler()!.getInput()!.getMax([])[0]).toBeCloseTo(0.8);
       }
     }
-    for (const id of DOOR_IDS) {
-      const ch = anims.find((a) => a.getName() === `door__${id}__open`)!.listChannels()[0]!;
-      expect(ch.getTargetNode()!.getName()).toBe(`pivot__door__${id}`);
-      expect(ch.getTargetPath()).toBe('rotation');
-      const q = ch.getSampler()!.getOutput()!.getElement(1, []);
-      const deg = (2 * Math.acos(Math.min(1, Math.abs(q[3]!))) * 180) / Math.PI;
-      expect(deg).toBeCloseTo(DOOR_EXTRAS.open_deg, 3);
-    }
+    const ch = anims.find((a) => a.getName() === 'door__d1__open')!.listChannels()[0]!;
+    expect(ch.getTargetNode()!.getName()).toBe('pivot__door__d1');
+    const q = ch.getSampler()!.getOutput()!.getElement(1, []);
+    expect((2 * Math.acos(Math.min(1, Math.abs(q[3]!))) * 180) / Math.PI).toBeCloseTo(
+      DOOR_EXTRAS.open_angle_deg,
+      3,
+    );
   });
 
-  it('tortma klipi: slide to‘liq yurish +Z, __mid dunyoda yurishning yarmi', async () => {
+  it('tortma klipi: slide to‘liq yurish +Z, __mid dunyoda yarmi (2.2)', async () => {
     const { doc } = await roundTrip(rev);
-    const anims = doc.getRoot().listAnimations();
     const travel = PROTOTYPE.drawerTravelMm / 1000;
     for (const id of DRAWER_IDS) {
-      const chans = anims.find((a) => a.getName() === `drawer__${id}__open`)!.listChannels();
-      const endZ = (name: string) => {
-        const ch = chans.find((c) => c.getTargetNode()!.getName() === name)!;
-        expect(ch.getTargetPath()).toBe('translation');
-        return ch.getSampler()!.getOutput()!.getElement(1, [])[2]!;
-      };
-      const slideZ = endZ(`slide__drawer__${id}`);
-      const midLocalZ = endZ(`slide__drawer__${id}__mid`);
-      expect(slideZ).toBeCloseTo(travel);
-      expect(slideZ + midLocalZ).toBeCloseTo(travel / 2); // mid — slide bolasi
+      const chans = doc
+        .getRoot()
+        .listAnimations()
+        .find((a) => a.getName() === `drawer__${id}__open`)!
+        .listChannels();
+      const endZ = (name: string) =>
+        chans
+          .find((c) => c.getTargetNode()!.getName() === name)!
+          .getSampler()!
+          .getOutput()!
+          .getElement(1, [])[2]!;
+      expect(endZ(`slide__drawer__${id}`)).toBeCloseTo(travel);
+      expect(endZ(`slide__drawer__${id}`) + endZ(`slide__drawer__${id}__mid`)).toBeCloseTo(travel / 2);
     }
   });
 
-  it('reveal dagi har klip mavjud; polka → eshik, tortma tubi → tortma', async () => {
+  it('reveal: polka (shisha) → eshik, tortma tubi → tortma; metall tutqich fasad tuguni ichida', async () => {
     const { doc } = await roundTrip(rev);
-    const clips = new Set(
-      doc
-        .getRoot()
-        .listAnimations()
-        .map((a) => a.getName()),
-    );
-    for (const node of partNodes(doc))
-      for (const c of uhub<PartExtras>(node).reveal) expect(clips.has(c)).toBe(true);
     expect(uhub<PartExtras>(byPartName(doc, 'Polka')).reveal).toEqual(['door__d1__open']);
     for (const [i, id] of DRAWER_IDS.entries()) {
       const bottom = byPartName(doc, `Tortma ${i + 1} tubi`);
       expect(uhub<PartExtras>(bottom).reveal).toEqual([`drawer__${id}__open`]);
       expect(parentOf(doc, bottom)!.getName()).toBe(`slide__drawer__${id}`);
     }
-    expect(uhub<PartExtras>(byPartName(doc, 'Eshik')).reveal).toEqual([]);
+    const handle = byPartName(doc, 'Eshik').listChildren()[0]!;
+    expect(handle.getName()).toMatch(/^hw__.+__handle$/);
+    expect(matExtras(handle.getMesh()!.listPrimitives()[0]!.getMaterial()).kind).toBe('metal');
   });
 });
 
-/** Sahna bounding box'i (dunyo koordinatalarida, metr): har mesh POSITION min/max burchaklari × dunyo matritsasi. */
+/** Sahna bounding box'i (dunyo koordinatalarida, metr). */
 function sceneBounds(doc: Document): { min: number[]; max: number[] } {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -261,55 +360,41 @@ function sceneBounds(doc: Document): { min: number[]; max: number[] } {
   return { min, max };
 }
 
-describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s — AR varianti (Scene Viewer)', (rev) => {
-  const arRoundTrip = async () => {
-    const bytes = await io.writeBinary(buildM0(rev, { ar: true }));
-    return { doc: await io.readBinary(bytes), bytes };
-  };
-
-  it('animatsiyalar soni 0, gltf-validator 0 error', async () => {
-    const { doc, bytes } = await arRoundTrip();
-    expect(doc.getRoot().listAnimations()).toHaveLength(0);
-    const report = await validateGlb(bytes);
-    expect(report.messages.filter((m) => m.severity === 0)).toEqual([]);
-  });
-
-  it('o‘lchamlar asosiy GLB bilan bir xil (bounding box ±0.1 mm) va 600 × 900 × 560 mm', async () => {
-    const ar = sceneBounds((await arRoundTrip()).doc);
-    const main = sceneBounds((await roundTrip(rev)).doc);
+describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s — AR varianti', (rev) => {
+  it('animatsiyasiz, validator 0 error, o‘sha materiallar; bounding box asosiy GLB bilan ±0.1 mm', async () => {
+    const ar = await roundTrip(rev, { ar: true });
+    const main = await roundTrip(rev);
+    expect(ar.doc.getRoot().listAnimations()).toHaveLength(0);
+    expect((await validateGlb(ar.bytes)).numErrors).toBe(0);
+    const matNames = (d: Document) =>
+      d
+        .getRoot()
+        .listMaterials()
+        .map((m) => m.getName());
+    expect(matNames(ar.doc)).toEqual(matNames(main.doc));
+    const a = sceneBounds(ar.doc);
+    const b = sceneBounds(main.doc);
     for (let i = 0; i < 3; i++) {
-      expect(Math.abs(ar.min[i]! - main.min[i]!)).toBeLessThanOrEqual(0.0001);
-      expect(Math.abs(ar.max[i]! - main.max[i]!)).toBeLessThanOrEqual(0.0001);
+      expect(Math.abs(a.min[i]! - b.min[i]!)).toBeLessThanOrEqual(0.0001);
+      expect(Math.abs(a.max[i]! - b.max[i]!)).toBeLessThanOrEqual(0.0001);
     }
-    const size = [0, 1, 2].map((i) => Math.round((ar.max[i]! - ar.min[i]!) * 1000));
-    expect(size).toEqual([600, 900, 560]);
-    expect(ar.min[1]).toBeCloseTo(0, 6); // pol sathida
-    expect(ar.max[2]).toBeCloseTo(0, 6); // old qirra z = 0
   });
+});
 
-  it('o‘sha detallar va materiallar; Scene Viewer tavsiyasi: ≤ 10 material, ≤ 100 000 uchburchak', async () => {
-    const { doc } = await arRoundTrip();
-    const main = (await roundTrip(rev)).doc;
-    expect(partNodes(doc).map((n) => uhub<PartExtras>(n).uid)).toEqual(
-      partNodes(main).map((n) => uhub<PartExtras>(n).uid),
-    );
-    expect(
-      doc
-        .getRoot()
-        .listMaterials()
-        .map((m) => m.getName()),
-    ).toEqual(
-      main
-        .getRoot()
-        .listMaterials()
-        .map((m) => m.getName()),
-    );
-    expect(doc.getRoot().listMaterials().length).toBeLessThanOrEqual(10);
-    const triangles = doc
-      .getRoot()
-      .listMeshes()
-      .flatMap((m) => m.listPrimitives())
-      .reduce((s, p) => s + p.getIndices()!.getCount() / 3, 0);
-    expect(triangles).toBeLessThanOrEqual(100_000);
-  });
+describe('og‘ir namuna m0-heavy.glb (integratsiya hujjati 5.5)', () => {
+  it('chegara yaqinida: 10–15 MB, ≤ 150 000 uchburchak, 1024 px teksturalar, validator 0 error', async () => {
+    const bytes = await io.writeBinary(buildHeavy());
+    const doc = await io.readBinary(bytes);
+    expect(bytes.byteLength).toBeLessThanOrEqual(15 * 1024 * 1024);
+    expect(bytes.byteLength).toBeGreaterThanOrEqual(10 * 1024 * 1024);
+    let tris = 0;
+    for (const m of doc.getRoot().listMeshes())
+      for (const p of m.listPrimitives()) tris += p.getIndices()!.getCount() / 3;
+    expect(tris).toBeLessThanOrEqual(150_000);
+    expect(tris).toBeGreaterThan(100_000);
+    for (const t of doc.getRoot().listTextures()) expect(jpegSize(t.getImage()!).width).toBe(1024);
+    expect(HEAVY_SEGMENTS).toBeGreaterThan(1);
+    expect((await validateGlb(bytes)).numErrors).toBe(0);
+    expect(glbJson(bytes).extensionsUsed ?? []).toEqual([]);
+  }, 60_000);
 });

@@ -6,5 +6,8 @@ export const OUT_DIR = fileURLToPath(new URL('../../../mock/fixtures/glb/', impo
 
 export const glbPath = (rev: Revision) => path.join(OUT_DIR, `m0-${rev}.glb`);
 
+/** Og'ir namuna (integratsiya hujjati 5.5). */
+export const heavyGlbPath = () => path.join(OUT_DIR, 'm0-heavy.glb');
+
 /** AR varianti: `<revision_id>-ar.glb`. */
 export const arGlbPath = (rev: Revision) => path.join(OUT_DIR, `m0-${rev}-ar.glb`);

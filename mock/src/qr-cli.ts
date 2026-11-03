@@ -2,7 +2,7 @@
 //   fixtures/qr/<fayl>.png               — detal mavjud eng yangi reviziya etiketkasi
 //   fixtures/qr/<revision_id>/<fayl>.png — har reviziya etiketkasi (eski etiketka → is_latest=false)
 // <fayl> = tugun nomidagi uid qismi: oddiy uid o'zi, ruxsat etilmagan belgili uid — x<base32> (kontrakt 1.2, 2.1).
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 import QRCode from 'qrcode';
@@ -49,7 +49,10 @@ function label(part: PartInfo, revisionId: string): Buffer {
 }
 
 const glbs = await readGlbFixtures();
-await rm(QR_DIR, { recursive: true, force: true }); // eski etiketkalar qolmasin
+// eski etiketkalar qolmasin; juftlash QR'i (pair.png) mock ishga tushganda yasaladi — saqlanadi
+await mkdir(QR_DIR, { recursive: true });
+for (const e of await readdir(QR_DIR))
+  if (e !== 'pair.png') await rm(path.join(QR_DIR, e), { recursive: true, force: true });
 const newest = new Map<string, Buffer>();
 let count = 0;
 for (const id of M0_REVISION_IDS) {

@@ -1,6 +1,6 @@
 // GLB sahna daraxti bo'yicha sof funksiyalar. Detallar `extras.uhub.uid` bo'yicha, kliplar nomi bo'yicha — indeks yo'q.
 import type { AnimationClip, Object3D } from 'three';
-import type { PartExtras } from './bridge.js';
+import type { DoorInfo, MaterialInfo, PartExtras } from './bridge.js';
 
 export const ITEM_PREFIX = 'item__';
 /** Kontrakt 2.2: alohida ochiladigan kliplar. `all__open` ataylab kirmaydi (individual kliplar bilan to'qnashadi). */
@@ -74,4 +74,49 @@ export function revealPlan(extras: PartExtras, available: ReadonlySet<string>) {
     (available.has(name) ? clips : missing).push(name);
   }
   return { clips, missing };
+}
+
+/** Detal ustidagi eng yaqin eshik pivot'ining ma'lumoti (eshik detalining o'zida emas, pivot tugunida). */
+export function doorInfo(obj: Object3D | null): DoorInfo | null {
+  for (let o = obj; o; o = o.parent) {
+    const d = (o.userData as { uhub?: { door?: DoorInfo } }).uhub?.door;
+    if (d) return d;
+  }
+  return null;
+}
+
+/** Detal plitasining materiali — birinchi primitive (yuzalar), kontrakt 2.5. */
+export function partMaterialInfo(part: Object3D): MaterialInfo | null {
+  let found: MaterialInfo | null = null;
+  part.traverse((o) => {
+    if (found || !(o as { isMesh?: boolean }).isMesh) return;
+    const m = (
+      o as unknown as {
+        material: { userData?: { uhub?: MaterialInfo } } | { userData?: { uhub?: MaterialInfo } }[];
+      }
+    ).material;
+    const first = Array.isArray(m) ? m[0] : m;
+    found = first?.userData?.uhub ?? null;
+  });
+  return found;
+}
+
+/** Kontrakt 8: `<script id="uhub-config" type="application/json">` mazmuni. */
+export interface UhubConfig {
+  glb_url: string;
+  usdz_url?: string | null;
+  title?: string;
+  mode: 'share';
+}
+
+/** `uhub-config` matnini tekshiradi; yo'q yoki noto'g'ri bo'lsa null (viewer postMessage rejimida qoladi). */
+export function parseUhubConfig(text: string | null | undefined): UhubConfig | null {
+  if (!text) return null;
+  try {
+    const c = JSON.parse(text) as Partial<UhubConfig>;
+    if (typeof c.glb_url !== 'string' || !c.glb_url) return null;
+    return { glb_url: c.glb_url, usdz_url: c.usdz_url ?? null, title: c.title ?? '', mode: 'share' };
+  } catch {
+    return null;
+  }
 }

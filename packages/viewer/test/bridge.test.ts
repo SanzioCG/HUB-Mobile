@@ -16,6 +16,10 @@ describe('parseIncoming', () => {
     [{ type: 'setDims', on: true }],
     [{ type: 'resetView' }],
     [{ type: 'deselect' }],
+    [{ type: 'setView', view: 'front' }],
+    [{ type: 'setView', view: 'iso' }],
+    [{ type: 'setGroupVisible', group: 'fronts', on: false }],
+    [{ type: 'fit' }],
   ])('%j qabul qilinadi', (msg) => {
     expect(parseIncoming(msg)).toEqual({ ok: true, msg });
   });
@@ -45,6 +49,9 @@ describe('parseIncoming', () => {
     ['setMode: noto‘g‘ri rejim', { type: 'setMode', mode: 'wire' }],
     ['setDims: on satr', { type: 'setDims', on: 'true' }],
     ['chiquvchi xabar', { type: 'ready' }],
+    ['setView: noma’lum ko‘rinish', { type: 'setView', view: 'back' }],
+    ['setGroupVisible: noma’lum guruh', { type: 'setGroupVisible', group: 'doors', on: true }],
+    ['setGroupVisible: on yo‘q', { type: 'setGroupVisible', group: 'fronts' }],
   ])('%s → rad etiladi', (_name, raw) => {
     expect(parseIncoming(raw).ok).toBe(false);
   });

@@ -1,9 +1,9 @@
-// Har endpoint va har `resolve` holati (kontrakt 1.2 qoralama, 4-bo'lim). GLB'lar xotirada yasaladi.
+// Har endpoint va har `resolve` holati (kontrakt 1.3, 4-bo'lim). GLB'lar xotirada yasaladi.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { NodeIO } from '@gltf-transform/core';
 import { buildM0 } from '@hub-mobile/sample-glb/build';
 import { REVISIONS, UNSAFE_UID } from '@hub-mobile/sample-glb/m0';
-import { AR_LINK_TTL_MS, MODEL_VIEWER_SRC, buildApp } from '../src/app.js';
+import { AR_LINK_TTL_MS, MODEL_VIEWER_SRC, PAIR_RATE, buildApp, pairQrText } from '../src/app.js';
 import { createStore } from '../src/data.js';
 
 const TOKEN = 'test-token';
@@ -42,7 +42,7 @@ const resolve = (qr: string) => get(`/mobile/resolve?qr=${encodeURIComponent(qr)
 const arLink = (payload: unknown, headers: Record<string, string> = auth) =>
   app.inject({ method: 'POST', url: '/mobile/ar-link', payload: payload as object, headers });
 
-/** Kontrakt 1.2: xato tanasi `{error, message}`. */
+/** Kontrakt 4: xato tanasi `{error, message}`. */
 const expectError = (res: { statusCode: number; json(): unknown }, status: number, error: string) => {
   expect(res.statusCode).toBe(status);
   const body = res.json() as { error: unknown; message: unknown };
@@ -52,64 +52,95 @@ const expectError = (res: { statusCode: number; json(): unknown }, status: numbe
 };
 
 describe('POST /mobile/pair', () => {
-  it('123456 → token, user, company; token keyin ishlaydi', async () => {
-    const res = await app.inject({ method: 'POST', url: '/mobile/pair', payload: { code: '123456' } });
+  const pair = (code: unknown, remoteAddress = '10.0.0.1') =>
+    app.inject({ method: 'POST', url: '/mobile/pair', payload: { code } as object, remoteAddress });
+
+  it('123456 → {device_token, user:{id,name,role}, company:{id,name}}; token keyin ishlaydi', async () => {
+    const res = await pair('123456');
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body).toMatchObject({ device_token: expect.any(String), user: { id: 7 }, company: { id: 1 } });
+    expect(body).toEqual({
+      device_token: expect.any(String),
+      user: { id: 7, name: 'Dizayner (mock)', role: 'designer' },
+      company: { id: 1, name: 'Namuna Mebel' },
+    });
     expect((await get('/mobile/projects', { authorization: `Bearer ${body.device_token}` })).statusCode).toBe(
       200,
     );
   });
 
-  it.each([{ code: '000000' }, { code: 123456 }, {}])(
-    'noto‘g‘ri kod %j → 401 invalid_code',
-    async (payload) => {
-      expectError(await app.inject({ method: 'POST', url: '/mobile/pair', payload }), 401, 'invalid_code');
-    },
-  );
+  it.each(['000000', 123456, undefined])('noto‘g‘ri kod %j → 401', async (code) => {
+    expectError(await pair(code, '10.0.0.2'), 401, 'invalid_code');
+  });
+
+  it('muddati o‘tgan / ishlatilgan kod → 410 pair_code_expired', async () => {
+    expectError(await pair('111111', '10.0.0.3'), 410, 'pair_code_expired');
+  });
+
+  it('1 daqiqada 5 tadan ko‘p muvaffaqiyatsiz urinish → 429 rate_limited; daqiqadan keyin yana mumkin', async () => {
+    const ip = '10.0.0.9';
+    for (let i = 0; i < PAIR_RATE.maxFailures; i++) expect((await pair('000000', ip)).statusCode).toBe(401);
+    expectError(await pair('123456', ip), 429, 'rate_limited');
+    expect((await pair('123456', '10.0.0.10')).statusCode).toBe(200); // boshqa IP
+    clock = T0 + PAIR_RATE.windowMs + 1;
+    expect((await pair('123456', ip)).statusCode).toBe(200);
+    clock = T0;
+  });
+
+  it('juftlash QR matni (4.1): uhub-pair:1?server=<URL-kodlangan>&code=…', () => {
+    expect(pairQrText('http://192.168.1.20:8787', '123456')).toBe(
+      'uhub-pair:1?server=http%3A%2F%2F192.168.1.20%3A8787&code=123456',
+    );
+  });
 });
 
 describe('Bearer', () => {
   it.each(['/mobile/projects', '/mobile/projects/101', '/mobile/resolve?qr=x', '/files/glb/m0-r3.glb'])(
-    '%s tokensiz yoki noto‘g‘ri token → 401 unauthorized',
+    '%s tokensiz yoki noto‘g‘ri token → 401 token_invalid',
     async (url) => {
-      expectError(await get(url, {}), 401, 'unauthorized');
-      expectError(await get(url, { authorization: 'Bearer wrong' }), 401, 'unauthorized');
+      expectError(await get(url, {}), 401, 'token_invalid');
+      expectError(await get(url, { authorization: 'Bearer wrong' }), 401, 'token_invalid');
     },
   );
 });
 
 describe('GET /mobile/projects', () => {
-  it('faqat o‘z kompaniyasi loyihalari', async () => {
+  it('faqat o‘z kompaniyasi; status ∈ draft|validated|approved', async () => {
     const list = (await get('/mobile/projects')).json() as Record<string, unknown>[];
     expect(list.map((p) => p.number)).toEqual([51, 52, 53]);
+    expect(list.map((p) => p.status)).toEqual(['validated', 'draft', 'approved']);
     expect(Object.keys(list[0]!).sort()).toEqual(
       ['id', 'number', 'name', 'status', 'items_count', 'updated_at', 'thumb_url'].sort(),
     );
+    expect(list[0]!.thumb_url).toBeNull();
   });
 
-  it('updated_since filtrlaydi; noto‘g‘ri sana → 400', async () => {
+  it('updated_since filtrlaydi; noto‘g‘ri sana → 400 bad_request', async () => {
     const res = await get('/mobile/projects?updated_since=2026-10-30T00:00:00Z');
     expect((res.json() as { number: number }[]).map((p) => p.number)).toEqual([51]);
-    expectError(await get('/mobile/projects?updated_since=kecha'), 400, 'bad_updated_since');
+    expectError(await get('/mobile/projects?updated_since=kecha'), 400, 'bad_request');
   });
 });
 
 describe('GET /mobile/projects/{id}', () => {
-  it('buyumlar joriy reviziya bilan, revision_label va API’dagi approved', async () => {
-    const { items } = (await get('/mobile/projects/101')).json() as { items: Record<string, unknown>[] };
-    expect(items[0]).toEqual({
+  it('buyumlar: size_mm obyekt, approved, revision_label, export_status; glb_url faqat ready da', async () => {
+    const body = (await get('/mobile/projects/101')).json() as { items: Record<string, unknown>[] };
+    expect(Object.keys(body).sort()).toEqual(['id', 'items', 'name', 'number', 'status', 'updated_at']);
+    const [m0, m1, m2] = body.items;
+    expect(m0).toEqual({
       item_id: 'm0',
       name: 'M-0 namuna',
       revision_id: 'm0-r5',
       revision_label: 'R5',
-      size_mm: [600, 900, 560],
+      approved: false,
+      size_mm: { width: 600, height: 900, depth: 560 },
+      export_status: 'ready',
       glb_url: `${BASE}/files/glb/m0-r5.glb`,
       usdz_url: null,
       thumb_url: null,
-      approved: false,
     });
+    expect(m1).toMatchObject({ item_id: 'm1', export_status: 'pending', glb_url: null });
+    expect(m2).toMatchObject({ item_id: 'm2', export_status: 'failed', glb_url: null, approved: true });
   });
 
   it('noma’lum va boshqa kompaniya loyihasi → 404 not_found', async () => {
@@ -119,7 +150,7 @@ describe('GET /mobile/projects/{id}', () => {
 });
 
 describe('GET /mobile/resolve', () => {
-  it('joriy reviziya etiketkasi → is_latest=true, part_in_latest=true', async () => {
+  it('joriy reviziya etiketkasi → approved, latest_* = o‘sha qiymatlar', async () => {
     const res = await resolve(`uhub:p/51/${SHELF_UID}/s5`);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
@@ -129,6 +160,7 @@ describe('GET /mobile/resolve', () => {
       item_name: 'M-0 namuna',
       revision_id: 'm0-r5',
       revision_label: 'R5',
+      approved: false,
       part_uid: SHELF_UID,
       part_name: 'Polka',
       glb_url: `${BASE}/files/glb/m0-r5.glb`,
@@ -140,11 +172,10 @@ describe('GET /mobile/resolve', () => {
     });
   });
 
-  it('eski etiketka, detal hali bor → etiketkadagi reviziya; latest_* = R5', async () => {
+  it('eski etiketka → etiketkadagi reviziya; latest_* = R5', async () => {
     expect((await resolve(`uhub:p/51/${SHELF_UID}/s3`)).json()).toMatchObject({
       revision_id: 'm0-r3',
       revision_label: 'R3',
-      glb_url: `${BASE}/files/glb/m0-r3.glb`,
       is_latest: false,
       part_in_latest: true,
       latest_revision_id: 'm0-r5',
@@ -153,10 +184,8 @@ describe('GET /mobile/resolve', () => {
     });
   });
 
-  it('R5 da o‘chirilgan detal → 200, part_in_latest=false, latest_* to‘ldirilgan', async () => {
-    const res = await resolve(`uhub:p/51/${REMOVED_UID}/s3`);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({
+  it('R5 da o‘chirilgan detal → part_in_latest=false, latest_* baribir to‘ldirilgan', async () => {
+    expect((await resolve(`uhub:p/51/${REMOVED_UID}/s3`)).json()).toMatchObject({
       revision_id: 'm0-r3',
       part_uid: REMOVED_UID,
       is_latest: false,
@@ -166,26 +195,24 @@ describe('GET /mobile/resolve', () => {
     });
   });
 
-  it('ruxsat etilmagan belgili uid (`/` bilan) topiladi', async () => {
-    const res = await resolve(`uhub:p/51/${UNSAFE_UID}/s5`);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ part_uid: UNSAFE_UID, part_name: "O'ng yon devor" });
+  it('ruxsat etilmagan belgili uid (slash bilan) topiladi', async () => {
+    expect((await resolve(`uhub:p/51/${UNSAFE_UID}/s5`)).json()).toMatchObject({ part_uid: UNSAFE_UID });
   });
 
-  it.each(['https://example.com', 'p/51/m0p06/s5', ''])(
-    'uhub: bilan boshlanmaydi (%j) → 400 not_uhub',
-    async (qr) => {
-      expectError(await resolve(qr), 400, 'not_uhub');
-    },
-  );
+  it.each(['uhub:p/51/m0p06', 'uhub:x', 'uhub:'])('buzilgan uhub: QR %j → 400 bad_qr', async (qr) => {
+    expectError(await resolve(qr), 400, 'bad_qr');
+  });
+
+  it('uhub: bo‘lmagan QR → 400 bad_request (ilova bunday so‘rov yubormaydi)', async () => {
+    expectError(await resolve('https://example.com'), 400, 'bad_request');
+  });
 
   it.each([
     'uhub:p/999/m0p06/s5', // noma'lum loyiha
     'uhub:p/51/zzz/s5', // noma'lum detal
     'uhub:p/51/m0p06/s9', // noma'lum snapshot
     `uhub:p/51/${REMOVED_UID}/s5`, // R5 da yo'q detal R5 etiketkasi bilan
-    'uhub:p/51/m0p06', // buzilgan format
-    'uhub:p/77/m0p06/s5', // boshqa kompaniya — 1.2: 404 (403 emas)
+    'uhub:p/77/m0p06/s5', // boshqa kompaniya — 404
   ])('%s → 404 not_found', async (qr) => {
     expectError(await resolve(qr), 404, 'not_found');
   });
@@ -263,7 +290,7 @@ describe('POST /mobile/ar-link', () => {
     expectError(
       await arLink({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' }, {}),
       401,
-      'unauthorized',
+      'token_invalid',
     );
   });
 });
@@ -283,11 +310,19 @@ describe('fayllar', () => {
 });
 
 describe('DELETE /mobile/device', () => {
-  it('tokenni bekor qiladi', async () => {
-    const pair = await app.inject({ method: 'POST', url: '/mobile/pair', payload: { code: '123456' } });
+  it('204 tanasiz; takroriy ham 204; keyin token → 401 token_revoked', async () => {
+    const pair = await app.inject({
+      method: 'POST',
+      url: '/mobile/pair',
+      payload: { code: '123456' },
+      remoteAddress: '10.0.1.1',
+    });
     const headers = { authorization: `Bearer ${pair.json().device_token}` };
+    const del = await app.inject({ method: 'DELETE', url: '/mobile/device', headers });
+    expect(del.statusCode).toBe(204);
+    expect(del.body).toBe('');
     expect((await app.inject({ method: 'DELETE', url: '/mobile/device', headers })).statusCode).toBe(204);
-    expectError(await get('/mobile/projects', headers), 401, 'unauthorized');
+    expectError(await get('/mobile/projects', headers), 401, 'token_revoked');
   });
 });
 

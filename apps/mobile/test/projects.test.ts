@@ -1,8 +1,21 @@
 import { filterProjects, latestUpdate, mergeProjects } from '../src/api/projects';
-import { matchesStatusFilter, parseErrorBody, type ProjectSummary } from '../src/api/types';
+import {
+  matchesStatusFilter,
+  normalizeStatus,
+  parseErrorBody,
+  statusTone,
+  type ProjectStatus,
+  type ProjectSummary,
+} from '../src/api/types';
 import { relativeTime } from '../src/utils/time';
 
-const p = (id: number, number: number, name: string, status: string, updated_at: string): ProjectSummary => ({
+const p = (
+  id: number,
+  number: number,
+  name: string,
+  status: ProjectStatus,
+  updated_at: string,
+): ProjectSummary => ({
   id,
   number,
   name,
@@ -13,16 +26,16 @@ const p = (id: number, number: number, name: string, status: string, updated_at:
 });
 
 const LIST = [
-  p(101, 51, 'Oshxona — Chilonzor', 'production', '2026-11-02T14:30:00Z'),
-  p(102, 52, 'Yotoqxona shkafi', 'design', '2026-10-28T09:10:00Z'),
-  p(103, 53, 'Ofis stellaji', 'done', '2026-10-15T16:45:00Z'),
+  p(101, 51, 'Oshxona — Chilonzor', 'validated', '2026-11-02T14:30:00Z'),
+  p(102, 52, 'Yotoqxona shkafi', 'draft', '2026-10-28T09:10:00Z'),
+  p(103, 53, 'Ofis stellaji', 'approved', '2026-10-15T16:45:00Z'),
 ];
 
 describe('updated_since bilan yangilash', () => {
   it('o‘zgarganlar almashtiriladi, yangilari qo‘shiladi, yangilangan vaqt bo‘yicha tartib', () => {
     const changed = [
-      p(102, 52, 'Yotoqxona shkafi (2)', 'production', '2026-11-03T08:00:00Z'),
-      p(104, 54, 'Dahliz', 'design', '2026-11-03T07:00:00Z'),
+      p(102, 52, 'Yotoqxona shkafi (2)', 'validated', '2026-11-03T08:00:00Z'),
+      p(104, 54, 'Dahliz', 'draft', '2026-11-03T07:00:00Z'),
     ];
     const merged = mergeProjects(LIST, changed);
     expect(merged.map((x) => x.id)).toEqual([102, 104, 101, 103]);
@@ -43,10 +56,17 @@ describe('qidiruv va filtr', () => {
     expect(filterProjects(LIST, 'yo‘q', 'all')).toEqual([]);
   });
 
-  it('segment filtr (taxminiy status mosligi)', () => {
-    expect(filterProjects(LIST, '', 'production').map((x) => x.id)).toEqual([101]);
-    expect(filterProjects(LIST, '', 'unapproved').map((x) => x.id)).toEqual([102]);
-    expect(matchesStatusFilter('anything', 'all')).toBe(true);
+  it('segment filtr: Tasdiqlangan = approved, Tasdiqlanmagan = draft|validated (kontrakt 3.1)', () => {
+    expect(filterProjects(LIST, '', 'approved').map((x) => x.id)).toEqual([103]);
+    expect(filterProjects(LIST, '', 'unapproved').map((x) => x.id)).toEqual([101, 102]);
+    expect(matchesStatusFilter('draft', 'all')).toBe(true);
+  });
+
+  it('status normalizatsiyasi va rangi: noma’lum → draft; approved yashil, qolgani sariq', () => {
+    expect(normalizeStatus('approved')).toBe('approved');
+    expect(normalizeStatus('production')).toBe('draft');
+    expect(statusTone('approved')).toBe('green');
+    expect(statusTone('validated')).toBe('yellow');
   });
 });
 

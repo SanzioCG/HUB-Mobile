@@ -1,15 +1,16 @@
-// Kontrakt uhub-mobile/1.2 (QORALAMA: docs/contract/uhub-mobile-1.2-draft.md), 4-bo'lim: mobil API tiplari.
-// Qoralamadan olingan qiymatlar — TODO(contract-1.2). [OCHIQ] joylar mock qiymatlari bilan — TODO(contract).
-// BARCHA taxminlar shu faylda.
+// Kontrakt uhub-mobile/1.3 (docs/contract/uhub-mobile-1.3.md), 4-bo'lim: mobil API tiplari.
+// Kontraktda javobsiz qolgan joylar — TODO(contract). BARCHA taxminlar shu faylda.
 import { uz } from '../i18n/uz';
 
-/** TODO(contract): `user` maydonlari kontraktda yo'q; mock: {id, name}. */
+/** Kontrakt 4: `role` ∈ designer | manager | shop | admin. Email/telefon yo'q. */
+export type UserRole = 'designer' | 'manager' | 'shop' | 'admin';
+
 export interface User {
   id: number;
   name: string;
+  role: UserRole;
 }
 
-/** TODO(contract): `company` maydonlari kontraktda yo'q; mock: {id, name}. */
 export interface Company {
   id: number;
   name: string;
@@ -21,8 +22,12 @@ export interface PairResponse {
   company: Company;
 }
 
-/** TODO(contract): `status` qiymatlari ro'yxati kontraktda yo'q; mock: production | design | done. */
-export type ProjectStatus = 'production' | 'design' | 'done' | (string & {});
+/** Kontrakt 4: `status` ∈ draft | validated | approved; noma'lum qiymat — `draft` deb ko'rsatiladi. */
+export type ProjectStatus = 'draft' | 'validated' | 'approved';
+
+export function normalizeStatus(s: unknown): ProjectStatus {
+  return s === 'validated' || s === 'approved' ? s : 'draft';
+}
 
 export interface ProjectSummary {
   id: number;
@@ -32,29 +37,40 @@ export interface ProjectSummary {
   items_count: number;
   /** ISO-8601. */
   updated_at: string;
-  /** TODO(contract): null ruxsat etiladimi — kontraktda yo'q; mock null qaytaradi. */
   thumb_url: string | null;
 }
 
-/** TODO(contract): buyum `size_mm` formati kontraktda yo'q; mock: [eni, balandligi, chuqurligi]. */
-export type ItemSizeMm = [number, number, number];
+/** Kontrakt 4: obyekt {width, height, depth}, mm (o'nlik bo'lishi mumkin). */
+export interface ItemSizeMm {
+  width: number;
+  height: number;
+  depth: number;
+}
+
+/** Kontrakt 4: `export_status` ∈ ready | pending | failed. */
+export type ExportStatus = 'ready' | 'pending' | 'failed';
 
 export interface ProjectItem {
   item_id: string;
   name: string;
   revision_id: string;
-  /** TODO(contract-1.2): "R5" (qoralama 4). */
   revision_label: string;
-  size_mm: ItemSizeMm;
-  glb_url: string;
-  /** TODO(contract): USDZ V-1b da; null ruxsat etiladimi — kontraktda yo'q. */
-  usdz_url: string | null;
-  /** TODO(contract): null ruxsat etiladimi — kontraktda yo'q. */
-  thumb_url: string | null;
   approved: boolean;
+  size_mm: ItemSizeMm;
+  export_status: ExportStatus;
+  /** Faqat `export_status` ≠ ready bo'lsa null. */
+  glb_url: string | null;
+  /** V-1b gacha doim null. */
+  usdz_url: string | null;
+  thumb_url: string | null;
 }
 
-export interface ProjectDetail extends ProjectSummary {
+export interface ProjectDetail {
+  id: number;
+  number: number;
+  name: string;
+  status: ProjectStatus;
+  updated_at: string;
   items: ProjectItem[];
 }
 
@@ -64,36 +80,46 @@ export interface ResolveResponse {
   item_id: string;
   item_name: string;
   revision_id: string;
-  /** TODO(contract-1.2): qoralamadan. */
   revision_label: string;
+  approved: boolean;
   part_uid: string;
   part_name: string;
   glb_url: string;
   is_latest: boolean;
-  /** TODO(contract-1.2): false — detal keyingi reviziyada o'chirilgan (qoralama 4). */
+  /** false — detal oxirgi reviziyada o'chirilgan. */
   part_in_latest: boolean;
-  /** TODO(contract): `is_latest=true` da null yoki o'sha qiymatlar — 1.2 da ham [OCHIQ]. */
-  latest_revision_id: string | null;
-  /** TODO(contract-1.2): qoralamadan. */
-  latest_revision_label: string | null;
-  latest_glb_url: string | null;
+  /** Doim to'ldiriladi; is_latest=true bo'lsa revision_* bilan bir xil. */
+  latest_revision_id: string;
+  latest_revision_label: string;
+  latest_glb_url: string;
 }
 
-/** TODO(contract-1.2): `POST /mobile/ar-link` — imzolangan 10 daqiqalik havola (qoralama 3–4). */
+/** Kontrakt 4: `POST /mobile/ar-link` — imzolangan 10 daqiqalik havola. */
 export interface ArLinkResponse {
   url: string;
   /** ISO-8601. */
   expires_at: string;
 }
 
-/** TODO(contract-1.2): so'rov tanasi `{item_id, revision_id, format}` — qoralamada [TASDIQ]. */
 export type ArFormat = 'usdz' | 'glb';
 
-/** TODO(contract-1.2): xato tanasi har doim `{ error, message }` (qoralama 4). */
+/** Kontrakt 4: xato tanasi har doim `{ error, message }`; mantiq faqat `error` ga, matn `message` dan. */
 export interface ErrorBody {
   error: string;
   message: string;
 }
+
+/** Kontrakt 4: `error` kodlari (ilova mantig'i shularga tayanadi). */
+export const ERROR = {
+  badQr: 'bad_qr',
+  badRequest: 'bad_request',
+  tokenInvalid: 'token_invalid',
+  tokenRevoked: 'token_revoked',
+  notFound: 'not_found',
+  pairCodeExpired: 'pair_code_expired',
+  rateLimited: 'rate_limited',
+  serverError: 'server_error',
+} as const;
 
 /** Xato tanasini o'qish; maydon yo'q yoki satr bo'lmasa — undefined. */
 export function parseErrorBody(body: unknown): { code?: string; message?: string } {
@@ -104,37 +130,37 @@ export function parseErrorBody(body: unknown): { code?: string; message?: string
   };
 }
 
-// ---------- ko'rinish uchun taxminlar ----------
+// ---------- ko'rinish ----------
 
-export type StatusFilter = 'all' | 'production' | 'unapproved';
+/** M-A4: Hammasi / Tasdiqlangan (`approved`) / Tasdiqlanmagan (`draft` + `validated`). */
+export type StatusFilter = 'all' | 'approved' | 'unapproved';
 
-/**
- * Segment filtr. TODO(contract): "Sexda" va "Tasdiqlanmagan" qaysi `status` qiymatlariga mos kelishi kontraktda yo'q;
- * loyiha ro'yxatida `approved` yo'q. Taxmin: Sexda = production, Tasdiqlanmagan = design.
- */
 export function matchesStatusFilter(status: ProjectStatus, filter: StatusFilter): boolean {
-  if (filter === 'production') return status === 'production';
-  if (filter === 'unapproved') return status === 'design';
+  if (filter === 'approved') return status === 'approved';
+  if (filter === 'unapproved') return status !== 'approved';
   return true;
 }
 
 export type StatusTone = 'yellow' | 'green' | 'muted';
 
-/** TODO(contract): holat ranglari — taxmin: production sariq (jarayonda), done yashil, qolgani kulrang. */
+/** `approved` — yashil; `validated` va `draft` — sariq (ikkalasi ham tasdiqlanmagan). */
 export function statusTone(status: ProjectStatus): StatusTone {
-  if (status === 'production') return 'yellow';
-  if (status === 'done') return 'green';
-  return 'muted';
+  return status === 'approved' ? 'green' : 'yellow';
 }
 
-/** TODO(contract): holat matni — mock qiymatlari uchun; noma'lum qiymat o'zi ko'rsatiladi. */
 export function statusLabel(status: ProjectStatus): string {
-  if (status === 'production') return uz.status.production;
-  if (status === 'design') return uz.status.design;
-  if (status === 'done') return uz.status.done;
-  return uz.status.unknown(status);
+  if (status === 'approved') return uz.status.approved;
+  if (status === 'validated') return uz.status.validated;
+  return uz.status.draft;
 }
 
+/** Kenglik × balandlik × chuqurlik (o'nlik bo'lishi mumkin — ortiqcha nollarsiz). */
 export function formatSize(size: ItemSizeMm): string {
-  return size.join(' × ');
+  const n = (v: number) => String(Math.round(v * 10) / 10);
+  return `${n(size.width)} × ${n(size.height)} × ${n(size.depth)}`;
+}
+
+/** Kontrakt 4: `role` matni. */
+export function roleLabel(role: UserRole): string {
+  return uz.roles[role] ?? role;
 }

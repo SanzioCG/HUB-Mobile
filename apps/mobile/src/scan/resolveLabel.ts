@@ -1,6 +1,7 @@
 // QR matni → resolve natijasi (kontrakt 6, 1–2-qadamlar). Oflaynda — keshlangan natijalar va etiketkalardan.
 import type { ApiClient } from '../api/client';
 import { ApiError, errorMessage, isOfflineError } from '../api/errors';
+import { ERROR } from '../api/types';
 import { uz } from '../i18n/uz';
 import { offlineResolve } from '../offline/labels';
 import { loadOfflineData, saveResolve } from '../offline/store';
@@ -26,9 +27,11 @@ export async function resolveLabel(client: ApiClient, qr: string): Promise<Label
         ? { ok: true, selection: { qr, result, offline: true } }
         : { ok: false, message: uz.scan.offlineMissing };
     }
-    if (e instanceof ApiError && e.kind === 'http' && (e.status === 404 || e.status === 400)) {
-      return { ok: false, message: e.code === 'not_uhub' ? uz.scan.notUhub : uz.scan.notFound };
-    }
+    // Kontrakt 6.2: mantiq `error` kodiga, matn — server `message` i (bo'lmasa zaxira).
+    if (e instanceof ApiError && e.code === ERROR.badQr)
+      return { ok: false, message: e.serverMessage ?? uz.scan.badQr };
+    if (e instanceof ApiError && e.code === ERROR.notFound)
+      return { ok: false, message: e.serverMessage ?? uz.scan.notFound };
     return { ok: false, message: errorMessage(e) };
   }
 }

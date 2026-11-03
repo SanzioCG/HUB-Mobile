@@ -13,6 +13,8 @@ import {
   isOpenableClip,
   openableClipNames,
   ownClipName,
+  doorInfo,
+  partMaterialInfo,
   partExtras,
   revealPlan,
 } from '../src/model.js';
@@ -20,7 +22,10 @@ import {
 let gltf: GLTF;
 
 beforeAll(async () => {
-  const bytes = await new NodeIO().writeBinary(buildM0('r3'));
+  // Node'da GLTFLoader JPEG teksturalarni ocha olmaydi — teksturalar olib tashlanadi (materiallar va extras qoladi).
+  const doc = buildM0('r3');
+  for (const t of doc.getRoot().listTextures()) t.dispose();
+  const bytes = await new NodeIO().writeBinary(doc);
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   gltf = await new GLTFLoader().parseAsync(buf, '');
 });
@@ -188,6 +193,32 @@ describe('eshik/tortma klipi (ownClipName)', () => {
     expect(ownClipName(null)).toBeNull();
     const mid = gltf.scene.getObjectByName('slide__drawer__d3__mid')!;
     expect(ownClipName(mid)).toBe('drawer__d3__open');
+  });
+});
+
+describe('eshik va material ma’lumoti (kontrakt 2.1, 2.5)', () => {
+  const byName = (n: string) => [...indexParts(gltf.scene).values()].find((p) => partExtras(p)!.name === n)!;
+
+  it('eshik ma’lumoti pivot tugunidan; boshqa detallarda null', () => {
+    expect(doorInfo(byName('Eshik'))).toEqual({
+      hinge_side: 'left',
+      open_angle_deg: 105,
+      leaf: 1,
+      leaves: 1,
+    });
+    expect(doorInfo(byName('Polka'))).toBeNull();
+    expect(gltf.scene.getObjectByName('pivot__door__d1')!.userData.uhub.door.open_angle_deg).toBe(105);
+  });
+
+  it('plita materiali extras.uhub (kod, ishlab chiqaruvchi, tur, qalinlik)', () => {
+    expect(partMaterialInfo(byName('Chap yon devor'))).toMatchObject({
+      code: 'H1145 ST10',
+      supplier: 'Egger',
+      kind: 'ldsp',
+      thickness_mm: 18,
+    });
+    expect(partMaterialInfo(byName('Polka'))).toMatchObject({ kind: 'glass', thickness_mm: 6 });
+    expect(partMaterialInfo(byName('Eshik'))).toMatchObject({ kind: 'mdf_painted' });
   });
 });
 
