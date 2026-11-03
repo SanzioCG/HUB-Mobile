@@ -1,9 +1,9 @@
-// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android Scene Viewer yoki iOS Quick Look (Safari orqali).
-// Native funksiyalar tashqaridan beriladi (testlar uchun).
+// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android: AR sahifasi Chrome'da (WebXR); iOS: Quick Look (Safari orqali).
+// Tashqi funksiyalar (openUrl) parametr sifatida beriladi — testlar uchun.
 import type { ApiClient } from '../api/client';
 import { ApiError, errorMessage, isOfflineError } from '../api/errors';
 import { uz } from '../i18n/uz';
-import { ArUnavailableError, launchSceneViewer, type OpenUrl, type StartActivity } from './sceneViewer';
+import { arPageUrl, type OpenUrl } from './arPage';
 
 export interface ArRequest {
   itemId: string;
@@ -13,8 +13,7 @@ export interface ArRequest {
 
 export interface ArDeps {
   client: ApiClient;
-  startActivity: StartActivity;
-  /** Zaxira yo'l: AR sahifasini brauzerda ochish (Linking.openURL). */
+  /** AR sahifasini brauzerda (Chrome) ochish — Linking.openURL. */
   openUrl: OpenUrl;
   /** Dev rejimda sabab aniqroq ko'rsatiladi. */
   dev: boolean;
@@ -29,14 +28,14 @@ export async function openArAndroid(req: ArRequest, deps: ArDeps): Promise<ArRes
   } catch (e) {
     return { ok: false, message: isOfflineError(e) ? uz.ar.offline : errorMessage(e) };
   }
-  // Scene Viewer fayl URL'ini faqat HTTPS orqali qabul qiladi.
-  if (!url.startsWith('https://'))
-    return { ok: false, message: deps.dev ? uz.ar.insecureDev : uz.ar.insecure };
+  // WebXR faqat HTTPS sahifada ishlaydi.
+  const page = arPageUrl(url, req.title);
+  if (!page) return { ok: false, message: deps.dev ? uz.ar.insecureDev : uz.ar.insecure };
   try {
-    await launchSceneViewer(url, req.title, deps.startActivity, deps.openUrl);
+    await deps.openUrl(page);
     return { ok: true };
-  } catch (e) {
-    return { ok: false, message: e instanceof ArUnavailableError ? uz.ar.unavailable : errorMessage(e) };
+  } catch {
+    return { ok: false, message: uz.ar.unavailable };
   }
 }
 

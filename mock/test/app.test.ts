@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { NodeIO } from '@gltf-transform/core';
 import { buildM0 } from '@hub-mobile/sample-glb/build';
 import { REVISIONS, UNSAFE_UID } from '@hub-mobile/sample-glb/m0';
-import { AR_LINK_TTL_MS, buildApp } from '../src/app.js';
+import { AR_LINK_TTL_MS, MODEL_VIEWER_SRC, buildApp } from '../src/app.js';
 import { createStore } from '../src/data.js';
 
 const TOKEN = 'test-token';
@@ -310,20 +310,33 @@ describe('GET /ar/launch (AR zaxira sahifasi)', () => {
       url: `/ar/launch?file=${encodeURIComponent(file)}&title=${encodeURIComponent('M-0 namuna')}`,
     });
 
-  it('tokensiz ochiladi; Google app intent: ar_preferred, resizable=false, file escape', async () => {
+  it('tokensiz ochiladi; <model-viewer> WebXR: src = imzolangan havola, ar-scale=fixed, polga', async () => {
     const a = await build();
     const res = await page(a, signed);
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/html');
-    const href = /href="([^"]+)"/.exec(res.body)![1]!.replaceAll('&amp;', '&');
-    expect(href.startsWith('intent://arvr.google.com/scene-viewer/1.0?')).toBe(true);
-    expect(href).toContain(';package=com.google.android.googlequicksearchbox;');
-    expect(href).toContain('#Intent;scheme=https;');
-    const query = new URLSearchParams(href.slice(href.indexOf('?') + 1, href.indexOf('#')));
-    expect(query.get('file')).toBe(signed);
-    expect(query.get('mode')).toBe('ar_preferred');
-    expect(query.get('resizable')).toBe('false');
-    expect(query.get('title')).toBe('M-0 namuna');
+    expect(res.body).toContain(`<script type="module" src="${MODEL_VIEWER_SRC}"></script>`);
+    const tag = /<model-viewer [^>]+>/.exec(res.body)![0];
+    expect(/src="([^"]+)"/.exec(tag)![1]!.replaceAll('&amp;', '&')).toBe(signed);
+    expect(tag).toContain('ar-modes="webxr scene-viewer"');
+    expect(tag).toContain('ar-scale="fixed"');
+    expect(tag).toContain('ar-placement="floor"');
+    expect(res.body).toContain('M-0 namuna');
+    await a.close();
+  });
+
+  it('AR fayli CORS bilan beriladi (model-viewer fetch)', async () => {
+    const a = await build();
+    const link = await a.inject({
+      method: 'POST',
+      url: '/mobile/ar-link',
+      payload: { item_id: 'm0', revision_id: 'm0-r5', format: 'glb' },
+      headers: auth,
+    });
+    const url = (link.json() as { url: string }).url.replace(PUBLIC, '');
+    const file = await a.inject({ method: 'GET', url });
+    expect(file.statusCode).toBe(200);
+    expect(file.headers['access-control-allow-origin']).toBe('*');
     await a.close();
   });
 
@@ -335,14 +348,6 @@ describe('GET /ar/launch (AR zaxira sahifasi)', () => {
   ])('yaroqsiz havola %s → 404', async (file) => {
     const a = await build();
     expectError(await page(a, file), 404, 'not_found');
-    await a.close();
-  });
-
-  it('unsupported=1 — "AR mavjud emas" xabari', async () => {
-    const a = await build();
-    const res = await a.inject({ method: 'GET', url: '/ar/launch?unsupported=1' });
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toContain('AR mavjud emas');
     await a.close();
   });
 });

@@ -1,6 +1,5 @@
 // 3D ko'rish: WebView to'liq ekran, suzuvchi sarlavha, rejimlar, pastki panel, detal kartasi.
 // Skanerdan kelganda — tanlov holati (kontrakt 6): eski reviziya banneri, "R5 ni ochish", skaner kartasi.
-import * as IntentLauncher from 'expo-intent-launcher';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -217,7 +216,7 @@ function ItemViewer({
 
   const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });
 
-  // AR (kontrakt 3): Android — Scene Viewer, iOS — Quick Look (Safari); ar-link imzolangan havolasi bilan.
+  // AR (kontrakt 3): Android — AR sahifasi Chrome'da (WebXR), iOS — Quick Look (Safari); ar-link imzolangan havolasi bilan.
   const isIos = Platform.OS === 'ios';
   const arAvailable = Platform.OS === 'android' || (isIos && target.usdzUrl !== null);
   const openAr = async () => {
@@ -226,12 +225,7 @@ function ItemViewer({
     const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
     const res = isIos
       ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl: Linking.openURL })
-      : await openArAndroid(req, {
-          client,
-          startActivity: IntentLauncher.startActivityAsync,
-          openUrl: Linking.openURL,
-          dev: __DEV__,
-        });
+      : await openArAndroid(req, { client, openUrl: Linking.openURL, dev: __DEV__ });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };

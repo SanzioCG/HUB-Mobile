@@ -28,10 +28,9 @@ Bajarilmagan: AR'da o'lchov (rulet) — founder telefonda o'lchaydi (pastdagi ja
 2. `npm run fixtures` → `npm run mock` → boshqa terminalda `cloudflared tunnel --url http://localhost:8787`.
 3. Chiqqan `https://….trycloudflare.com` ni `mock/.env` ga yozing: `MOCK_PUBLIC_URL=https://….trycloudflare.com`,
    mock'ni qayta ishga tushiring. Ilova LAN orqali ishlashda davom etadi — faqat AR havolasi tunnel orqali.
-4. `npm start -w @hub-mobile/mobile` → Expo Go → M-0 → **AR** → Scene Viewer ochiladi → buyumni polga qo'ying.
-   Ikki barmoq bilan kattalashtirib bo'lmasligi kerak (`resizable=false`).
-5. Rulet bilan o'lchang (jadval). Tunnelsiz (`MOCK_PUBLIC_URL` bo'sh) — dev'da "Scene Viewer HTTPS talab qiladi —
-   MOCK_PUBLIC_URL" xabari. Wi-Fi o'chiq — "AR uchun internet kerak". Ilova qulamasligi kerak.
+4. `npm start -w @hub-mobile/mobile` → Expo Go → M-0 → **AR** → Chrome'da AR sahifasi → "AR'da ochish" → buyumni
+   polga qo'ying (WebXR, quyidagi "Tuzatish" bo'limi). Ikki barmoq bilan kattalashtirib bo'lmasligi kerak (`ar-scale="fixed"`).
+5. Rulet bilan o'lchang (jadval). Tunnelsiz (`MOCK_PUBLIC_URL` bo'sh) — dev'da "AR HTTPS talab qiladi — MOCK_PUBLIC_URL" xabari. Wi-Fi o'chiq — "AR uchun internet kerak". Ilova qulamasligi kerak.
 
 ### O'lchov (founder to'ldiradi; ±1 %)
 
@@ -71,20 +70,27 @@ emas" ko'rsatadi. Skanerdan ochilgan reviziyada `usdz_url` noma'lum (resolve'da 
 Avvalgi `TODO(contract)` va `TODO(contract-1.2)` ro'yxati o'zgarmadi (M-A2 hisoboti). `ar-link` tanasi va 10 daqiqa
 muddati hamon `TODO(contract-1.2)`.
 
-## Tuzatish (telefon sinovidan keyin): Scene Viewer ochilmagan
+## Tuzatish (telefon sinovidan keyin): Scene Viewer o'rniga Chrome WebXR
 
-- **Belgi:** telefon `ar-link` ni oldi (200), lekin Scene Viewer faylni bir marta ham so'ramadi.
-- **Sabab:** `expo-intent-launcher` (SDK 58) `packageName` ni faqat `className` bilan birga ishlatadi
-  (`IntentLauncherModule.kt`: `setComponent`, `setPackage` yo'q). Faqat paket berilganda intent paketsiz ketib,
-  brauzerda ochilgan; fallback ham ishlamagan, chunki brauzer "muvaffaqiyatli" ochiladi. React Native `Linking.openURL`
-  ham `intent://` ni tahlil qilmaydi.
-- **Qurilma:** Honor X9d ARCore ro'yxatida bor ("Supports Depth API", developers.google.com/ar/devices).
-- **Yechim:** (1) ARCore'ning yo'naltiruvchi komponenti `com.google.ar.core/.viewer.IntentForwardActivity`
-  (`ar_only`) — hujjatlashtirilmagan, model-viewer muhokamasi #1868 va Flutter plaginlari ishlatadi;
-  (2) ishlamasa — brauzerda `/ar/launch` sahifasi, tugma Google hujjatidagi `intent://…;package=Google app;end`
-  havolasini ochadi (`ar_preferred`, `resizable=false`).
-- **Kontraktga taklif:** AR ishga tushiruvchi sahifa (yoki `ar-link` javobida `launch_url`) — haqiqiy backend uchun.
-  `TODO(contract)`: `apps/mobile/src/ar/sceneViewer.ts`, `mock/src/app.ts`.
+Telefonda (Honor X9d) diagnostika:
+1. `expo-intent-launcher` (SDK 58) `packageName` ni faqat `className` bilan ishlatadi (`setPackage` yo'q) — intent
+   paketsiz ketib brauzerda ochilgan. ARCore'ning yo'naltiruvchi komponenti (`…/.viewer.IntentForwardActivity`)
+   bilan ham Scene Viewer Google logosidan keyin qaytgan.
+2. Mock sinov sahifasi (vaqtinchalik `/dev/ar-test`) bilan Chrome'dan Google hujjatidagi `intent://` yo'li sinaldi:
+   bizning fayl (imzoli va imzosiz), Google demo modeli bizning tunnel orqali, Khronos modeli GitHub'dan — **hammasi**
+   Scene Viewer'da logo → qaytish; telefondan fayl so'rovi kelmagan. CORS sarlavhasi qo'shilgani ham yordam bermadi.
+   Xulosa: shu qurilmada Scene Viewer (Google app) tashqi modellarni ochmayapti; sababi aniqlanmadi.
+3. Google `<model-viewer>` demosi Chrome'da ishlagan — u **WebXR** ishlatadi. Bizning M-0 bilan `<model-viewer>`
+   (`ar-modes="webxr"`, `ar-scale="fixed"`) sahifasi **ishladi** (founder tasdiqladi).
+
+**Yechim:** AR tugmasi → `ar-link` → `/ar/launch` sahifasi Chrome'da (`Linking.openURL`) → `<model-viewer>` WebXR,
+`ar-scale="fixed"` (kattalashtirish o'chiq), polga. `expo-intent-launcher` olib tashlandi. AR fayllari CORS bilan.
+
+**Kontraktga taklif (1.3):** AR sahifasi backend tomonda (`ar-link` javobida `launch_url` yoki alohida yo'l),
+`<model-viewer>` backend'ning o'zida joylashtirilgan (CDN emas). `TODO(contract)`: `apps/mobile/src/ar/arPage.ts`,
+`mock/src/app.ts`.
+
+**Ochiq:** rulet o'lchovi (±1 %) WebXR'da qayta qilinishi kerak — o'lchov jadvali yuqorida.
 
 ## Founder'dan kerak
 

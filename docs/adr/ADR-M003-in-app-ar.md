@@ -62,20 +62,35 @@ Xulosa: hozirgi stek (Expo Go + WebView + tashqi AR ko'ruvchilar) bilan **AR ich
 - Kod hajmi: qo'shimcha yo'q.
 - Xavf: kontrakt 5 (A-2) qayta ko'rib chiqilishi kerak — kontrakt 1.3 da o'zgartirish.
 
+### (d) Chrome WebXR sahifasi (M-A3 telefon sinovidan keyin qo'shildi)
+
+- Topilma: Honor X9d'da Scene Viewer tashqi modellarni ochmadi, lekin **Chrome WebXR** ishladi — Google
+  `<model-viewer>` (`ar-modes="webxr"`) bilan M-0 haqiqiy o'lchamda polga qo'yildi. Ilova uni `Linking.openURL` bilan
+  Chrome'da ochadi (M-A3 tuzatishi). WebView'da WebXR yo'q (yuqoridagi jadval), Chrome'ning o'zida bor.
+- Animatsiya: WebXR sahifasi oddiy veb-sahifa — unda three.js (bizning `packages/viewer` ga yaqin kod) WebXR sessiyasida
+  nomli kliplarni boshqara oladi va AR ichida eshik/tortma tugmalari ko'rsatiladi. Bu **tekshirilmagan** — spike kerak
+  (DOM overlay, tugmalar, o'lchov aniqligi).
+- Expo Go'dan chiqish: **yo'q**. iOS: Safari'da WebXR **yo'q** (MDN) → iOS uchun Quick Look (statik) qoladi.
+- Kod hajmi: o'rtacha — AR sahifasi (backend beradi), viewer'ning WebXR rejimi. Ilova o'zgarmaydi.
+- Xavflar: foydalanuvchi ilovadan Chrome'ga o'tadi (keyin qaytadi); Chrome va ARCore qurilmada bo'lishi shart;
+  iOS'da interaktiv AR bo'lmaydi; sahifa backend'da joylashishi kerak (kontrakt 1.3).
+
 ## Taqqoslash
 
-| | (a) dev build + native AR | (b) bitta animatsiyali GLB'lar | (c) faqat statik |
-|---|---|---|---|
-| AR ichida ochish | Ha, boshqariladi | Qisman (loop) yoki statik "ochiq" | Yo'q |
-| Expo Go | Chiqiladi | Qoladi | Qoladi |
-| iOS | EAS + Apple Developer | USDZ variantlari (server) | USDZ (server) |
-| Kod hajmi | Katta | Kichik | Yo'q |
-| Asosiy xavf | SDK 58 mosligi, ikki render | UX (loop, sessiya qayta) | Talabdan voz kechish |
+| | (a) dev build + native AR | (b) bitta animatsiyali GLB'lar | (c) faqat statik | (d) Chrome WebXR sahifa |
+|---|---|---|---|---|
+| AR ichida ochish | Ha, boshqariladi | Qisman (loop) yoki statik "ochiq" | Yo'q | Ha (Android), spike kerak |
+| Expo Go | Chiqiladi | Qoladi | Qoladi | Qoladi |
+| iOS | EAS + Apple Developer | USDZ variantlari (server) | USDZ (server) | Faqat statik Quick Look |
+| Kod hajmi | Katta | Kichik | Yo'q | O'rtacha (sahifa + viewer WebXR) |
+| Asosiy xavf | SDK 58 mosligi, ikki render | UX (loop, sessiya qayta) | Talabdan voz kechish | Chrome'ga o'tish, iOS'da yo'q |
 
 ## Taklif (founder qaror qiladi)
 
-1. Hozircha **(c)** — M-A3 statik AR'i ishlaydi va o'lcham sinovi (±1 %) shu bilan o'tkaziladi.
-2. Agar A-2 da interaktiv AR majburiy bo'lsa — keyingi batchda **(a) bo'yicha alohida spike**: dev build,
+0. **Yangilanish (M-A3 telefon sinovi):** statik AR endi (d) yo'li bilan ishlaydi (Chrome WebXR). Interaktiv AR uchun
+   birinchi navbatda **(d) spike** taklif qilinadi — Expo Go'dan chiqmasdan, mavjud viewer kodiga yaqin.
+1. Hozircha **(c)/(d) statik** — o'lcham sinovi (±1 %) WebXR'da o'tkaziladi.
+2. Agar (d) interaktiv AR'ni ko'tarmasa va A-2 da u majburiy bo'lsa — **(a) bo'yicha alohida spike**: dev build,
    ViroReact SDK 58 da ishga tushadimi, M-0 GLB'si nomli kliplar bilan ochiladimi va o'lcham ±1 % mi.
    Spike muvaffaqiyatsiz bo'lsa — (b) ning "statik ochiq holat" varianti.
 3. Founder'dan kerak: A-2 da interaktiv AR majburiymi; Apple Developer akkaunti (kontrakt 9.3).
