@@ -1,5 +1,6 @@
 // Kontrakt uhub-mobile/1.1, 4-bo'lim: mobil API tiplari.
 // Kontraktda javobsiz joylar mock (mock/src/app.ts, data.ts) qiymatlari bilan olingan — BARCHA taxminlar shu faylda.
+import { uz } from '../i18n/uz';
 
 /** TODO(contract): `user` maydonlari kontraktda yo'q; mock: {id, name}. */
 export interface User {
@@ -99,6 +100,14 @@ export function statusTone(status: ProjectStatus): StatusTone {
   if (status === 'production') return 'yellow';
   if (status === 'done') return 'green';
   return 'muted';
+}
+
+/** TODO(contract): holat matni — mock qiymatlari uchun; noma'lum qiymat o'zi ko'rsatiladi. */
+export function statusLabel(status: ProjectStatus): string {
+  if (status === 'production') return uz.status.production;
+  if (status === 'design') return uz.status.design;
+  if (status === 'done') return uz.status.done;
+  return uz.status.unknown(status);
 }
 
 /** TODO(contract): `revision_id` formati kontraktda yo'q; mock: "m0-r5" → "R5". Mos kelmasa — o'zi. */
