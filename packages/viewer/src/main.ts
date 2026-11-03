@@ -107,6 +107,8 @@ function devPanel(
       for (const p of m.parts) select.append(new Option(`${p.number}. ${p.name}`, p.uid));
     } else if (m.type === 'selected') {
       showCard(m.extras);
+    } else if (m.type === 'deselected') {
+      card.replaceChildren();
     } else if (m.type === 'error') {
       status.textContent = `${m.code}: ${m.message}`;
     }

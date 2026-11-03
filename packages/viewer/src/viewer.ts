@@ -20,16 +20,24 @@ import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import type { Bridge, DimensionLine, ErrorCode, HostMessage, LoadedItem, ViewMode } from './bridge.js';
 import { ClipPlayer } from './clips.js';
 import { buildDims, disposeDims } from './dims.js';
+import { fetchBytes } from './fetch-bytes.js';
 import { Look } from './look.js';
 import {
   findItemNode,
   findPartAncestor,
   indexParts,
   openableClipNames,
+  ownClipName,
   partExtras,
   revealPlan,
 } from './model.js';
 import { BG, FOCUS_DURATION_S } from './theme.js';
+
+/** Detalning eshik/tortma klipi, faqat GLB'da mavjud bo'lsa. */
+const ownClip = (part: Object3D, clips: ClipPlayer) => {
+  const name = ownClipName(part);
+  return name && clips.has(name) ? name : null;
+};
 
 interface Loaded {
   url: string;
@@ -134,6 +142,12 @@ export class Viewer {
         this.dimsOn = msg.on;
         if (m.dims) m.dims.visible = msg.on;
         break;
+      case 'deselect':
+        this.selectSeq++;
+        m.look.selected = null;
+        m.look.ghost = false;
+        m.look.apply();
+        break;
     }
   }
 
@@ -148,9 +162,7 @@ export class Viewer {
     const seq = ++this.loadSeq;
     let gltf: GLTF;
     try {
-      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      gltf = await this.loader.parseAsync(await res.arrayBuffer(), '');
+      gltf = await this.loader.parseAsync(await fetchBytes(url, token), '');
     } catch (e) {
       if (seq === this.loadSeq) this.error('load_failed', `${url}: ${(e as Error).message}`);
       return;
@@ -210,7 +222,7 @@ export class Viewer {
     if (!node) return this.error('part_not_found', `Detal modelda topilmadi: ${uid}`);
     const seq = ++this.selectSeq;
     const extras = partExtras(node)!;
-    this.bridge.post({ type: 'selected', uid, extras });
+    this.bridge.post({ type: 'selected', uid, extras, clip: ownClip(node, m.clips) });
     m.look.selected = node;
     m.look.ghost = true;
     m.look.apply();
@@ -246,16 +258,17 @@ export class Viewer {
     const hit = this.raycaster.intersectObjects(targets, false)[0];
     const part = findPartAncestor(hit?.object ?? null);
     if (!part) {
-      if (!m.look.ghost) {
+      if (!m.look.ghost && m.look.selected) {
         m.look.selected = null;
         m.look.apply();
+        this.bridge.post({ type: 'deselected' });
       }
       return;
     }
     const extras = partExtras(part)!;
     m.look.selected = part;
     m.look.apply();
-    this.bridge.post({ type: 'selected', uid: extras.uid, extras });
+    this.bridge.post({ type: 'selected', uid: extras.uid, extras, clip: ownClip(part, m.clips) });
   }
 
   private installTapHandling(el: HTMLElement): void {

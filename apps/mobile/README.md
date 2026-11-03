@@ -1,11 +1,33 @@
-# apps/mobile — Expo ilova (bo'sh joy)
+# apps/mobile — U-HUB ilovasi (Expo)
 
-Bu katalog M-A1 batchida yaratiladi: React Native + Expo (TypeScript), kontrakt `uhub-mobile/1.1` 1-bo'lim.
+React Native + Expo SDK 58, TypeScript strict, `expo-router` (`src/app/`). Expo Go'da ishlaydi.
 
-Rejadagi tarkib (M-A1/M-A2):
+## Ishga tushirish (Expo Go)
 
-- juftlash, loyihalar ro'yxati, buyumlar (kontrakt 4, 5-bo'limlar);
-- `packages/viewer` bundle'i WebView ichida (`src/bridge.ts` xabarlari orqali);
-- QR skaner va haptic (M-A2), oflayn kesh.
+```powershell
+npm install                      # repo ildizida
+npm run fixtures                 # GLB + QR (bir marta)
+npm run mock                     # mock API :8787
+npm start -w @hub-mobile/mobile  # viewer build + nusxa + expo start
+```
 
-Hozircha bu yerda kod yo'q va u npm workspace emas.
+Telefon (Expo Go) kompyuter bilan bitta Wi-Fi'da bo'lishi kerak. QR'ni skanerlang → juftlash kodi `123456`.
+
+Server manzili: `EXPO_PUBLIC_API_URL` (`apps/mobile/.env`), bo'lmasa dev'da Expo serverining IP'si + `:8787`.
+Juftlash ekranida qo'lda o'zgartirsa bo'ladi.
+
+## Tuzilma
+
+```
+src/app/          ekranlar (expo-router)
+src/api/          kontrakt 4-bo'lim klienti, tiplar (taxminlar shu yerda — TODO(contract))
+src/session/      token (expo-secure-store), 401 oqimi
+src/viewer/       WebView + viewer bundle, GLB yetkazish (ADR-M002)
+src/components/   UI
+src/theme.ts      rang/o'lcham tokenlari
+src/i18n/uz.ts    matnlar
+```
+
+## Skriptlar
+
+`types` (tsc), `lint`, `jest`, `doctor` (expo-doctor), `copy-viewer` (`packages/viewer/dist/index.html` → `assets/viewer/viewer.html`).

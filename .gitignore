@@ -13,3 +13,7 @@ mock/fixtures/qr/
 
 # Expo (M-A1)
 apps/mobile/.expo/
+
+# viewer bundle nusxasi (apps/mobile: npm run copy-viewer)
+apps/mobile/assets/viewer/
+apps/mobile/.env

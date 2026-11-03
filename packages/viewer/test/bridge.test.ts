@@ -15,6 +15,7 @@ describe('parseIncoming', () => {
     [{ type: 'setMode', mode: 'xray' }],
     [{ type: 'setDims', on: true }],
     [{ type: 'resetView' }],
+    [{ type: 'deselect' }],
   ])('%j qabul qilinadi', (msg) => {
     expect(parseIncoming(msg)).toEqual({ ok: true, msg });
   });
