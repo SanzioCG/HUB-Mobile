@@ -3,7 +3,7 @@
 - Sana: 2026-11-03 · Branch: `batch/m-a3` → `main`, merge **`e06b451`**
 - Kontrakt fayli: `docs/contract/uhub-mobile-1.2-draft.md` (QORALAMA) — `uhub-mobile-1.2.md` hali yo'q.
 - Gate (`scripts/check-mobile.ps1 -Quiet`): birinchi ishga tushirishda o'tdi, tuzatish kerak bo'lmadi.
-- Push: **qilinmadi** — `origin` remote yo'q.
+- Push: `origin` = https://github.com/SanzioCG/HUB-Mobile.git — `main` push qilindi (AR tuzatishi bilan, `3aea73b`).
 - Zaxira (`git bundle`): **yaratilmadi** — zaxira papkasi berilmagan (topshiriqda `<papka>` shablon bo'lib qolgan).
   **Savol: zaxira qaysi papkaga?** Yo'l berilsa: `git bundle create <papka>\HUB-Mobile-2026-11-03.bundle --all`.
 
