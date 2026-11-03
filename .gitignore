@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# generatsiya qilinadigan fixtures (npm run fixtures)
+mock/fixtures/glb/
+mock/fixtures/qr/
+
+# Expo (M-A1)
+apps/mobile/.expo/
