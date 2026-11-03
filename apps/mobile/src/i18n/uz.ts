@@ -101,7 +101,7 @@ export const uz = {
     loading: 'AR havolasi olinmoqda…',
     offline: 'AR uchun internet kerak',
     insecure: 'AR havolasi HTTPS emas',
-    insecureDev: 'Scene Viewer HTTPS talab qiladi — MOCK_PUBLIC_URL',
+    insecureDev: 'AR HTTPS talab qiladi — MOCK_PUBLIC_URL',
     unavailable: 'Bu qurilmada AR mavjud emas',
     notReady: 'AR bu buyum uchun tayyor emas',
   },

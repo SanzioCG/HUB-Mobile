@@ -205,50 +205,36 @@ export function buildApp(opts: AppOptions) {
       const m = /^([a-z0-9-]+)\.glb$/.exec(file);
       const bytes = m ? opts.glbs[m[1]!] : undefined;
       if (!bytes) return notFound(reply);
-      return reply.header('Content-Type', 'model/gltf-binary').send(Buffer.from(bytes));
+      // model-viewer faylni fetch bilan oladi — CORS (Google demo serveri ham `*` qaytaradi).
+      return reply
+        .header('Content-Type', 'model/gltf-binary')
+        .header('Access-Control-Allow-Origin', '*')
+        .send(Buffer.from(bytes));
     },
   );
 
-  // AR ishga tushiruvchi sahifa (zaxira yo'l): ilova Scene Viewer'ni to'g'ridan-to'g'ri ocha olmasa, brauzerda shu sahifa
-  // ochiladi va tugma Google hujjatidagi `intent://…;package=…;end` havolasi bilan Scene Viewer'ni ishga tushiradi.
-  // TODO(contract): bunday sahifa kontraktda yo'q — faqat mock; haqiqiy backend uchun taklif.
-  app.get<{ Querystring: { file?: string; title?: string; unsupported?: string } }>(
-    '/ar/launch',
-    async (req, reply) => {
-      if (req.query.unsupported)
-        return reply
-          .type('text/html; charset=utf-8')
-          .send(
-            '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-              '<body style="background:#111214;color:#E6E8EB;font-family:system-ui;padding:24px;text-align:center">' +
-              'Bu qurilmada AR mavjud emas: Google ilovasi va Google Play Services for AR kerak.</body>',
-          );
-      const file = req.query.file ?? '';
-      const title = (req.query.title ?? '').slice(0, 60);
-      let fileUrl: URL;
-      try {
-        fileUrl = new URL(file);
-      } catch {
-        return notFound(reply, 'AR havolasi yo‘q');
-      }
-      // Faqat shu serverning imzolangan AR fayllari — ochiq yo'naltirgich bo'lmasin.
-      const ownOrigin = new URL(opts.publicUrl ?? base(req)).host;
-      if (
-        fileUrl.protocol !== 'https:' ||
-        fileUrl.host !== ownOrigin ||
-        !fileUrl.pathname.startsWith('/files/ar/')
-      )
-        return notFound(reply, 'AR havolasi yaroqsiz');
-      const sv =
-        `arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fileUrl.href)}` +
-        `&mode=ar_preferred&resizable=false&title=${encodeURIComponent(title)}`;
-      const fallback = `${opts.publicUrl ?? base(req)}/ar/launch?unsupported=1`;
-      const intent =
-        `intent://${sv}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;` +
-        `action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallback)};end;`;
-      return reply.type('text/html; charset=utf-8').send(arLaunchPage(intent, title));
-    },
-  );
+  // AR sahifasi (M-A3 tuzatishi): Chrome'ning o'zida WebXR AR, Google <model-viewer> bilan. Honor X9d'da Scene Viewer
+  // (Google app) har qanday tashqi model bilan ochilmay qaytgan, Chrome WebXR esa ishlagan.
+  // TODO(contract): bunday sahifa kontraktda yo'q — faqat mock; haqiqiy backend uchun taklif (M-A3 hisoboti).
+  app.get<{ Querystring: { file?: string; title?: string } }>('/ar/launch', async (req, reply) => {
+    const file = req.query.file ?? '';
+    const title = (req.query.title ?? '').slice(0, 60);
+    let fileUrl: URL;
+    try {
+      fileUrl = new URL(file);
+    } catch {
+      return notFound(reply, 'AR havolasi yo‘q');
+    }
+    // Faqat shu serverning imzolangan AR fayllari — ochiq yo'naltirgich bo'lmasin.
+    const ownOrigin = new URL(opts.publicUrl ?? base(req)).host;
+    if (
+      fileUrl.protocol !== 'https:' ||
+      fileUrl.host !== ownOrigin ||
+      !fileUrl.pathname.startsWith('/files/ar/')
+    )
+      return notFound(reply, 'AR havolasi yaroqsiz');
+    return reply.type('text/html; charset=utf-8').send(arLaunchPage(fileUrl.href, title));
+  });
 
   app.delete('/mobile/device', async (req, reply) => {
     tokens.delete(bearer(req)!);
@@ -307,15 +293,25 @@ async function listPngs(dir: string): Promise<string[]> {
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-/** AR sahifasi: katta "AR'da ochish" tugmasi (Chrome tashqi intentni foydalanuvchi bosishi bilan ochadi). */
-function arLaunchPage(intent: string, title: string): string {
-  const href = esc(intent);
+/** Google <model-viewer> versiyasi (jsDelivr). Haqiqiy backend o'zida joylashtirishi kerak. */
+export const MODEL_VIEWER_SRC =
+  'https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js';
+
+/**
+ * AR sahifasi: <model-viewer> WebXR. `ar-modes="webxr scene-viewer"` — avval Chrome WebXR, bo'lmasa Scene Viewer;
+ * `ar-scale="fixed"` — kattalashtirish o'chiq (real o'lcham, kontrakt 7: ±1 %); `ar-placement="floor"`.
+ */
+function arLaunchPage(src: string, title: string): string {
+  const name = esc(title || 'U-HUB');
   return `<!doctype html><html lang="uz"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AR — ${esc(title || 'U-HUB')}</title>
-<body style="margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#111214;color:#E6E8EB;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box;text-align:center">
-<div style="font-size:18px;font-weight:600">${esc(title || 'U-HUB')}</div>
-<a href="${href}" style="display:block;width:100%;max-width:320px;padding:16px;border-radius:12px;background:#3988FF;color:#fff;font-weight:700;font-size:16px;text-decoration:none">AR'da ochish</a>
-<div style="font-size:14px;color:#8B929B">Scene Viewer ochiladi. Buyum haqiqiy o'lchamda; kattalashtirish o'chirilgan.</div>
+<title>AR — ${name}</title>
+<script type="module" src="${MODEL_VIEWER_SRC}"></script>
+<body style="margin:0;background:#111214;color:#E6E8EB;font-family:system-ui,sans-serif">
+<model-viewer src="${esc(src)}" alt="${name}" ar ar-modes="webxr scene-viewer" ar-scale="fixed" ar-placement="floor" camera-controls style="width:100vw;height:100vh;background:#111214">
+<div style="position:absolute;top:16px;left:16px;right:16px;font-size:16px;font-weight:600">${name}</div>
+<button slot="ar-button" style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);padding:16px 28px;border:0;border-radius:12px;background:#3988FF;color:#fff;font-weight:700;font-size:16px">AR'da ochish</button>
+<div slot="ar-failure" style="position:absolute;top:56px;left:16px;right:16px;padding:12px;background:#222428;border-radius:8px">AR ishga tushmadi: Chrome va Google Play Services for AR yangilanganini tekshiring.</div>
+</model-viewer>
 </body></html>`;
 }
