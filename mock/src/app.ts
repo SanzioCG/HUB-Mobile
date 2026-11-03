@@ -209,6 +209,47 @@ export function buildApp(opts: AppOptions) {
     },
   );
 
+  // AR ishga tushiruvchi sahifa (zaxira yo'l): ilova Scene Viewer'ni to'g'ridan-to'g'ri ocha olmasa, brauzerda shu sahifa
+  // ochiladi va tugma Google hujjatidagi `intent://…;package=…;end` havolasi bilan Scene Viewer'ni ishga tushiradi.
+  // TODO(contract): bunday sahifa kontraktda yo'q — faqat mock; haqiqiy backend uchun taklif.
+  app.get<{ Querystring: { file?: string; title?: string; unsupported?: string } }>(
+    '/ar/launch',
+    async (req, reply) => {
+      if (req.query.unsupported)
+        return reply
+          .type('text/html; charset=utf-8')
+          .send(
+            '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+              '<body style="background:#111214;color:#E6E8EB;font-family:system-ui;padding:24px;text-align:center">' +
+              'Bu qurilmada AR mavjud emas: Google ilovasi va Google Play Services for AR kerak.</body>',
+          );
+      const file = req.query.file ?? '';
+      const title = (req.query.title ?? '').slice(0, 60);
+      let fileUrl: URL;
+      try {
+        fileUrl = new URL(file);
+      } catch {
+        return notFound(reply, 'AR havolasi yo‘q');
+      }
+      // Faqat shu serverning imzolangan AR fayllari — ochiq yo'naltirgich bo'lmasin.
+      const ownOrigin = new URL(opts.publicUrl ?? base(req)).host;
+      if (
+        fileUrl.protocol !== 'https:' ||
+        fileUrl.host !== ownOrigin ||
+        !fileUrl.pathname.startsWith('/files/ar/')
+      )
+        return notFound(reply, 'AR havolasi yaroqsiz');
+      const sv =
+        `arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fileUrl.href)}` +
+        `&mode=ar_preferred&resizable=false&title=${encodeURIComponent(title)}`;
+      const fallback = `${opts.publicUrl ?? base(req)}/ar/launch?unsupported=1`;
+      const intent =
+        `intent://${sv}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;` +
+        `action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallback)};end;`;
+      return reply.type('text/html; charset=utf-8').send(arLaunchPage(intent, title));
+    },
+  );
+
   app.delete('/mobile/device', async (req, reply) => {
     tokens.delete(bearer(req)!);
     // TODO(contract): javob tanasi — 1.2 da ham [OCHIQ]; 204 No Content.
@@ -261,4 +302,20 @@ async function listPngs(dir: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+const esc = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+/** AR sahifasi: katta "AR'da ochish" tugmasi (Chrome tashqi intentni foydalanuvchi bosishi bilan ochadi). */
+function arLaunchPage(intent: string, title: string): string {
+  const href = esc(intent);
+  return `<!doctype html><html lang="uz"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AR — ${esc(title || 'U-HUB')}</title>
+<body style="margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#111214;color:#E6E8EB;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box;text-align:center">
+<div style="font-size:18px;font-weight:600">${esc(title || 'U-HUB')}</div>
+<a href="${href}" style="display:block;width:100%;max-width:320px;padding:16px;border-radius:12px;background:#3988FF;color:#fff;font-weight:700;font-size:16px;text-decoration:none">AR'da ochish</a>
+<div style="font-size:14px;color:#8B929B">Scene Viewer ochiladi. Buyum haqiqiy o'lchamda; kattalashtirish o'chirilgan.</div>
+</body></html>`;
 }

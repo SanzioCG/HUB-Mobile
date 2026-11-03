@@ -290,3 +290,59 @@ describe('DELETE /mobile/device', () => {
     expectError(await get('/mobile/projects', headers), 401, 'unauthorized');
   });
 });
+
+describe('GET /ar/launch (AR zaxira sahifasi)', () => {
+  const PUBLIC = 'https://abc.trycloudflare.com';
+  const build = async () =>
+    buildApp({
+      store: await createStore(glbs),
+      glbs,
+      devToken: TOKEN,
+      pairCode: '123456',
+      signSecret: 'test-secret',
+      publicUrl: PUBLIC,
+      now: () => T0,
+    });
+  const signed = `${PUBLIC}/files/ar/m0-r5-ar.glb?exp=1793700000&sig=ab12`;
+  const page = (a: Awaited<ReturnType<typeof build>>, file: string) =>
+    a.inject({
+      method: 'GET',
+      url: `/ar/launch?file=${encodeURIComponent(file)}&title=${encodeURIComponent('M-0 namuna')}`,
+    });
+
+  it('tokensiz ochiladi; Google app intent: ar_preferred, resizable=false, file escape', async () => {
+    const a = await build();
+    const res = await page(a, signed);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    const href = /href="([^"]+)"/.exec(res.body)![1]!.replaceAll('&amp;', '&');
+    expect(href.startsWith('intent://arvr.google.com/scene-viewer/1.0?')).toBe(true);
+    expect(href).toContain(';package=com.google.android.googlequicksearchbox;');
+    expect(href).toContain('#Intent;scheme=https;');
+    const query = new URLSearchParams(href.slice(href.indexOf('?') + 1, href.indexOf('#')));
+    expect(query.get('file')).toBe(signed);
+    expect(query.get('mode')).toBe('ar_preferred');
+    expect(query.get('resizable')).toBe('false');
+    expect(query.get('title')).toBe('M-0 namuna');
+    await a.close();
+  });
+
+  it.each([
+    'https://evil.example.com/files/ar/x.glb', // begona host
+    'http://abc.trycloudflare.com/files/ar/m0-r5-ar.glb', // HTTPS emas
+    'https://abc.trycloudflare.com/mobile/projects', // AR fayli emas
+    'not a url',
+  ])('yaroqsiz havola %s → 404', async (file) => {
+    const a = await build();
+    expectError(await page(a, file), 404, 'not_found');
+    await a.close();
+  });
+
+  it('unsupported=1 — "AR mavjud emas" xabari', async () => {
+    const a = await build();
+    const res = await a.inject({ method: 'GET', url: '/ar/launch?unsupported=1' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('AR mavjud emas');
+    await a.close();
+  });
+});

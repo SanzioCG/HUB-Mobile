@@ -3,7 +3,7 @@
 import type { ApiClient } from '../api/client';
 import { ApiError, errorMessage, isOfflineError } from '../api/errors';
 import { uz } from '../i18n/uz';
-import { ArUnavailableError, launchSceneViewer, type StartActivity } from './sceneViewer';
+import { ArUnavailableError, launchSceneViewer, type OpenUrl, type StartActivity } from './sceneViewer';
 
 export interface ArRequest {
   itemId: string;
@@ -14,6 +14,8 @@ export interface ArRequest {
 export interface ArDeps {
   client: ApiClient;
   startActivity: StartActivity;
+  /** Zaxira yo'l: AR sahifasini brauzerda ochish (Linking.openURL). */
+  openUrl: OpenUrl;
   /** Dev rejimda sabab aniqroq ko'rsatiladi. */
   dev: boolean;
 }
@@ -31,7 +33,7 @@ export async function openArAndroid(req: ArRequest, deps: ArDeps): Promise<ArRes
   if (!url.startsWith('https://'))
     return { ok: false, message: deps.dev ? uz.ar.insecureDev : uz.ar.insecure };
   try {
-    await launchSceneViewer(url, req.title, deps.startActivity);
+    await launchSceneViewer(url, req.title, deps.startActivity, deps.openUrl);
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof ArUnavailableError ? uz.ar.unavailable : errorMessage(e) };
