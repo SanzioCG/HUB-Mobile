@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "fixtures": "npm run generate -w @hub-mobile/sample-glb"
   },
   "type": "module",
   "devDependencies": {
@@ -27,5 +28,8 @@
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1"
+  },
+  "allowScripts": {
+    "esbuild": true
   }
 }

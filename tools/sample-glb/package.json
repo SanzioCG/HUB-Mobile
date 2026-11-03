@@ -1,0 +1,19 @@
+{
+  "name": "@hub-mobile/sample-glb",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx src/cli.ts",
+    "validate": "tsx src/validate-cli.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "gltf-validator": "^2.0.0-dev.3.10"
+  }
+}
