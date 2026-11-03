@@ -5,12 +5,13 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
 import { useProject } from '../../../api/hooks';
-import { formatSize, type ProjectItem } from '../../../api/types';
+import { formatSize, type ItemSizeMm, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
 import { PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
 import { defaultDelivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
+import { getSelection } from '../../../scan/selection';
 import { usePairedSession } from '../../../session/SessionProvider';
 import { colors, fontSize, fonts, radius, space } from '../../../theme';
 import type { HostMessage, PartExtras, ViewerMessage, ViewMode } from '../../../viewer/bridge';
@@ -22,18 +23,62 @@ const MODES = [
   { key: 'xray', label: uz.viewer.modeXray },
 ] as const satisfies readonly { key: ViewMode; label: string }[];
 
-export default function ItemScreen() {
-  const { projectId, itemId } = useLocalSearchParams<{ projectId: string; itemId: string }>();
-  const { state, reload } = useProject(projectId);
+/** 3D ekranda ochiladigan reviziya: loyiha buyumi yoki skanerlangan etiketkadagi reviziya. */
+export interface ViewTarget {
+  name: string;
+  sizeMm: ItemSizeMm | null;
+  glbUrl: string;
+  revisionId: string;
+  revisionLabel: string;
+  /** API'dan; skanerlangan eski reviziya uchun noma'lum — null. */
+  approved: boolean | null;
+}
 
+const fromItem = (it: ProjectItem): ViewTarget => ({
+  name: it.name,
+  sizeMm: it.size_mm,
+  glbUrl: it.glb_url,
+  revisionId: it.revision_id,
+  revisionLabel: it.revision_label,
+  approved: it.approved,
+});
+
+export default function ItemScreen() {
+  const { projectId, itemId, qr } = useLocalSearchParams<{
+    projectId: string;
+    itemId: string;
+    qr?: string;
+  }>();
+  const scan = qr ? getSelection(qr) : undefined;
+  if (scan) {
+    const r = scan.result;
+    return (
+      <ItemViewer
+        target={{
+          name: r.item_name,
+          sizeMm: null,
+          glbUrl: r.glb_url,
+          revisionId: r.revision_id,
+          revisionLabel: r.revision_label,
+          approved: null,
+        }}
+        selectUid={r.part_uid}
+      />
+    );
+  }
+  return <ProjectItemScreen projectId={projectId} itemId={itemId} />;
+}
+
+function ProjectItemScreen({ projectId, itemId }: { projectId: string; itemId: string }) {
+  const { state, reload } = useProject(projectId);
   if (state.status === 'loading') return <SkeletonList rows={1} />;
   if (state.status === 'error') return <ErrorState message={errorMessage(state.error)} onRetry={reload} />;
   const item = state.data.items.find((it) => it.item_id === itemId);
   if (!item) return <ErrorState message={uz.errors.notFound} />;
-  return <ItemViewer item={item} />;
+  return <ItemViewer target={fromItem(item)} />;
 }
 
-function ItemViewer({ item }: { item: ProjectItem }) {
+function ItemViewer({ target: item, selectUid }: { target: ViewTarget; selectUid?: string }) {
   const session = usePairedSession();
   const viewer = useRef<ViewerHandle>(null);
   const [attempt, setAttempt] = useState(0);
@@ -52,6 +97,7 @@ function ItemViewer({ item }: { item: ProjectItem }) {
     if (m.type === 'loaded') {
       setClips(m.item.clips);
       setOpen(new Set());
+      if (selectUid) send({ type: 'select', uid: selectUid });
     } else if (m.type === 'selected') {
       setSelected({ part: m.extras, clip: m.clip });
     } else if (m.type === 'deselected') {
@@ -86,8 +132,8 @@ function ItemViewer({ item }: { item: ProjectItem }) {
         key={attempt}
         ref={viewer}
         delivery={defaultDelivery}
-        glbUrl={item.glb_url}
-        revisionId={item.revision_id}
+        glbUrl={item.glbUrl}
+        revisionId={item.revisionId}
         token={session?.token ?? ''}
         onMessage={onMessage}
         onPhase={(p, e) => {
@@ -104,14 +150,14 @@ function ItemViewer({ item }: { item: ProjectItem }) {
               {item.name}
             </T>
             <T mono muted>
-              {formatSize(item.size_mm)}
+              {item.sizeMm ? formatSize(item.sizeMm) : item.revisionLabel}
             </T>
           </View>
         </View>
-        {!item.approved && (
+        {item.approved === false && (
           <View style={styles.badge}>
             <Dot color={colors.yellow} />
-            <T style={styles.badgeText}>{uz.viewer.unapproved(item.revision_label)}</T>
+            <T style={styles.badgeText}>{uz.viewer.unapproved(item.revisionLabel)}</T>
           </View>
         )}
         <View style={styles.modes}>

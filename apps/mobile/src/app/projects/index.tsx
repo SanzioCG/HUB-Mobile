@@ -46,12 +46,7 @@ export default function ProjectsScreen() {
             {online === false ? uz.projects.offline : uz.projects.connected} · {session?.company.name}
           </T>
         </View>
-        <Button
-          label={uz.projects.scanner}
-          primary
-          disabled
-          right={<T style={styles.soon}>{uz.common.soon}</T>}
-        />
+        <Button label={uz.projects.scanner} primary onPress={() => router.push('/scan')} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -114,7 +109,6 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   title: { flex: 1, fontFamily: fonts.semibold, fontSize: fontSize.title },
   company: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  soon: { color: colors.white, fontSize: fontSize.sm, opacity: 0.8 },
   search: {
     minHeight: hit,
     backgroundColor: colors.panel,
