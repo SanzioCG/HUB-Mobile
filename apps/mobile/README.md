@@ -23,10 +23,19 @@ src/app/          ekranlar (expo-router)
 src/api/          kontrakt 4-bo'lim klienti, tiplar (taxminlar shu yerda — TODO(contract))
 src/session/      token (expo-secure-store), 401 oqimi
 src/viewer/       WebView + viewer bundle, GLB yetkazish (ADR-M002)
+src/scan/         QR skaner yordamchilari, oxirgi skanerlar, skaner → 3D tanlov
+src/offline/      oflayn kesh: GLB (LRU), ro'yxatlar, oflayn QR qidiruvi
 src/components/   UI
 src/theme.ts      rang/o'lcham tokenlari
 src/i18n/uz.ts    matnlar
 ```
+
+## Ekranlar
+
+`/pair` juftlash · `/projects` loyihalar · `/projects/[id]` buyumlar · `/item/[projectId]/[itemId]` 3D (`?qr=` — skaner tanlovi) ·
+`/scan` QR skaner · `/settings` sozlamalar va kesh · `/dev/spike` (dev).
+
+Oflayn kesh chegaralari: `src/config.ts` → `CACHE_LIMITS` (founder sozlamasi).
 
 ## Skriptlar
 

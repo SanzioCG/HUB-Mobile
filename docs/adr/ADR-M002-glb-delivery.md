@@ -37,7 +37,7 @@ JS satri sifatida ikki marta xotirada turadi va ko'prik bloklanadi.
     `WebViewAssetLoader` (`https://appassets…`) kerak bo'lishi mumkin — bu Expo Go'da yo'q (native modul).
   - iOS: `file://` sahifadan XHR WKWebView'ning ichki sozlamasiga (`allowFileAccessFromFileURLs`) bog'liq.
     react-native-webview uni o'rnatadi, lekin bu ochiq API emas.
-  - Kesh hajmi va tozalash siyosati — M-A2 (bu batchda yo'q).
+  - Kesh hajmi va tozalash siyosati — M-A2 da qo'shildi (pastda, "Kesh siyosati").
 
 ## Debug ekran
 
@@ -68,6 +68,20 @@ iOS: o'lchanmagan (Expo Go iOS qurilmasi yo'q).
   bilan qo'shiladi: keshda reviziya bo'lsa B, aks holda A.
 - Agar B telefonda ishlamasa: fallback — WebView'ga lokal HTTP server (Expo Go'da yo'q, development build kerak) yoki
   `WebViewAssetLoader`. Bu holda oflayn rejim development build'ga o'tishni talab qiladi — founder qarori.
+
+## Kesh siyosati (M-A2)
+
+- Ochilgan va skanerlangan har reviziya keshga yuklanadi: `documentDirectory/cache/<revision_id>.glb`
+  (`apps/mobile/src/offline/glbCache.ts`). Kesh kaliti — `revision_id` (kontrakt 1.2, 4).
+- Ochishda: reviziya keshda bo'lsa — **B**, aks holda — **A** va model yuklangach fonda keshga.
+- Chegaralar: oxirgi **20 reviziya** yoki **500 MB**, LRU bo'yicha tozalanadi. Ikkalasi `apps/mobile/src/config.ts`
+  (`CACHE_LIMITS`) da — **founder sozlamasi, kontraktda yo'q**. Ochilayotgan reviziya tozalashda o'chirilmaydi.
+- Loyihalar ro'yxati va loyiha tafsilotlarining oxirgi javobi AsyncStorage'da; oflaynda shu ko'rsatiladi + "Oflayn".
+- Oflayn QR: keshlangan onlayn `resolve` natijalari va ochilgan modellardagi etiketkalar (`extras.uhub.qr`) ichidan
+  `<project_number>/<part_uid>/<snapshot>` bo'yicha qidiriladi (`offline/labels.ts`). Topilmasa — "Oflayn: bu etiketka
+  keshda yo'q". Joriy reviziya keshlangan loyihadan olinadi; loyiha keshda bo'lmasa etiketkadagi reviziya joriy deb olinadi.
+- Sozlamalar ekranida band hajm va "Keshni tozalash".
+- `EXPO_PUBLIC_GLB_DELIVERY` endi faqat `/dev/spike` ning standart qiymati; ekranlar siyosat bo'yicha tanlaydi.
 
 ## Oqibatlar
 
