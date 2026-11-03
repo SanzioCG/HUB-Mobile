@@ -4,13 +4,7 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../api/errors';
 import { useProject } from '../../api/hooks';
-import {
-  formatSize,
-  revisionLabel,
-  statusLabel,
-  type ProjectDetail,
-  type ProjectItem,
-} from '../../api/types';
+import { formatSize, statusLabel, type ProjectDetail, type ProjectItem } from '../../api/types';
 import { Header, StatusLine, Thumb } from '../../components/parts';
 import { Dot, EmptyState, ErrorState, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
@@ -55,7 +49,7 @@ const meta = (p: ProjectDetail) =>
   `${statusLabel(p.status)} · ${uz.projects.items(p.items_count)} · ${relativeTime(p.updated_at)}`;
 
 function ItemRow({ projectId, item }: { projectId: string; item: ProjectItem }) {
-  const rev = revisionLabel(item.revision_id);
+  const rev = item.revision_label;
   return (
     <Pressable
       onPress={() => router.push(`/item/${projectId}/${item.item_id}`)}

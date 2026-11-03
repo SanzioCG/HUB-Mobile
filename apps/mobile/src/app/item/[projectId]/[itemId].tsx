@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
 import { useProject } from '../../../api/hooks';
-import { formatSize, revisionLabel, type ProjectItem } from '../../../api/types';
+import { formatSize, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
 import { PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
@@ -111,7 +111,7 @@ function ItemViewer({ item }: { item: ProjectItem }) {
         {!item.approved && (
           <View style={styles.badge}>
             <Dot color={colors.yellow} />
-            <T style={styles.badgeText}>{uz.viewer.unapproved(revisionLabel(item.revision_id))}</T>
+            <T style={styles.badgeText}>{uz.viewer.unapproved(item.revision_label)}</T>
           </View>
         )}
         <View style={styles.modes}>

@@ -17,7 +17,7 @@ Xabarlar `{ type, ...maydonlar }`, obyekt yoki JSON satr. Viewer GLB'ni o'zi `fe
 
 | Kiruvchi (host → viewer)       | Chiquvchi (viewer → host)                         |
 | ------------------------------ | ------------------------------------------------- |
-| `load {glbUrl, token}`         | `ready`                                           |
+| `load {glbUrl, token}`         | `ready`, `progress {loaded, total}`               |
 | `select {uid}`                 | `loaded {item, parts}`                            |
 | `showAll`                      | `selected {uid, extras, clip}`                    |
 | `openAll`, `closeAll`          | `error {code, message}`                           |
@@ -26,6 +26,8 @@ Xabarlar `{ type, ...maydonlar }`, obyekt yoki JSON satr. Viewer GLB'ni o'zi `fe
 | `setDims {on}`                 | `load_failed`, `part_not_found`, `clip_not_found` |
 | `resetView`, `deselect`        |                                                   |
 
+`progress` — GLB yuklanishi baytlarda (`total` noma'lum bo'lsa `null`), ko'pi bilan har 100 ms da.
+Detal faqat `extras.uhub.uid` bo'yicha topiladi (kontrakt 1.2), tugun nomiga tayanilmaydi.
 `selected.clip` — detal joylashgan eshik/tortma klipi (`toggle` uchun), bo'lmasa `null`.
 GLB manzili http(s) bo'lmasa (oflayn kesh, `file://`) XHR bilan olinadi.
 

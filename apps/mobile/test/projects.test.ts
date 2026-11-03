@@ -1,5 +1,5 @@
 import { filterProjects, latestUpdate, mergeProjects } from '../src/api/projects';
-import { matchesStatusFilter, revisionLabel, type ProjectSummary } from '../src/api/types';
+import { matchesStatusFilter, parseErrorBody, type ProjectSummary } from '../src/api/types';
 import { relativeTime } from '../src/utils/time';
 
 const p = (id: number, number: number, name: string, status: string, updated_at: string): ProjectSummary => ({
@@ -51,9 +51,13 @@ describe('qidiruv va filtr', () => {
 });
 
 describe('ko‘rinish yordamchilari', () => {
-  it('revisionLabel', () => {
-    expect(revisionLabel('m0-r5')).toBe('R5');
-    expect(revisionLabel('rev-abc')).toBe('rev-abc');
+  it('xato tanasi {error, message} (kontrakt 1.2)', () => {
+    expect(parseErrorBody({ error: 'not_found', message: 'Topilmadi' })).toEqual({
+      code: 'not_found',
+      message: 'Topilmadi',
+    });
+    expect(parseErrorBody(null)).toEqual({ code: undefined, message: undefined });
+    expect(parseErrorBody({ error: 1 })).toEqual({ code: undefined, message: undefined });
   });
 
   it('relativeTime o‘zbekcha', () => {

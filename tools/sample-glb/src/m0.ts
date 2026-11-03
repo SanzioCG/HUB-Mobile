@@ -4,17 +4,24 @@
 // Koordinatalar shu faylda millimetrda, buyum ramkasida (kontrakt 2-bo'lim): Y yuqoriga, +Z old,
 // boshi pol sathida old-pastki qirra markazida. Buyum z ∈ [-560, 0] da yotadi.
 
-import { clipName, qrText, type PartExtras, type PartKind } from './contract.js';
+import { clipName, qrText, type DoorExtras, type PartExtras, type PartKind } from './contract.js';
 
 /**
- * Manba yo'q, prototip. Haqiqiy qiymatlar U-HUB V-1 eksportidan keladi
- * (burchak petlyadan ~105°, yurish MERIVOBOX NL − 10 mm — kontrakt 2.2).
+ * Manba yo'q, prototip. Kontrakt 1.2 (2.2): burchak va yurish katalogdan; tasdiqlanmagan bo'lsa —
+ * prototip qiymat va klipda `extras.uhub.prototype = true`. Eshik burchagi — DOOR_EXTRAS.open_deg.
  */
 export const PROTOTYPE = {
-  doorOpenDeg: 105,
   drawerTravelMm: 450,
   clipDurationS: 0.8,
 } as const;
+
+/** TODO(contract-1.2): `extras.uhub.door` [TASDIQ]; qiymatlar qoralama namunasidan, prototip. */
+export const DOOR_EXTRAS: DoorExtras = {
+  hinge_side: 'left',
+  hinge: 'Blum CLIP top 110° 71T3590',
+  hinge_count: 2,
+  open_deg: 105,
+};
 
 export const ITEM = {
   projectNumber: 51,
@@ -27,19 +34,26 @@ export const ITEM = {
 
 export type Revision = 'r3' | 'r5';
 
-export const REVISIONS: Record<Revision, { revisionId: string; snapshot: string; removedUids: string[] }> = {
-  // TODO(contract): snapshot va revision_id formati kontraktda yo'q (ADR-021 ga havola); fixture qiymatlar.
-  r3: { revisionId: 'm0-r3', snapshot: 's3', removedUids: [] },
-  // R5 da 3-tortmaning orqa devori o'chirilgan — resolve `is_latest=false`, `latest_*=null` holati uchun.
-  r5: { revisionId: 'm0-r5', snapshot: 's5', removedUids: ['m0p22'] },
+export const REVISIONS: Record<
+  Revision,
+  { revisionId: string; revisionLabel: string; snapshot: string; removedUids: string[] }
+> = {
+  // TODO(contract): snapshot va revision_id formati kontraktda yo'q (1.2 da ham [OCHIQ]); fixture qiymatlar.
+  // TODO(contract-1.2): revision_label ("R3") qoralamadan.
+  r3: { revisionId: 'm0-r3', revisionLabel: 'R3', snapshot: 's3', removedUids: [] },
+  // R5 da 3-tortmaning orqa devori o'chirilgan — resolve `part_in_latest=false` holati uchun.
+  r5: { revisionId: 'm0-r5', revisionLabel: 'R5', snapshot: 's5', removedUids: ['m0p22'] },
 };
+
+/** Ruxsat etilmagan belgili uid (kontrakt 1.2, 2.1): tugun nomi `part__x<base32>` bo'ladi. */
+export const UNSAFE_UID = 'A1/B2.c';
 
 /** Fixture bo'lgani uchun o'zgarmas — chiqish fayllari har safar bir xil bo'lsin. */
 export const GENERATED_AT = '2026-11-03T00:00:00Z';
 
 export type Parent = { kind: 'carcass' } | { kind: 'door'; id: string } | { kind: 'drawer'; id: string };
 
-export type MaterialKey = 'carcass' | 'back' | 'front' | 'drawerBox';
+export type MaterialKey = 'carcass' | 'back' | 'front' | 'drawerBox' | 'rail';
 
 export interface PartSpec {
   uid: string;
@@ -60,6 +74,7 @@ export const MATERIALS: Record<MaterialKey, { label: string; color: [number, num
   back: { label: 'HDF 4 mm, oq', color: [0.82, 0.82, 0.8] },
   front: { label: 'Egger H1145 ST10 Bardolino Natural Oak, LDSP 18 mm', color: [0.62, 0.47, 0.32] },
   drawerBox: { label: 'Egger W980 ST2 Platinum White, LDSP 16 mm', color: [0.86, 0.86, 0.84] },
+  rail: { label: 'Rels (prototip)', color: [0.55, 0.57, 0.6] },
 };
 
 const EDGE_WHITE = 'Egger ABS W980 ST2, 23 mm';
@@ -78,7 +93,7 @@ const GAP = 2;
 const DOOR_ID = 'd1';
 const DOOR_CY = 675;
 
-/** Eshik petlya o'qi: chap qirra, old tekislik. TODO(contract): petlya tomoni GLB'da qayd etilmaydi — prototip. */
+/** Eshik petlya o'qi: chap qirra (DOOR_EXTRAS.hinge_side), old tekislik. */
 export const DOOR_PIVOT_MM: [number, number, number] = [-(W / 2 - GAP), DOOR_CY, 0];
 
 const DRAWERS = [
@@ -112,7 +127,7 @@ function buildParts(): PartSpec[] {
 
   const parts: PartSpec[] = [
     panel('Chap yon devor', [T, H, CARCASS_DEPTH], [-(W / 2 - T / 2), H / 2, CZ]),
-    panel("O'ng yon devor", [T, H, CARCASS_DEPTH], [W / 2 - T / 2, H / 2, CZ]),
+    panel("O'ng yon devor", [T, H, CARCASS_DEPTH], [W / 2 - T / 2, H / 2, CZ], { uid: UNSAFE_UID }),
     panel('Tub', [INNER_W, T, CARCASS_DEPTH - 4], [0, T / 2, CZ + 2]),
     panel('Qopqoq', [INNER_W, T, CARCASS_DEPTH - 4], [0, H - T / 2, CZ + 2]),
     panel('Orqa devor', [INNER_W, H - 2 * T, 4], [0, H / 2, -(D - 2)], { material: 'back', edges: {} }),
@@ -173,6 +188,21 @@ function buildParts(): PartSpec[] {
 }
 
 export const M0_PARTS: readonly PartSpec[] = buildParts();
+
+/**
+ * Teleskopik relsning o'rta elementi (`slide__drawer__<id>__mid`): har tortmada ikki tomonda bittadan
+ * ingichka quti, tortma qutisi va korpus yon devori orasidagi 13 mm oraliqda. Detal emas (etiketkasi yo'q).
+ */
+export function drawerRailBoxes(
+  id: string,
+): { box: [number, number, number]; center: [number, number, number] }[] {
+  const d = DRAWERS.find((x) => x.id === id);
+  if (!d) throw new Error(`tortma yo'q: ${id}`);
+  const x = INNER_W / 2 - 6.5;
+  const y = d.cy - 73 + 20 + 20;
+  const len = PROTOTYPE.drawerTravelMm;
+  return [-x, x].map((cx) => ({ box: [10, 35, len], center: [cx, y, -T - len / 2] }));
+}
 export const DOOR_IDS: readonly string[] = [DOOR_ID];
 export const DRAWER_IDS: readonly string[] = DRAWERS.map((d) => d.id);
 
@@ -193,5 +223,6 @@ export function partExtras(p: PartSpec, number: number, snapshot: string): PartE
     article: null,
     reveal: p.reveal,
     qr: qrText(ITEM.projectNumber, p.uid, snapshot),
+    ...(p.kind === 'door' && { door: DOOR_EXTRAS }),
   };
 }

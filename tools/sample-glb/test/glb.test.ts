@@ -1,9 +1,27 @@
-// Generator chiqargan GLB'ni qayta o'qib, kontrakt 2-bo'limiga qarshi tekshiradi.
+// Generator chiqargan GLB'ni qayta o'qib, kontrakt 1.2 (qoralama) 2-bo'limiga qarshi tekshiradi.
 import { describe, expect, it } from 'vitest';
 import { NodeIO, type Document, type Node } from '@gltf-transform/core';
 import { buildM0 } from '../src/build.js';
-import { NODE_NAME_RE, type AssetMeta, type ItemDimensions, type PartExtras } from '../src/contract.js';
-import { DOOR_IDS, DRAWER_IDS, ITEM, M0_PARTS, REVISIONS, type Revision } from '../src/m0.js';
+import {
+  NODE_NAME_RE,
+  base32Decode,
+  base32Encode,
+  nodeName,
+  type AssetMeta,
+  type ItemDimensions,
+  type PartExtras,
+} from '../src/contract.js';
+import {
+  DOOR_EXTRAS,
+  DOOR_IDS,
+  DRAWER_IDS,
+  ITEM,
+  M0_PARTS,
+  PROTOTYPE,
+  REVISIONS,
+  UNSAFE_UID,
+  type Revision,
+} from '../src/m0.js';
 import { validateGlb } from '../src/validate.js';
 
 const io = new NodeIO();
@@ -36,6 +54,37 @@ const parentOf = (doc: Document, node: Node) =>
     .getRoot()
     .listNodes()
     .find((n) => n.listChildren().includes(node));
+const partNodes = (doc: Document) =>
+  doc
+    .getRoot()
+    .listNodes()
+    .filter((n) => typeof uhub<PartExtras | undefined>(n)?.uid === 'string');
+const byPartName = (doc: Document, name: string) =>
+  partNodes(doc).find((n) => uhub<PartExtras>(n).name === name)!;
+
+describe('base32 (RFC 4648, kichik harf, = siz)', () => {
+  it.each([
+    ['', ''],
+    ['f', 'my'],
+    ['fo', 'mzxq'],
+    ['foo', 'mzxw6'],
+    ['foob', 'mzxw6yq'],
+    ['fooba', 'mzxw6ytb'],
+    ['foobar', 'mzxw6ytboi'],
+  ])('%j → %j (RFC 4648 test vektorlari)', (text, code) => {
+    expect(base32Encode(text)).toBe(code);
+    expect(base32Decode(code)).toBe(text);
+  });
+
+  it('ruxsat etilmagan belgili uid: kodlash/dekodlash va tugun nomi', () => {
+    const code = base32Encode(UNSAFE_UID);
+    expect(code).toMatch(/^[a-z2-7]+$/);
+    expect(base32Decode(code)).toBe(UNSAFE_UID);
+    expect(nodeName.part(UNSAFE_UID)).toBe(`part__x${code}`);
+    expect(nodeName.part('m0p06')).toBe('part__m0p06');
+    expect(base32Decode(base32Encode('Ўзбек/№12'))).toBe('Ўзбек/№12');
+  });
+});
 
 describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
   it('gltf-validator: 0 error', async () => {
@@ -44,17 +93,18 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     expect(report.messages.filter((m) => m.severity === 0)).toEqual([]);
   });
 
-  it('asset.extras.uhub (2.4)', async () => {
+  it('asset.extras.uhub (2.4, 1.2): revision_label bor, approved yo‘q', async () => {
     const { doc } = await roundTrip(rev);
-    const meta = (doc.getRoot().getAsset().extras as { uhub: AssetMeta }).uhub;
+    const meta = (doc.getRoot().getAsset().extras as { uhub: AssetMeta & { approved?: unknown } }).uhub;
     expect(meta).toMatchObject({
-      contract: '1.1',
+      contract: '1.2',
       project_number: ITEM.projectNumber,
       item_id: ITEM.itemId,
       revision_id: REVISIONS[rev].revisionId,
+      revision_label: REVISIONS[rev].revisionLabel,
       snapshot: REVISIONS[rev].snapshot,
-      approved: false,
     });
+    expect('approved' in meta).toBe(false);
     expect(Number.isNaN(Date.parse(meta.generated_at))).toBe(false);
   });
 
@@ -73,6 +123,10 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
       ...DOOR_IDS.map((id) => `pivot__door__${id}`),
       ...DRAWER_IDS.map((id) => `slide__drawer__${id}`),
     ]);
+    for (const id of DRAWER_IDS) {
+      const mid = byName(doc, `slide__drawer__${id}__mid`)!;
+      expect(parentOf(doc, mid)!.getName()).toBe(`slide__drawer__${id}`);
+    }
     for (const n of doc.getRoot().listNodes()) expect(n.getName()).toMatch(NODE_NAME_RE);
   });
 
@@ -83,30 +137,37 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     expect(dims.lines.length).toBeGreaterThan(0);
   });
 
-  it("har part__ tugunida to'liq extras.uhub", async () => {
+  it('har detal tugunida to‘liq extras.uhub; tugun nomi uid’dan (kodlangan bo‘lishi mumkin)', async () => {
     const { doc } = await roundTrip(rev);
-    const parts = doc
-      .getRoot()
-      .listNodes()
-      .filter((n) => n.getName().startsWith('part__'));
+    const parts = partNodes(doc);
     const removed = REVISIONS[rev].removedUids;
     expect(parts).toHaveLength(M0_PARTS.length - removed.length);
     for (const node of parts) {
       const x = uhub<PartExtras>(node);
-      expect(Object.keys(x).sort()).toEqual([...PART_KEYS].sort());
-      expect(node.getName()).toBe(`part__${x.uid}`);
+      const keys = Object.keys(x).filter((k) => k !== 'door');
+      expect(keys.sort()).toEqual([...PART_KEYS].sort());
+      expect(node.getName()).toBe(nodeName.part(x.uid));
       expect(x.qr).toBe(`uhub:p/${ITEM.projectNumber}/${x.uid}/${REVISIONS[rev].snapshot}`);
-      expect(x.size_mm).toHaveLength(3);
       expect(node.getMesh()).not.toBeNull();
     }
-    for (const uid of removed) expect(byName(doc, `part__${uid}`)).toBeUndefined();
+    const unsafe = parts.find((n) => uhub<PartExtras>(n).uid === UNSAFE_UID)!;
+    expect(unsafe.getName()).toBe(`part__x${base32Encode(UNSAFE_UID)}`);
+    for (const uid of removed) expect(parts.some((n) => uhub<PartExtras>(n).uid === uid)).toBe(false);
   });
 
-  it('kliplar mavjud va mavjud tugunlarni nishonga oladi (2.2)', async () => {
+  it('eshik: extras.uhub.door (1.2), boshqa detallarda yo‘q', async () => {
+    const { doc } = await roundTrip(rev);
+    for (const node of partNodes(doc)) {
+      const x = uhub<PartExtras>(node);
+      if (x.kind === 'door') expect(x.door).toEqual(DOOR_EXTRAS);
+      else expect(x.door).toBeUndefined();
+    }
+  });
+
+  it('kliplar: mavjud tugunlar, LINEAR, 0.8 s, prototype=true; eshik burchagi door.open_deg dan', async () => {
     const { doc } = await roundTrip(rev);
     const anims = doc.getRoot().listAnimations();
-    const names = anims.map((a) => a.getName());
-    expect(names.sort()).toEqual(
+    expect(anims.map((a) => a.getName()).sort()).toEqual(
       [
         ...DOOR_IDS.map((id) => `door__${id}__open`),
         ...DRAWER_IDS.map((id) => `drawer__${id}__open`),
@@ -115,29 +176,42 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     );
     const nodes = new Set(doc.getRoot().listNodes());
     for (const a of anims) {
+      expect(uhub<{ prototype: boolean }>(a).prototype).toBe(true);
       for (const ch of a.listChannels()) {
-        const target = ch.getTargetNode();
-        expect(target && nodes.has(target)).toBe(true);
+        expect(nodes.has(ch.getTargetNode()!)).toBe(true);
         expect(ch.getSampler()!.getInterpolation()).toBe('LINEAR');
-        const input = ch.getSampler()!.getInput()!;
-        expect(input.getMax([])[0]).toBeCloseTo(0.8);
+        expect(ch.getSampler()!.getInput()!.getMax([])[0]).toBeCloseTo(0.8);
       }
     }
     for (const id of DOOR_IDS) {
       const ch = anims.find((a) => a.getName() === `door__${id}__open`)!.listChannels()[0]!;
       expect(ch.getTargetNode()!.getName()).toBe(`pivot__door__${id}`);
       expect(ch.getTargetPath()).toBe('rotation');
-    }
-    for (const id of DRAWER_IDS) {
-      const ch = anims.find((a) => a.getName() === `drawer__${id}__open`)!.listChannels()[0]!;
-      expect(ch.getTargetNode()!.getName()).toBe(`slide__drawer__${id}`);
-      expect(ch.getTargetPath()).toBe('translation');
-      const out = ch.getSampler()!.getOutput()!;
-      expect(out.getElement(1, [])[2]).toBeGreaterThan(0); // +Z
+      const q = ch.getSampler()!.getOutput()!.getElement(1, []);
+      const deg = (2 * Math.acos(Math.min(1, Math.abs(q[3]!))) * 180) / Math.PI;
+      expect(deg).toBeCloseTo(DOOR_EXTRAS.open_deg, 3);
     }
   });
 
-  it("reveal dagi har klip mavjud va detal o'sha klip tuguni ichida yoki uning orqasida", async () => {
+  it('tortma klipi: slide to‘liq yurish +Z, __mid dunyoda yurishning yarmi', async () => {
+    const { doc } = await roundTrip(rev);
+    const anims = doc.getRoot().listAnimations();
+    const travel = PROTOTYPE.drawerTravelMm / 1000;
+    for (const id of DRAWER_IDS) {
+      const chans = anims.find((a) => a.getName() === `drawer__${id}__open`)!.listChannels();
+      const endZ = (name: string) => {
+        const ch = chans.find((c) => c.getTargetNode()!.getName() === name)!;
+        expect(ch.getTargetPath()).toBe('translation');
+        return ch.getSampler()!.getOutput()!.getElement(1, [])[2]!;
+      };
+      const slideZ = endZ(`slide__drawer__${id}`);
+      const midLocalZ = endZ(`slide__drawer__${id}__mid`);
+      expect(slideZ).toBeCloseTo(travel);
+      expect(slideZ + midLocalZ).toBeCloseTo(travel / 2); // mid — slide bolasi
+    }
+  });
+
+  it('reveal dagi har klip mavjud; polka → eshik, tortma tubi → tortma', async () => {
     const { doc } = await roundTrip(rev);
     const clips = new Set(
       doc
@@ -145,30 +219,14 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
         .listAnimations()
         .map((a) => a.getName()),
     );
-    for (const node of doc
-      .getRoot()
-      .listNodes()
-      .filter((n) => n.getName().startsWith('part__'))) {
-      const x = uhub<PartExtras>(node);
-      for (const c of x.reveal) expect(clips.has(c)).toBe(true);
-    }
-    const shelf = doc
-      .getRoot()
-      .listNodes()
-      .find((n) => uhub<PartExtras>(n)?.name === 'Polka')!;
-    expect(uhub<PartExtras>(shelf).reveal).toEqual(['door__d1__open']);
+    for (const node of partNodes(doc))
+      for (const c of uhub<PartExtras>(node).reveal) expect(clips.has(c)).toBe(true);
+    expect(uhub<PartExtras>(byPartName(doc, 'Polka')).reveal).toEqual(['door__d1__open']);
     for (const [i, id] of DRAWER_IDS.entries()) {
-      const bottom = doc
-        .getRoot()
-        .listNodes()
-        .find((n) => uhub<PartExtras>(n)?.name === `Tortma ${i + 1} tubi`)!;
+      const bottom = byPartName(doc, `Tortma ${i + 1} tubi`);
       expect(uhub<PartExtras>(bottom).reveal).toEqual([`drawer__${id}__open`]);
       expect(parentOf(doc, bottom)!.getName()).toBe(`slide__drawer__${id}`);
     }
-    const door = doc
-      .getRoot()
-      .listNodes()
-      .find((n) => uhub<PartExtras>(n)?.kind === 'door')!;
-    expect(uhub<PartExtras>(door).reveal).toEqual([]);
+    expect(uhub<PartExtras>(byPartName(doc, 'Eshik')).reveal).toEqual([]);
   });
 });

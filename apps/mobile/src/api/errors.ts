@@ -16,6 +16,8 @@ export class ApiError extends Error {
     message: string,
     readonly status?: number,
     readonly code?: string,
+    /** Server matni (`{error, message}` dagi `message`). */
+    readonly serverMessage?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -39,6 +41,6 @@ export function errorMessage(e: unknown): string {
     case 'http':
       if (e.status === 401) return uz.errors.unauthorized;
       if (e.status === 404) return uz.errors.notFound;
-      return uz.errors.server(e.status ?? 0);
+      return e.serverMessage ?? uz.errors.server(e.status ?? 0);
   }
 }

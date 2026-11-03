@@ -1,12 +1,16 @@
 // Namunaviy etiketkalar: har detal uchun QR + matn PNG.
-//   fixtures/qr/<uid>.png               — detal mavjud eng yangi reviziya etiketkasi
-//   fixtures/qr/<revision_id>/<uid>.png — har reviziya etiketkasi (eski etiketka → is_latest=false)
-import { mkdir, writeFile } from 'node:fs/promises';
+//   fixtures/qr/<fayl>.png               — detal mavjud eng yangi reviziya etiketkasi
+//   fixtures/qr/<revision_id>/<fayl>.png — har reviziya etiketkasi (eski etiketka → is_latest=false)
+// <fayl> = tugun nomidagi uid qismi: oddiy uid o'zi, ruxsat etilmagan belgili uid — x<base32> (kontrakt 1.2, 2.1).
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 import QRCode from 'qrcode';
+import { nodeName } from '@hub-mobile/sample-glb/contract';
 import { M0_REVISION_IDS, readRevision, type PartInfo } from './data.js';
 import { QR_DIR, readGlbFixtures } from './fixtures.js';
+
+const fileName = (uid: string) => nodeName.part(uid).slice('part__'.length);
 
 const W = 640;
 const H = 260;
@@ -45,6 +49,7 @@ function label(part: PartInfo, revisionId: string): Buffer {
 }
 
 const glbs = await readGlbFixtures();
+await rm(QR_DIR, { recursive: true, force: true }); // eski etiketkalar qolmasin
 const newest = new Map<string, Buffer>();
 let count = 0;
 for (const id of M0_REVISION_IDS) {
@@ -53,10 +58,10 @@ for (const id of M0_REVISION_IDS) {
   await mkdir(dir, { recursive: true });
   for (const part of rev.parts.values()) {
     const png = label(part, rev.revision_id);
-    await writeFile(path.join(dir, `${part.uid}.png`), png);
+    await writeFile(path.join(dir, `${fileName(part.uid)}.png`), png);
     newest.set(part.uid, png); // keyingi reviziya ustidan yozadi
     count++;
   }
 }
-for (const [uid, png] of newest) await writeFile(path.join(QR_DIR, `${uid}.png`), png);
+for (const [uid, png] of newest) await writeFile(path.join(QR_DIR, `${fileName(uid)}.png`), png);
 console.log(`${QR_DIR}: ${newest.size} etiketka (+${count} reviziya bo'yicha)`);

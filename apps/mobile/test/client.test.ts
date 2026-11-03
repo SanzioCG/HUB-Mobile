@@ -109,19 +109,30 @@ describe('muvaffaqiyatli javoblar', () => {
 });
 
 describe('xatolar ApiError ga keltiriladi', () => {
-  it('HTTP xato: status va tanadagi kod', async () => {
-    const f = fakeFetch(() => json(404, { error: 'not_found' }));
+  it('HTTP xato: status, kod va server matni ({error, message}, kontrakt 1.2)', async () => {
+    const f = fakeFetch(() => json(404, { error: 'not_found', message: 'Loyiha topilmadi' }));
     const e = await caught(createClient({ baseUrl: BASE, token: 't', fetch: f.fetch }).project(999));
-    expect(e).toMatchObject({ kind: 'http', status: 404, code: 'not_found' });
+    expect(e).toMatchObject({
+      kind: 'http',
+      status: 404,
+      code: 'not_found',
+      serverMessage: 'Loyiha topilmadi',
+    });
     expect(errorMessage(e)).toBe(uz.errors.notFound);
   });
 
-  it('resolve 403 other_company', async () => {
-    const f = fakeFetch(() => json(403, { error: 'other_company' }));
+  it('boshqa kompaniya etiketkasi — 404 not_found (1.2, 403 emas)', async () => {
+    const f = fakeFetch(() => json(404, { error: 'not_found', message: 'Etiketka topilmadi' }));
     const e = await caught(
       createClient({ baseUrl: BASE, token: 't', fetch: f.fetch }).resolve('uhub:p/77/x/s'),
     );
-    expect(e).toMatchObject({ kind: 'http', status: 403, code: 'other_company' });
+    expect(e).toMatchObject({ kind: 'http', status: 404, code: 'not_found' });
+  });
+
+  it('noma’lum HTTP xatoda server matni ko‘rsatiladi', async () => {
+    const f = fakeFetch(() => json(409, { error: 'conflict', message: 'Server matni' }));
+    const e = await caught(createClient({ baseUrl: BASE, token: 't', fetch: f.fetch }).projects());
+    expect(errorMessage(e)).toBe('Server matni');
   });
 
   it('JSON bo‘lmagan xato tanasi — kod yo‘q', async () => {

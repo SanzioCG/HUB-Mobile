@@ -51,6 +51,8 @@ export type ErrorCode = 'bad_message' | 'not_loaded' | 'load_failed' | 'part_not
 
 export type ViewerMessage =
   | { type: 'ready' }
+  /** GLB yuklanishi (baytlar); `total` — server hajmni bermasa null. */
+  | { type: 'progress'; loaded: number; total: number | null }
   | { type: 'loaded'; item: LoadedItem; parts: PartExtras[] }
   /** `clip` — detal joylashgan eshik/tortma klipi (`pivot__door__<id>` → `door__<id>__open`), bo'lmasa null. */
   | { type: 'selected'; uid: string; extras: PartExtras; clip: string | null }

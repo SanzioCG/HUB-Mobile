@@ -1,5 +1,6 @@
-// Kontrakt uhub-mobile/1.1, 4-bo'lim: mobil API tiplari.
-// Kontraktda javobsiz joylar mock (mock/src/app.ts, data.ts) qiymatlari bilan olingan — BARCHA taxminlar shu faylda.
+// Kontrakt uhub-mobile/1.2 (QORALAMA: docs/contract/uhub-mobile-1.2-draft.md), 4-bo'lim: mobil API tiplari.
+// Qoralamadan olingan qiymatlar — TODO(contract-1.2). [OCHIQ] joylar mock qiymatlari bilan — TODO(contract).
+// BARCHA taxminlar shu faylda.
 import { uz } from '../i18n/uz';
 
 /** TODO(contract): `user` maydonlari kontraktda yo'q; mock: {id, name}. */
@@ -42,6 +43,8 @@ export interface ProjectItem {
   item_id: string;
   name: string;
   revision_id: string;
+  /** TODO(contract-1.2): "R5" (qoralama 4). */
+  revision_label: string;
   size_mm: ItemSizeMm;
   glb_url: string;
   /** TODO(contract): USDZ V-1b da; null ruxsat etiladimi — kontraktda yo'q. */
@@ -61,22 +64,34 @@ export interface ResolveResponse {
   item_id: string;
   item_name: string;
   revision_id: string;
+  /** TODO(contract-1.2): qoralamadan. */
+  revision_label: string;
   part_uid: string;
   part_name: string;
   glb_url: string;
   is_latest: boolean;
+  /** TODO(contract-1.2): false — detal keyingi reviziyada o'chirilgan (qoralama 4). */
+  part_in_latest: boolean;
+  /** TODO(contract): `is_latest=true` da null yoki o'sha qiymatlar — 1.2 da ham [OCHIQ]. */
   latest_revision_id: string | null;
+  /** TODO(contract-1.2): qoralamadan. */
+  latest_revision_label: string | null;
   latest_glb_url: string | null;
 }
 
-/** TODO(contract): xato javobi tanasi kontraktda yo'q; mock: { error: "<kod>" }. */
+/** TODO(contract-1.2): xato tanasi har doim `{ error, message }` (qoralama 4). */
 export interface ErrorBody {
   error: string;
+  message: string;
 }
 
-export function errorCodeOf(body: unknown): string | undefined {
-  const e = (body as Partial<ErrorBody> | null)?.error;
-  return typeof e === 'string' ? e : undefined;
+/** Xato tanasini o'qish; maydon yo'q yoki satr bo'lmasa — undefined. */
+export function parseErrorBody(body: unknown): { code?: string; message?: string } {
+  const b = (body ?? {}) as Partial<Record<keyof ErrorBody, unknown>>;
+  return {
+    code: typeof b.error === 'string' ? b.error : undefined,
+    message: typeof b.message === 'string' ? b.message : undefined,
+  };
 }
 
 // ---------- ko'rinish uchun taxminlar ----------
@@ -108,12 +123,6 @@ export function statusLabel(status: ProjectStatus): string {
   if (status === 'design') return uz.status.design;
   if (status === 'done') return uz.status.done;
   return uz.status.unknown(status);
-}
-
-/** TODO(contract): `revision_id` formati kontraktda yo'q; mock: "m0-r5" → "R5". Mos kelmasa — o'zi. */
-export function revisionLabel(revisionId: string): string {
-  const m = /r(\d+)$/i.exec(revisionId);
-  return m ? `R${m[1]}` : revisionId;
 }
 
 export function formatSize(size: ItemSizeMm): string {
