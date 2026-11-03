@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.1",
-    "gltf-validator": "^2.0.0-dev.3.10"
+    "gltf-validator": "^2.0.0-dev.3.10",
+    "jpeg-js": "^0.4.4"
   },
   "exports": {
     "./build": "./src/build.ts",

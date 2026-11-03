@@ -15,3 +15,10 @@ export async function validateGlb(bytes: Uint8Array): Promise<ValidationSummary>
     messages: report.issues.messages,
   };
 }
+
+/** GLB'ning JSON bo'lagi (sarlavha 12 bayt, keyin JSON chunk). */
+export function glbJson(bytes: Uint8Array): Record<string, unknown> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const len = view.getUint32(12, true);
+  return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + len))) as Record<string, unknown>;
+}
