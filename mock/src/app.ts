@@ -14,6 +14,8 @@ export interface AppOptions {
   glbs: Record<string, Uint8Array>;
   /** `ar-link` imzosi uchun HMAC kaliti (MOCK_SIGN_SECRET). */
   signSecret: string;
+  /** Imzolangan AR havolalarining tashqi manzili (MOCK_PUBLIC_URL, masalan HTTPS tunnel). */
+  publicUrl?: string;
   /** Soat (testlar uchun almashtiriladi), ms. */
   now?: () => number;
   /** QR PNG'lar katalogi (faqat /dev/qr uchun). */
@@ -176,10 +178,12 @@ export function buildApp(opts: AppOptions) {
         ?.revisions.find((r) => r.revision_id === revision_id);
       if (!rev) return notFound(reply, 'Buyum yoki reviziya topilmadi');
       if (format === 'usdz') return notFound(reply, 'USDZ mock’da yo‘q (V-1b)');
+      // AR varianti: animatsiyasiz, yopiq holat (M-A3). TODO(contract): kontraktda AR varianti yo'q — taklif.
+      const file = `${revision_id}-ar.glb`;
+      if (!opts.glbs[`${revision_id}-ar`]) return notFound(reply, 'AR varianti topilmadi');
       const exp = Math.floor((now() + AR_LINK_TTL_MS) / 1000);
-      const file = `${revision_id}.${format}`;
       return {
-        url: `${base(req)}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
+        url: `${opts.publicUrl ?? base(req)}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
         expires_at: new Date(exp * 1000).toISOString(),
       };
     },

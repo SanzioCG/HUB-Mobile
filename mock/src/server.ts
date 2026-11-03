@@ -10,6 +10,7 @@ const app = buildApp({
   glbs,
   devToken: config.devToken,
   signSecret: config.signSecret,
+  publicUrl: config.publicUrl,
   pairCode: config.pairCode,
   qrDir: QR_DIR,
   logger: true,

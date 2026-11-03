@@ -12,6 +12,11 @@ export const config = {
   devToken: process.env.MOCK_DEV_TOKEN ?? 'dev-token',
   /** `POST /mobile/ar-link` imzosi (HMAC-SHA256). Faqat mock. */
   signSecret: process.env.MOCK_SIGN_SECRET ?? 'dev-sign-secret',
+  /**
+   * Tashqi HTTPS manzil (masalan cloudflared tunnel): imzolangan AR havolalari shu manzil bilan yasaladi.
+   * Scene Viewer faqat HTTPS fayl URL'ini qabul qiladi (README). Bo'sh — so'rovdagi host.
+   */
+  publicUrl: process.env.MOCK_PUBLIC_URL?.trim().replace(/\/+$/, '') || undefined,
   /** Desktopdagi "Telefonni ulash" kodi o'rnida (kontrakt 4: 6 raqam). Mock faqat shu kodni qabul qiladi. */
   pairCode: '123456',
 };

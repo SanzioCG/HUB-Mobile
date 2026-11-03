@@ -14,13 +14,16 @@ const BASE = 'http://localhost:80';
 const T0 = Date.parse('2026-11-03T10:00:00Z');
 
 let app: ReturnType<typeof buildApp>;
+let glbs: Record<string, Uint8Array>;
 let clock = T0;
 
 beforeAll(async () => {
   const io = new NodeIO();
-  const glbs = {
+  glbs = {
     'm0-r3': await io.writeBinary(buildM0('r3')),
     'm0-r5': await io.writeBinary(buildM0('r5')),
+    'm0-r3-ar': await io.writeBinary(buildM0('r3', { ar: true })),
+    'm0-r5-ar': await io.writeBinary(buildM0('r5', { ar: true })),
   };
   app = buildApp({
     store: await createStore(glbs),
@@ -196,15 +199,44 @@ describe('POST /mobile/ar-link', () => {
   };
   const path = (url: string) => url.replace(BASE, '');
 
-  it('imzolangan havola: 10 daqiqa, Bearer’siz ishlaydi', async () => {
+  it('imzolangan havola AR variantiga (animatsiyasiz): 10 daqiqa, Bearer’siz ishlaydi', async () => {
     clock = T0;
     const { url, expires_at } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' });
     expect(Date.parse(expires_at) - T0).toBe(AR_LINK_TTL_MS);
-    expect(url).toMatch(/^http:\/\/localhost:80\/files\/ar\/m0-r3\.glb\?exp=\d+&sig=[0-9a-f]{64}$/);
+    expect(url).toMatch(/^http:\/\/localhost:80\/files\/ar\/m0-r3-ar\.glb\?exp=\d+&sig=[0-9a-f]{64}$/);
     const file = await get(path(url), {});
     expect(file.statusCode).toBe(200);
     expect(file.headers['content-type']).toBe('model/gltf-binary');
-    expect(file.rawPayload.subarray(0, 4).toString('ascii')).toBe('glTF');
+    expect(Buffer.compare(file.rawPayload, Buffer.from(glbs['m0-r3-ar']!))).toBe(0);
+  });
+
+  it('MOCK_PUBLIC_URL berilsa havola shu tashqi manzil bilan (HTTPS tunnel)', async () => {
+    const tunneled = buildApp({
+      store: await createStore(glbs),
+      glbs,
+      devToken: TOKEN,
+      pairCode: '123456',
+      signSecret: 'test-secret',
+      publicUrl: 'https://abc.trycloudflare.com',
+      now: () => T0,
+    });
+    const res = await tunneled.inject({
+      method: 'POST',
+      url: '/mobile/ar-link',
+      payload: { item_id: 'm0', revision_id: 'm0-r5', format: 'glb' },
+      headers: auth,
+    });
+    const { url } = res.json() as { url: string };
+    expect(url).toMatch(
+      /^https:\/\/abc\.trycloudflare\.com\/files\/ar\/m0-r5-ar\.glb\?exp=\d+&sig=[0-9a-f]{64}$/,
+    );
+    // imzo manzilga bog'liq emas — tunnel ortidagi server ham faylni beradi
+    const file = await tunneled.inject({
+      method: 'GET',
+      url: url.replace('https://abc.trycloudflare.com', ''),
+    });
+    expect(file.statusCode).toBe(200);
+    await tunneled.close();
   });
 
   it('muddati o‘tgan havola → 404', async () => {
@@ -218,8 +250,9 @@ describe('POST /mobile/ar-link', () => {
   it('buzilgan imzo yoki boshqa fayl → 404', async () => {
     const { url } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' });
     expectError(await get(path(url).replace(/sig=[0-9a-f]+/, `sig=${'0'.repeat(64)}`), {}), 404, 'not_found');
-    expectError(await get(path(url).replace('m0-r3.glb', 'm0-r5.glb'), {}), 404, 'not_found');
-    expectError(await get('/files/ar/m0-r3.glb', {}), 404, 'not_found');
+    expectError(await get(path(url).replace('m0-r3-ar.glb', 'm0-r5-ar.glb'), {}), 404, 'not_found');
+    expectError(await get(path(url).replace('m0-r3-ar.glb', 'm0-r3.glb'), {}), 404, 'not_found');
+    expectError(await get('/files/ar/m0-r3-ar.glb', {}), 404, 'not_found');
   });
 
   it('noto‘g‘ri tana → 400; noma’lum reviziya, USDZ (mock’da yo‘q) → 404; tokensiz → 401', async () => {

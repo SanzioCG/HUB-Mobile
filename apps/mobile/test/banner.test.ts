@@ -35,6 +35,7 @@ const target = (revisionId: string): ViewTarget => ({
   revisionId,
   revisionLabel: revisionId,
   approved: null,
+  usdzUrl: null,
 });
 
 it('skanersiz yoki joriy reviziya etiketkasi — banner yo‘q', () => {

@@ -101,7 +101,16 @@ function quatY(deg: number): [number, number, number, number] {
   return [0, Math.sin(r), 0, Math.cos(r)];
 }
 
-export function buildM0(rev: Revision): Document {
+export interface BuildOptions {
+  /**
+   * AR varianti (`<revision_id>-ar.glb`): animatsiyasiz, yopiq holat, o'sha geometriya va materiallar.
+   * Scene Viewer bir nechta klipdan faqat birinchisini o'ynatadi va validatori buni xato deb belgilaydi.
+   * TODO(contract): AR varianti kontraktda yo'q — taklif (M-A3 hisoboti).
+   */
+  ar?: boolean;
+}
+
+export function buildM0(rev: Revision, opts: BuildOptions = {}): Document {
   const doc = new Document();
   const { revisionId, revisionLabel, snapshot } = REVISIONS[rev];
   // 2.4 (1.2): `approved` GLB'da yo'q — holat faqat API'dan.
@@ -190,6 +199,8 @@ export function buildM0(rev: Revision): Document {
       .setExtras({ uhub: partExtras(p, number, snapshot) });
     parent.addChild(node);
   }
+
+  if (opts.ar) return doc;
 
   // 2.2: kliplar yopiqdan ochiqqa, LINEAR.
   const dur = PROTOTYPE.clipDurationS;
