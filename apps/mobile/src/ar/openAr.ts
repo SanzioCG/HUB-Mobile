@@ -34,8 +34,10 @@ export async function openArAndroid(req: ArRequest, deps: ArDeps): Promise<ArRes
   try {
     await deps.openUrl(page);
     return { ok: true };
-  } catch {
-    return { ok: false, message: uz.ar.unavailable };
+  } catch (e) {
+    // Dev'da asl sabab ham ko'rsatiladi (qurilmadagi diagnostika uchun).
+    const detail = deps.dev ? ` (${e instanceof Error ? e.message : String(e)})` : '';
+    return { ok: false, message: `${uz.ar.unavailable}${detail}` };
   }
 }
 
