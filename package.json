@@ -7,6 +7,7 @@
     "npm": ">=11"
   },
   "workspaces": [
+    "mock",
     "packages/*",
     "tools/*"
   ],
@@ -16,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test --workspaces --if-present",
-    "fixtures": "npm run generate -w @hub-mobile/sample-glb"
+    "fixtures": "npm run generate -w @hub-mobile/sample-glb && npm run qr -w @hub-mobile/mock",
+    "mock": "npm run dev -w @hub-mobile/mock"
   },
   "type": "module",
   "devDependencies": {
