@@ -1,6 +1,7 @@
-// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android Scene Viewer. Native funksiyalar tashqaridan beriladi (testlar uchun).
+// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android Scene Viewer yoki iOS Quick Look (Safari orqali).
+// Native funksiyalar tashqaridan beriladi (testlar uchun).
 import type { ApiClient } from '../api/client';
-import { errorMessage, isOfflineError } from '../api/errors';
+import { ApiError, errorMessage, isOfflineError } from '../api/errors';
 import { uz } from '../i18n/uz';
 import { ArUnavailableError, launchSceneViewer, type StartActivity } from './sceneViewer';
 
@@ -34,5 +35,35 @@ export async function openArAndroid(req: ArRequest, deps: ArDeps): Promise<ArRes
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof ArUnavailableError ? uz.ar.unavailable : errorMessage(e) };
+  }
+}
+
+export interface IosArRequest extends ArRequest {
+  /** Kontrakt 4: `usdz_url`. null — USDZ hali yo'q (V-1b), AR tugmasi o'chiq. */
+  usdzUrl: string | null;
+}
+
+/**
+ * iOS: `format: "usdz"` → imzolangan havola → `Linking.openURL` (Safari AR Quick Look'ni ochadi).
+ * Expo Go'da ilova ichidan Quick Look (QLPreviewController) chaqirib bo'lmaydi. iOS qurilmasida sinalmagan.
+ */
+export async function openArIos(
+  req: IosArRequest,
+  deps: { client: ApiClient; openUrl: (url: string) => Promise<unknown> },
+): Promise<ArResult> {
+  if (!req.usdzUrl) return { ok: false, message: uz.ar.notReady };
+  let url: string;
+  try {
+    ({ url } = await deps.client.arLink(req.itemId, req.revisionId, 'usdz'));
+  } catch (e) {
+    if (isOfflineError(e)) return { ok: false, message: uz.ar.offline };
+    if (e instanceof ApiError && e.status === 404) return { ok: false, message: uz.ar.notReady };
+    return { ok: false, message: errorMessage(e) };
+  }
+  try {
+    await deps.openUrl(url);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: errorMessage(e) };
   }
 }

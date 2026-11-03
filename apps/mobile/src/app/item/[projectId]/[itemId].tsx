@@ -3,10 +3,10 @@
 import * as IntentLauncher from 'expo-intent-launcher';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
-import { openArAndroid } from '../../../ar/openAr';
+import { openArAndroid, openArIos } from '../../../ar/openAr';
 import { useProject } from '../../../api/hooks';
 import { formatSize, type ProjectItem } from '../../../api/types';
 import { BackButton } from '../../../components/parts';
@@ -39,6 +39,7 @@ const fromItem = (it: ProjectItem): ViewTarget => ({
   revisionId: it.revision_id,
   revisionLabel: it.revision_label,
   approved: it.approved,
+  usdzUrl: it.usdz_url,
 });
 
 const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
@@ -49,6 +50,7 @@ const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
   revisionId: r.revision_id,
   revisionLabel: r.revision_label,
   approved: null,
+  usdzUrl: null, // resolve javobida usdz_url yo'q
 });
 
 export default function ItemScreen() {
@@ -215,15 +217,16 @@ function ItemViewer({
 
   const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });
 
-  // AR (kontrakt 3): Android — Scene Viewer; ar-link imzolangan havolasi bilan.
-  const arAvailable = Platform.OS === 'android';
+  // AR (kontrakt 3): Android — Scene Viewer, iOS — Quick Look (Safari); ar-link imzolangan havolasi bilan.
+  const isIos = Platform.OS === 'ios';
+  const arAvailable = Platform.OS === 'android' || (isIos && target.usdzUrl !== null);
   const openAr = async () => {
     setArBusy(true);
     setNotice(uz.ar.loading);
-    const res = await openArAndroid(
-      { itemId: target.itemId, revisionId: target.revisionId, title: target.name },
-      { client, startActivity: IntentLauncher.startActivityAsync, dev: __DEV__ },
-    );
+    const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
+    const res = isIos
+      ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl: Linking.openURL })
+      : await openArAndroid(req, { client, startActivity: IntentLauncher.startActivityAsync, dev: __DEV__ });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };
@@ -361,6 +364,11 @@ function ItemViewer({
         />
       ) : (
         <SafeAreaView style={styles.overlayBottom} edges={['bottom']}>
+          {isIos && !target.usdzUrl && (
+            <T muted style={styles.arNote}>
+              {uz.ar.notReady}
+            </T>
+          )}
           <View style={styles.bar}>
             <Button
               label={anyOpen ? uz.viewer.closeAll : uz.viewer.openAll}
@@ -450,4 +458,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
   },
   grow: { flex: 1 },
+  arNote: { textAlign: 'center', marginHorizontal: space.md },
 });

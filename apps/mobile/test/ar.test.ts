@@ -1,7 +1,7 @@
 // AR: Scene Viewer intent URL, paketlar fallback tartibi, ar-link xatolari (batch M-A3).
 import type { ApiClient } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
-import { openArAndroid } from '../src/ar/openAr';
+import { openArAndroid, openArIos } from '../src/ar/openAr';
 import {
   AR_TARGETS,
   ArUnavailableError,
@@ -125,6 +125,53 @@ describe('openArAndroid', () => {
     expect(await openArAndroid(req, { client: ok(FILE), startActivity: start, dev: false })).toEqual({
       ok: false,
       message: uz.ar.unavailable,
+    });
+  });
+});
+
+describe('openArIos (Quick Look, Safari orqali; iOS’da sinalmagan)', () => {
+  const req = { itemId: 'm0', revisionId: 'm0-r5', title: 'M-0', usdzUrl: 'https://x/files/usdz/m0-r5.usdz' };
+  const USDZ = 'https://abc.trycloudflare.com/files/ar/m0-r5.usdz?exp=1&sig=a';
+
+  it('usdz havola → Linking.openURL; so‘rov usdz formatida', async () => {
+    const arLink = jest.fn(async () => ({ url: USDZ, expires_at: '' }));
+    const openUrl = jest.fn(async () => true);
+    expect(await openArIos(req, { client: { arLink } as unknown as ApiClient, openUrl })).toEqual({
+      ok: true,
+    });
+    expect(arLink).toHaveBeenCalledWith('m0', 'm0-r5', 'usdz');
+    expect(openUrl).toHaveBeenCalledWith(USDZ);
+  });
+
+  it('usdz_url null → so‘rovsiz "AR bu buyum uchun tayyor emas"', async () => {
+    const arLink = jest.fn();
+    expect(
+      await openArIos(
+        { ...req, usdzUrl: null },
+        { client: { arLink } as unknown as ApiClient, openUrl: jest.fn() },
+      ),
+    ).toEqual({ ok: false, message: uz.ar.notReady });
+    expect(arLink).not.toHaveBeenCalled();
+  });
+
+  it('mock: usdz → 404 not_found → "AR bu buyum uchun tayyor emas"; oflayn → internet kerak', async () => {
+    const notFound = {
+      arLink: async () => {
+        throw new ApiError('http', 'x', 404, 'not_found', 'USDZ mock’da yo‘q (V-1b)');
+      },
+    } as unknown as ApiClient;
+    expect(await openArIos(req, { client: notFound, openUrl: jest.fn() })).toEqual({
+      ok: false,
+      message: uz.ar.notReady,
+    });
+    const offline = {
+      arLink: async () => {
+        throw new ApiError('timeout', 'x');
+      },
+    } as unknown as ApiClient;
+    expect(await openArIos(req, { client: offline, openUrl: jest.fn() })).toEqual({
+      ok: false,
+      message: uz.ar.offline,
     });
   });
 });

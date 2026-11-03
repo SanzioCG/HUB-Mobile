@@ -13,6 +13,8 @@ export interface ViewTarget {
   revisionLabel: string;
   /** API'dan; skanerlangan reviziya uchun noma'lum — null. */
   approved: boolean | null;
+  /** Kontrakt 4: iOS Quick Look uchun. null — USDZ yo'q yoki noma'lum (skaner). */
+  usdzUrl: string | null;
 }
 
 /** Kontrakt 6.3: eski reviziya etiketkasi → sariq banner; `part_in_latest=false` — qo'shimcha qator. */
