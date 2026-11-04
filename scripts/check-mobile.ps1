@@ -34,6 +34,12 @@ function Invoke-Step([string]$Name, [string]$Command) {
 Invoke-Step 'typecheck' 'npm run typecheck'
 Invoke-Step 'lint' 'npm run lint && npm run format:check'
 Invoke-Step 'test' 'npm test'
+# M-A7: haqiqiy .uhub testlari (packages/viewer/test/real-uhub.test.ts) — ixtiyoriy; fayl repoga kirmaydi.
+if ($env:UHUB_REAL_FILE -and (Test-Path $env:UHUB_REAL_FILE)) {
+  Write-Host "ok    haqiqiy .uhub testlari: $env:UHUB_REAL_FILE" -ForegroundColor Green
+} else {
+  Write-Host 'skip  haqiqiy .uhub testlari (UHUB_REAL_FILE berilmagan)' -ForegroundColor Yellow
+}
 Invoke-Step 'GLB generatsiya + QR' 'npm run fixtures'
 Invoke-Step 'gltf-validator' 'npm run validate -w @hub-mobile/sample-glb'
 
