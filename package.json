@@ -24,7 +24,9 @@
     "release:viewer": "npm run release -w @hub-mobile/viewer",
     "check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-mobile.ps1 -Quiet",
     "icons": "node scripts/icons.mjs",
-    "check:assets": "node scripts/check-assets.mjs"
+    "check:assets": "node scripts/check-assets.mjs",
+    "build:android:preview": "npm run build:android:preview -w @hub-mobile/mobile",
+    "update:preview": "npm run update:preview -w @hub-mobile/mobile --"
   },
   "type": "module",
   "devDependencies": {

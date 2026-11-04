@@ -123,6 +123,15 @@ export const uz = {
     updateId: 'Yangilanish',
     /** OTA yangilanish hali yo'q — APK ichidagi kod. */
     embedded: 'APK ichidagi',
+    checkUpdate: 'Yangilanishni tekshirish',
+    checking: 'Tekshirilmoqda…',
+    updateNone: 'Yangi versiya yo‘q',
+    updateReadyTitle: 'Yangilanish yuklandi',
+    updateReadyText: 'Hozir qayta ishga tushirilsinmi? Aks holda keyingi ochilishda qo‘llanadi.',
+    updateLater: 'Keyinroq',
+    updateRestart: 'Qayta ishga tushirish',
+    updateDisabled: 'Yangilanish faqat o‘rnatilgan ilovada (APK) ishlaydi',
+    updateFailed: (m: string) => `Yangilanishni tekshirib bo‘lmadi: ${m}`,
     dev: 'Dasturchi',
   },
   roles: {
