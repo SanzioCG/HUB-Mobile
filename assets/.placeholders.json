@@ -1,0 +1,6 @@
+{
+  "note": "TMP (vaqtinchalik) PNG fayllarning ochilgan piksel ma'lumoti SHA-256 si — npm run check:assets. Fayl almashtirilsa hash mos kelmaydi va ogohlantirish yo'qoladi.",
+  "png": {
+    "brand/loading-bg.png": "a8f60d870b59b2b06ad660bcbbe0ad4445efac8cb293b0fb37429134aaf09b59"
+  }
+}
