@@ -96,6 +96,8 @@ export type ViewerMessage =
     }
   /** Bo'sh joyga bosildi — tanlov bekor. */
   | { type: 'deselected' }
+  /** Ochiq kliplar (kontrakt 1.6, 2.2: viewer `reveal` tartibida o'zi ham ochadi/yopadi). */
+  | { type: 'clipState'; open: string[] }
   | { type: 'error'; code: ErrorCode; message: string }
   /** Dev: ishlash ko'rsatkichlari (renderer.info asosida), har ~2 s. */
   | { type: 'stats'; load_ms: number; fps: number; triangles: number; textures_mb: number };

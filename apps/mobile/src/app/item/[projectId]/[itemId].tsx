@@ -199,15 +199,15 @@ function ItemViewer({
         const byScan = expectUid.current === m.uid;
         expectUid.current = null;
         setSelected({ part: m.extras, clip: m.clip, byScan, material: m.material });
-        if (byScan) {
-          // reveal kliplari viewer'da ochildi — tugma holati mos bo'lsin
-          setOpen((s) => new Set([...s, ...m.extras.reveal]));
-          if (scan) void setRecentNumber(scan.qr, m.extras.number);
-        }
+        if (byScan && scan) void setRecentNumber(scan.qr, m.extras.number);
         break;
       }
       case 'deselected':
         setSelected(null);
+        break;
+      case 'clipState':
+        // Kontrakt 1.6 (2.2): viewer `reveal` tartibida eshikni ham ochadi/yopadi — holat viewer'dan.
+        setOpen(new Set(m.open));
         break;
       case 'stats':
         if (__DEV__) setStats(`${m.load_ms} ms · ${m.fps} fps · ${m.triangles} △ · ${m.textures_mb} MB`);
@@ -225,25 +225,15 @@ function ItemViewer({
     }
   };
 
-  const toggleClip = (clip: string) => {
-    send({ type: 'toggle', clip });
-    setOpen((s) => {
-      const next = new Set(s);
-      if (next.has(clip)) next.delete(clip);
-      else next.add(clip);
-      return next;
-    });
-  };
+  const toggleClip = (clip: string) => send({ type: 'toggle', clip });
 
   const openOrCloseAll = () => {
     send({ type: anyOpen ? 'closeAll' : 'openAll' });
-    setOpen(anyOpen ? new Set() : new Set(clips));
   };
 
   const showAll = () => {
     send({ type: 'showAll' });
     setSelected(null);
-    setOpen(new Set());
   };
 
   const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });

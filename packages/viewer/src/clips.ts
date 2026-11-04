@@ -1,12 +1,17 @@
 // Kliplar: ochish — oldinga ijro, yopish — xuddi shu action teskari (kontrakt 2.2).
 import { AnimationMixer, LoopOnce, type AnimationAction, type AnimationClip, type Object3D } from 'three';
 import { isOpenableClip } from './model.js';
+import type { Plan } from './sequence.js';
 
 export class ClipPlayer {
   readonly mixer: AnimationMixer;
   private readonly actions = new Map<string, AnimationAction>();
   private readonly open = new Set<string>();
   private readonly pending = new Map<AnimationAction, () => void>();
+  /** Har yangi `run` oldingi rejani to'xtatadi (ijrodagi klip oxirigacha boradi). */
+  private runId = 0;
+  /** Ochiq kliplar to'plami o'zgarganda (host tugmalari holati uchun). */
+  onChange: ((open: string[]) => void) | null = null;
 
   constructor(root: Object3D, clips: readonly AnimationClip[]) {
     this.mixer = new AnimationMixer(root);
@@ -45,8 +50,10 @@ export class ClipPlayer {
   play(name: string, dir: 1 | -1): Promise<void> {
     const a = this.actions.get(name);
     if (!a) return Promise.resolve();
+    const was = this.open.has(name);
     if (dir > 0) this.open.add(name);
     else this.open.delete(name);
+    if (was !== this.open.has(name)) this.onChange?.([...this.open]);
     this.pending.get(a)?.(); // avvalgi kutuvchini bo'shatish
     a.enabled = true;
     a.timeScale = dir;
@@ -66,6 +73,20 @@ export class ClipPlayer {
     return true;
   }
 
+  /**
+   * Reja (kontrakt 1.6, 2.2 — `sequence.ts`): bosqichlar ketma-ket, bosqich ichida birga. Yangi `run` yoki
+   * `cancelled()` keyingi bosqichlarni bekor qiladi. Tugallanganda true.
+   */
+  async run(plan: Plan, cancelled: () => boolean = () => false): Promise<boolean> {
+    const id = ++this.runId;
+    for (const step of plan) {
+      await Promise.all(step.map((m) => this.play(m.clip, m.dir)));
+      if (id !== this.runId || cancelled()) return false;
+    }
+    return true;
+  }
+
+  /** Klipni yolg'iz ijro etish — `reveal` tartibisiz (faqat dev sinov sahifasi, kontrakt 2.2). */
   toggle(name: string): Promise<void> {
     return this.play(name, this.isOpen(name) ? -1 : 1);
   }

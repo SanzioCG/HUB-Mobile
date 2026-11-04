@@ -28,7 +28,11 @@ if (config) {
   const q = new URLSearchParams(location.search);
   const glbUrl = q.get('glb') ?? `http://${location.hostname || 'localhost'}:8787/files/glb/m0-r5.glb`;
   const token = q.get('token') ?? 'dev-token';
-  devPanel((msg) => viewer?.handle(msg), bridge.onOutgoing);
+  devPanel(
+    (msg) => viewer?.handle(msg),
+    bridge.onOutgoing,
+    (clip) => viewer?.rawToggle(clip),
+  );
   viewer.handle({ type: 'load', glbUrl, token });
 }
 
@@ -38,6 +42,7 @@ bridge.post({ type: 'ready' });
 function devPanel(
   send: (msg: HostMessage) => void,
   onOutgoing: (fn: (m: ViewerMessage) => void) => void,
+  rawToggle: (clip: string) => void,
 ): void {
   const panel = document.createElement('div');
   panel.className = 'dev';
@@ -82,6 +87,8 @@ function devPanel(
   );
   row(...modeBtns, dimsBtn);
   const clipRow = row();
+  // Faqat dev: klipni `reveal` tartibisiz (ichki tortma fasadi yopiq eshikdan o'tib ketadi).
+  const rawRow = row();
   const select = document.createElement('select');
   select.onchange = () => select.value && send({ type: 'select', uid: select.value });
   row(select);
@@ -112,6 +119,9 @@ function devPanel(
       status.textContent = `${String(meta.revision_id ?? m.item.node)}${meta.approved === false ? ' · Tasdiqlanmagan holat' : ''}`;
       clipRow.replaceChildren(
         ...m.item.clips.map((c) => btn(c.replace(/__open$/, ''), () => send({ type: 'toggle', clip: c }))),
+      );
+      rawRow.replaceChildren(
+        ...m.item.clips.map((c) => btn(`yolg'iz: ${c.replace(/__open$/, '')}`, () => rawToggle(c))),
       );
       select.replaceChildren(new Option('QR sinovi: detal tanlang…', ''));
       for (const p of m.parts) select.append(new Option(`${p.number}. ${p.name}`, p.uid));

@@ -39,6 +39,7 @@ import type {
 import { ArSession, type ArCallbacks } from './ar.js';
 import { ClipPlayer } from './clips.js';
 import { buildDims, disposeDims } from './dims.js';
+import { RevealIndex } from './sequence.js';
 import { fetchBytes } from './fetch-bytes.js';
 import { Look } from './look.js';
 import {
@@ -76,6 +77,8 @@ interface Loaded {
   root: Object3D;
   parts: Map<string, Object3D>;
   clips: ClipPlayer;
+  /** Kontrakt 1.6 (2.2): ichki tortma tartibi — `reveal` dan. */
+  reveal: RevealIndex;
   look: Look;
   dims: Group | null;
   /** Ochilish zonalari (M-A5, 1b) — buyum ildiziga emas, `anchor` ga qo'shiladi. */
@@ -196,14 +199,14 @@ export class Viewer {
         this.showAll(m);
         break;
       case 'openAll':
-        void m.clips.playAll(1);
+        void m.clips.run(m.reveal.planAll(1, (c) => m.clips.isOpen(c)));
         break;
       case 'closeAll':
-        void m.clips.playAll(-1);
+        void m.clips.run(m.reveal.planAll(-1, (c) => m.clips.isOpen(c)));
         break;
       case 'toggle':
         if (!m.clips.has(msg.clip)) return this.error('clip_not_found', `klip topilmadi: ${msg.clip}`);
-        void m.clips.toggle(msg.clip);
+        void m.clips.run(m.reveal.toggle(msg.clip, (c) => m.clips.isOpen(c)));
         break;
       case 'setMode':
         this.mode = msg.mode;
@@ -298,6 +301,8 @@ export class Viewer {
     const itemNode = findItemNode(root);
     const itemExtras = (itemNode?.userData as { uhub?: { dimensions?: LoadedItem['dimensions'] } })?.uhub;
     const clips = new ClipPlayer(root, gltf.animations);
+    const parts = indexParts(root);
+    clips.onChange = (open) => this.bridge.post({ type: 'clipState', open });
     const look = new Look(root);
     look.mode = this.mode;
     look.apply();
@@ -316,7 +321,14 @@ export class Viewer {
       url,
       gltf,
       root,
-      parts: indexParts(root),
+      parts,
+      reveal: new RevealIndex(
+        [...parts.values()].map((node) => {
+          const x = partExtras(node)!;
+          return { clip: ownClip(node, clips), kind: x.kind, reveal: x.reveal ?? [] };
+        }),
+        clips.names,
+      ),
       clips,
       look,
       dims,
@@ -367,8 +379,10 @@ export class Viewer {
     const { clips, missing } = revealPlan(extras, new Set(m.clips.names));
     if (missing.length) this.error('clip_not_found', `reveal kliplari topilmadi: ${missing.join(', ')}`);
     // Avvalgi tanlovdan ochiq qolgan, endi kerak bo'lmagan kliplar yopiladi.
-    for (const name of m.clips.names)
-      if (m.clips.isOpen(name) && !clips.includes(name)) void m.clips.play(name, -1);
+    // Kontrakt 1.6 (2.2): avval ichki tortmalar, keyin eshiklar.
+    const toClose = m.clips.names.filter((name) => m.clips.isOpen(name) && !clips.includes(name));
+    if (toClose.length && !(await m.clips.run(m.reveal.planSet(toClose, -1), () => seq !== this.selectSeq)))
+      return;
     const done = await m.clips.openSequence(clips, () => seq !== this.selectSeq);
     if (done) this.focus(node);
   }
@@ -413,7 +427,7 @@ export class Viewer {
     m.look.selected = null;
     m.look.ghost = false;
     m.look.apply();
-    void m.clips.playAll(-1);
+    void m.clips.run(m.reveal.planAll(-1, (c) => m.clips.isOpen(c)));
   }
 
   /** Bosish = tanlash. Eshik bosilganda ochilmaydi — faqat `selected`. */
@@ -618,6 +632,11 @@ export class Viewer {
       throw e;
     }
     return ar.features;
+  }
+
+  /** Dev sinov sahifasi: klipni `reveal` tartibisiz yolg'iz ijro etish (kontrakt 2.2). */
+  rawToggle(clip: string): void {
+    if (this.model?.clips.has(clip)) void this.model.clips.toggle(clip);
   }
 
   arReplace(): void {
