@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, errorMessage } from '../api/errors';
 import { ERROR } from '../api/types';
+import { SHOW_DEV_UI } from '../config';
 import { Button, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
 import { illustrations } from '../ui/generated';
@@ -33,7 +34,7 @@ export default function PairScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [server, setServer] = useState(apiUrl ?? '');
-  const [editServer, setEditServer] = useState(!apiUrl);
+  const [editServer, setEditServer] = useState(!apiUrl && SHOW_DEV_UI);
 
   const submit = async (value: string) => {
     setBusy(true);
@@ -135,8 +136,9 @@ export default function PairScreen() {
               />
             </View>
           ) : (
-            <Pressable onPress={() => setEditServer(true)} style={styles.serverValue}>
-              <T mono>{apiUrl}</T>
+            // Release (internal APK): server manzili faqat juftlash QR'idan — qo'lda o'zgartirish faqat dev'da.
+            <Pressable onPress={() => setEditServer(true)} disabled={!SHOW_DEV_UI} style={styles.serverValue}>
+              <T mono>{apiUrl ?? uz.common.dash}</T>
             </Pressable>
           )}
         </View>

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Boot } from '../boot/Boot';
+import { SHOW_DEV_UI } from '../config';
 import { SessionProvider, useSession } from '../session/SessionProvider';
 import { colors } from '../theme';
 
@@ -42,7 +43,10 @@ function Routes() {
       <Stack.Screen name="files/index" />
       <Stack.Screen name="files/[fileId]" />
       <Stack.Screen name="files/view" />
-      <Stack.Screen name="dev/spike" />
+      {/* Dev sinov sahifalari — release'da yo'q (havola bilan ham ochilmaydi). */}
+      <Stack.Protected guard={SHOW_DEV_UI}>
+        <Stack.Screen name="dev/spike" />
+      </Stack.Protected>
     </Stack>
   );
 }

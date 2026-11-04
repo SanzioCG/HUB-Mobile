@@ -9,6 +9,7 @@
     "@hub-mobile/viewer": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~58.0.23",
+    "expo-application": "~58.1.2",
     "expo-asset": "~58.0.19",
     "expo-build-properties": "~58.0.12",
     "expo-camera": "~58.0.14",
@@ -23,6 +24,7 @@
     "expo-secure-store": "~58.0.2",
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
+    "expo-updates": "~58.0.21",
     "expo-web-browser": "~58.0.7",
     "lucide-react-native": "^1.68.0",
     "react": "19.3.0",
@@ -47,7 +49,10 @@
     "types": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "jest": "jest",
-    "doctor": "npx -y expo-doctor"
+    "doctor": "npx -y expo-doctor",
+    "eas-build-post-install": "npm --prefix ../.. run build -w @hub-mobile/viewer && npm run copy-viewer",
+    "build:android:preview": "npx -y eas-cli@27.4.1 build -p android --profile preview",
+    "update:preview": "node scripts/eas-update.mjs preview"
   },
   "private": true,
   "jest": {

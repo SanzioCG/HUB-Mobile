@@ -1,12 +1,16 @@
 // Sozlamalar tabi: server manzili, foydalanuvchi (rol bilan) va kompaniya, qurilmani uzish, versiyalar.
 import { VIEWER_CONTRACT, VIEWER_VERSION } from '@hub-mobile/viewer/version';
+import * as Application from 'expo-application';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { roleLabel } from '../../api/types';
 import { Button, T } from '../../components/ui';
+import { SHOW_DEV_UI } from '../../config';
+import { checkAndFetch } from '../../updates/checkUpdate';
 import { uz } from '../../i18n/uz';
 import { usePairedSession, useSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, radius, space } from '../../theme';
@@ -14,6 +18,24 @@ import { colors, fontSize, fonts, radius, space } from '../../theme';
 export default function SettingsScreen() {
   const session = usePairedSession();
   const { apiUrl, unpair } = useSession();
+  const [checking, setChecking] = useState(false);
+  const [updateNote, setUpdateNote] = useState<string | null>(null);
+
+  // M-A8: OTA — qo'lda tekshirish; yuklansa qayta ishga tushirishni taklif qiladi.
+  const checkUpdate = async () => {
+    setChecking(true);
+    setUpdateNote(null);
+    const res = await checkAndFetch(Updates);
+    setChecking(false);
+    if (res.kind === 'ready')
+      Alert.alert(uz.settings.updateReadyTitle, uz.settings.updateReadyText, [
+        { text: uz.settings.updateLater, style: 'cancel' },
+        { text: uz.settings.updateRestart, onPress: () => void Updates.reloadAsync() },
+      ]);
+    else if (res.kind === 'none') setUpdateNote(uz.settings.updateNone);
+    else if (res.kind === 'disabled') setUpdateNote(uz.settings.updateDisabled);
+    else setUpdateNote(uz.settings.updateFailed(res.message));
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -30,12 +52,32 @@ export default function SettingsScreen() {
           <T>{session?.company.name ?? uz.common.dash}</T>
         </Section>
         <Section label={uz.settings.versions}>
-          <Row label={uz.settings.appVersion} value={Constants.expoConfig?.version ?? uz.common.dash} />
+          <Row
+            label={uz.settings.appVersion}
+            value={Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? uz.common.dash}
+          />
+          {/* M-A8: versionCode (EAS remote, avtomatik oshadi), kanal va OTA yangilanish ID'si. */}
+          <Row label={uz.settings.buildNumber} value={Application.nativeBuildVersion ?? uz.common.dash} />
           <Row label={uz.settings.viewerVersion} value={VIEWER_VERSION} />
           <Row label={uz.settings.contractVersion} value={VIEWER_CONTRACT} />
+          <Row label={uz.settings.channel} value={Updates.channel ?? uz.common.dash} />
+          <Row
+            label={uz.settings.updateId}
+            value={Updates.updateId ? Updates.updateId.slice(0, 8) : uz.settings.embedded}
+          />
+          <Button
+            label={checking ? uz.settings.checking : uz.settings.checkUpdate}
+            icon="cloud-download"
+            disabled={checking}
+            onPress={() => void checkUpdate()}
+            style={styles.updateBtn}
+          />
+          {updateNote && <T muted>{updateNote}</T>}
+          {/* M-A8: OTA sinovi — faqat JS o'zgarishi (APK qayta o'rnatilmaydi). */}
+          <T muted>OTA sinovi 1</T>
         </Section>
         <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
-        {__DEV__ && (
+        {SHOW_DEV_UI && (
           <Section label={uz.settings.dev}>
             <Button
               label="Spike: GLB yetkazish"
@@ -74,4 +116,5 @@ const styles = StyleSheet.create({
   section: { backgroundColor: colors.panel, borderRadius: radius.md, padding: space.lg, gap: space.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   devBtn: { alignSelf: 'flex-start', marginTop: space.xs },
+  updateBtn: { alignSelf: 'flex-start', marginTop: space.sm },
 });

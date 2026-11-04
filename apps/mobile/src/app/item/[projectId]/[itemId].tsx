@@ -13,7 +13,7 @@ import { ViewerRail } from '../../../components/ViewerRail';
 import { BackButton } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { BarButton, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
-import { AR_OPEN, type Delivery } from '../../../config';
+import { AR_OPEN, SHOW_DEV_UI, type Delivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
 import { scanBanner, type ViewTarget } from '../../../scan/banner';
 import { ensureCached, isCached } from '../../../offline/glbCache';
@@ -210,7 +210,7 @@ function ItemViewer({
         setOpen(new Set(m.open));
         break;
       case 'stats':
-        if (__DEV__) setStats(`${m.load_ms} ms · ${m.fps} fps · ${m.triangles} △ · ${m.textures_mb} MB`);
+        if (SHOW_DEV_UI) setStats(`${m.load_ms} ms · ${m.fps} fps · ${m.triangles} △ · ${m.textures_mb} MB`);
         break;
       case 'error':
         if (m.code === 'contract_mismatch') {
@@ -251,7 +251,7 @@ function ItemViewer({
     const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
     const res = isIos
       ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl })
-      : await openArAndroid(req, { client, openUrl: openArPage, dev: __DEV__ });
+      : await openArAndroid(req, { client, openUrl: openArPage, dev: SHOW_DEV_UI });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };

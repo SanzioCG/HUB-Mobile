@@ -1,0 +1,27 @@
+# EAS Build yuklamasi (M-A8). EAS CLI bu faylni .gitignore O'RNIGA ishlatadi — .gitignore qoidalari shu yerda ham.
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
+mock/fixtures/glb/
+mock/fixtures/qr/
+apps/mobile/.expo/
+apps/mobile/assets/viewer/
+apps/mobile/.env
+
+# .uhub — haqiqiy eksportlarda mijoz ma'lumoti bo'lishi mumkin; sintetik fixture ham build'ga kerak emas.
+*.uhub
+
+# Build'ga kerak emas: mock fixtures, hujjatlar va hisobotlar, viewer relizlari, dizayn hujjatlari.
+mock/fixtures/
+docs/
+releases/
+assets/design/
+**/*.md
+
+# Kerak (ataylab yuklanadi): assets/brand, assets/icons, assets/illustrations (app.config, ikonkalar, viewer build),
+# barcha workspace package.json'lari va root package-lock.json (npm ci).
