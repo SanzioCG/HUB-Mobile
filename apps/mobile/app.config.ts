@@ -1,15 +1,32 @@
 import type { ExpoConfig } from 'expo/config';
 
-// APP_VARIANT=development — dev build (LAN'dagi HTTP mock bilan). Production'da HTTP ruxsat etilmaydi (kontrakt 4: HTTPS).
-// Expo Go bu native sozlamalarni ishlatmaydi — u o'zi HTTP'ga ruxsat beradi.
-const IS_DEV_BUILD = process.env.APP_VARIANT === 'development';
+/**
+ * M-A8: ilova varianti — `APP_VARIANT` (eas.json profili va EAS environment'i beradi; lokal `expo start` — development).
+ * - development: dev build (Expo Go yoki dev client);
+ * - internal: ichki sinov APK (`preview` profili) — nomi "U-HUB (test)";
+ * - production: do'kon uchun (AAB). HTTP ruxsat etilmaydi (kontrakt 4: HTTPS).
+ * Expo Go bu native sozlamalarni ishlatmaydi — u o'zi HTTP'ga ruxsat beradi.
+ */
+type AppVariant = 'development' | 'internal' | 'production';
+const VARIANTS: readonly AppVariant[] = ['development', 'internal', 'production'];
+const APP_VARIANT: AppVariant = VARIANTS.includes(process.env.APP_VARIANT as AppVariant)
+  ? (process.env.APP_VARIANT as AppVariant)
+  : 'development';
+/** HTTP (cleartext) va iOS ATS istisnosi. internal — DEP-1 gacha LAN mock uchun; HTTPS server kelgach olib tashlanadi. */
+const ALLOW_HTTP = APP_VARIANT !== 'production';
+
+/**
+ * EAS loyiha identifikatori (`eas init` beradi; maxfiy emas). Bo'sh bo'lsa — OTA (expo-updates) o'chiq,
+ * Expo Go va lokal ishga tushirish o'zgarmaydi.
+ */
+const EAS_PROJECT_ID: string | null = null;
 
 /**
  * Kontrakt 1.6 (10.3): tizim "Ulashish / Ochish" orqali `.uhub`. Expo Go bu native sozlamalarni ishlatmaydi —
  * faqat dev/production build'da sinaladi; Expo Go'da asosiy yo'l — "Fayldan ochish" (hujjat tanlash).
  */
 const UHUB_UTI = 'uz.uhub.project';
-const UHUB_MIME = ['application/zip', 'application/octet-stream'];
+const UHUB_MIME = ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'];
 
 /**
  * M-A6: rasmlar repo ildizidagi `assets/` dan (yagona manba, docs/design/ASSETS.md). Fayl shu nom bilan almashtiriladi —
@@ -19,7 +36,8 @@ const BRAND = '../../assets/brand';
 const BG = '#0B0D0F';
 
 const config: ExpoConfig = {
-  name: 'U-HUB',
+  // Ichki o'rnatma keyingi production ilova bilan adashtirilmasin; `package` ikkalasida bir xil.
+  name: APP_VARIANT === 'internal' ? 'U-HUB (test)' : 'U-HUB',
   slug: 'uhub-mobile',
   version: '0.1.0',
   scheme: 'uhub',
@@ -31,8 +49,8 @@ const config: ExpoConfig = {
     supportsTablet: true,
     bundleIdentifier: 'uz.uhub.mobile',
     infoPlist: {
-      // Faqat dev build: LAN'dagi HTTP mock serverga ulanish uchun ATS istisnosi.
-      ...(IS_DEV_BUILD && { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }),
+      // development va internal: LAN'dagi HTTP mock uchun ATS istisnosi (DEP-1 gacha).
+      ...(ALLOW_HTTP && { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }),
       UTExportedTypeDeclarations: [
         {
           UTTypeIdentifier: UHUB_UTI,
@@ -63,7 +81,6 @@ const config: ExpoConfig = {
           { scheme: 'file', mimeType: '*/*', pathPattern: '.*\\.uhub' },
         ],
       },
-      { action: 'SEND', category: ['DEFAULT'], data: UHUB_MIME.map((mimeType) => ({ mimeType })) },
     ],
   },
   web: { favicon: `${BRAND}/favicon-48.png` },
@@ -74,11 +91,27 @@ const config: ExpoConfig = {
     'expo-asset',
     // Tizim splash'i (Android 12+ — faqat markazdagi belgi): iOS va Android bir xil. Keyin ilovaning o'z yuklanish ekrani.
     ['expo-splash-screen', { image: `${BRAND}/splash-icon.png`, imageWidth: 200, backgroundColor: BG }],
-    // Faqat dev build: Android'da HTTP (cleartext) — LAN mock uchun.
-    ['expo-build-properties', { android: { usesCleartextTraffic: IS_DEV_BUILD } }],
+    // development va internal: Android'da HTTP (cleartext) — LAN mock uchun (DEP-1 gacha; HTTPS kelgach olib tashlanadi).
+    ['expo-build-properties', { android: { usesCleartextTraffic: ALLOW_HTTP } }],
   ],
   // Server manzili (EXPO_PUBLIC_API_URL) va GLB yetkazish yo'li (EXPO_PUBLIC_GLB_DELIVERY) — src/config.ts da
-  // to'g'ridan-to'g'ri o'qiladi, `extra` orqali emas.
+  // to'g'ridan-to'g'ri o'qiladi, `extra` orqali emas. `appVariant` — Sozlamalar va dev elementlari uchun (src/config.ts).
+  extra: {
+    appVariant: APP_VARIANT,
+    ...(EAS_PROJECT_ID ? { eas: { projectId: EAS_PROJECT_ID } } : {}),
+  },
+  // M-A8: OTA (EAS Update). Native o'zgarish bo'lsa runtime versiyasi o'zgaradi — yangi APK kerak.
+  runtimeVersion: { policy: 'fingerprint' },
+  ...(EAS_PROJECT_ID
+    ? {
+        updates: {
+          url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+          // Ochilganda tekshiradi, fonda yuklaydi, keyingi ochilishda qo'llaydi (ochilish kutmaydi).
+          checkAutomatically: 'ON_LOAD',
+          fallbackToCacheTimeout: 0,
+        },
+      }
+    : {}),
 };
 
 export default config;
