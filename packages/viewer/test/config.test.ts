@@ -31,7 +31,7 @@ describe('uhub-config', () => {
 describe('versiya', () => {
   it('VIEWER_VERSION semver, kontrakt 1.3', () => {
     expect(VIEWER_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(VIEWER_CONTRACT).toBe('1.3');
+    expect(VIEWER_CONTRACT).toBe('1.6');
   });
 
   it('kontrakt major mosligi', () => {

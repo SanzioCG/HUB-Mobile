@@ -1,6 +1,6 @@
-// Kontrakt uhub-mobile/1.3 (docs/contract/uhub-mobile-1.3.md), 2-bo'lim: GLB ichidagi extras.uhub tiplari va nomlash.
+// Kontrakt uhub-mobile/1.6 (docs/contract/uhub-mobile-1.6.md), 2-bo'lim: GLB ichidagi extras.uhub tiplari va nomlash.
 
-export const CONTRACT_VERSION = '1.3';
+export const CONTRACT_VERSION = '1.6';
 
 export type PartKind = 'panel' | 'door' | 'drawer_front' | 'hardware';
 

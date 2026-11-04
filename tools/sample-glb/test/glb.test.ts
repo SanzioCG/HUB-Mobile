@@ -118,7 +118,7 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     const { doc } = await roundTrip(rev);
     const meta = (doc.getRoot().getAsset().extras as { uhub: AssetMeta & { approved?: unknown } }).uhub;
     expect(meta).toMatchObject({
-      contract: '1.3',
+      contract: '1.6',
       project_number: ITEM.projectNumber,
       item_id: ITEM.itemId,
       revision_id: REVISIONS[rev].revisionId,
