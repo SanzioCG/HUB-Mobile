@@ -1,8 +1,8 @@
 // "Fayldan ochilganlar" (kontrakt 1.6, 10.3): `.uhub` ni hujjat tanlash bilan ochish, ro'yxat, o'chirish.
 // Juftlashsiz ham ishlaydi. Tizim "Ulashish / Ochish" (intent filtri, UTI) — faqat dev build'da (Expo Go'da yo'q).
 import * as DocumentPicker from 'expo-document-picker';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UHUB_LIMITS, UHUB_MESSAGES, isUhubError } from '@hub-mobile/viewer/uhub';
@@ -47,9 +47,15 @@ export default function FilesScreen() {
       setError(UHUB_MESSAGES.too_large);
       return;
     }
+    await importFrom(asset.uri);
+  };
+
+  /** Tanlangan yoki tizim "Ochish" orqali kelgan fayl (`content://` / `file://`). */
+  const importFrom = async (uri: string) => {
+    setError(null);
     setBusy(true);
     try {
-      const bytes = await readPickedFile(asset.uri);
+      const bytes = await readPickedFile(uri);
       const opened = await importUhub(bytes);
       refresh();
       router.push({ pathname: '/files/[fileId]', params: { fileId: opened.id } });
@@ -65,6 +71,17 @@ export default function FilesScreen() {
       setBusy(false);
     }
   };
+
+  // Tizim "Ochish" orqali kelgan fayl (+native-intent → `?incoming=`) — bir marta ochiladi.
+  const { incoming } = useLocalSearchParams<{ incoming?: string }>();
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!incoming || handled.current === incoming) return;
+    handled.current = incoming;
+    void importFrom(incoming);
+    // importFrom — har renderda yangi; faqat `incoming` o'zgarganda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
 
   const confirmRemove = (f: OpenedFile) =>
     Alert.alert(uz.files.removeTitle, uz.files.removeText(f.project_name || `№ ${f.project_number}`), [
