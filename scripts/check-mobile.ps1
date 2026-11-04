@@ -33,6 +33,8 @@ function Invoke-Step([string]$Name, [string]$Command) {
 
 Invoke-Step 'typecheck' 'npm run typecheck'
 Invoke-Step 'lint' 'npm run lint && npm run format:check'
+# M-A6: apps/mobile/src/ui/generated assets/ bilan mos (eskirgan bo'lsa: "npm run icons ni ishga tushiring").
+Invoke-Step 'ikonkalar (assets/)' 'npm run icons -- --check'
 Invoke-Step 'test' 'npm test'
 # M-A7: haqiqiy .uhub testlari (packages/viewer/test/real-uhub.test.ts) — ixtiyoriy; fayl repoga kirmaydi.
 if ($env:UHUB_REAL_FILE -and (Test-Path $env:UHUB_REAL_FILE)) {

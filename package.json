@@ -22,7 +22,9 @@
     "mock": "npm run dev -w @hub-mobile/mock",
     "viewer": "npm run dev -w @hub-mobile/viewer",
     "release:viewer": "npm run release -w @hub-mobile/viewer",
-    "check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-mobile.ps1 -Quiet"
+    "check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-mobile.ps1 -Quiet",
+    "icons": "node scripts/icons.mjs",
+    "check:assets": "node scripts/check-assets.mjs"
   },
   "type": "module",
   "devDependencies": {
