@@ -32,6 +32,9 @@ run(
     '-y',
     EAS_CLI,
     'update',
+    // iOS build yo'q (M-A8) — faqat Android yangilanishi.
+    '--platform',
+    'android',
     '--channel',
     channel,
     '--environment',
