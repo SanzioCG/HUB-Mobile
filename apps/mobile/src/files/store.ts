@@ -62,7 +62,8 @@ export async function importUhub(bytes: Uint8Array, now: () => Date = () => new 
     if (!path.startsWith('viewer/')) continue;
     const out = new File(dir, path);
     out.create();
-    out.write(data);
+    // SDK 58: `write` — async. `slice()` — fflate natijasi kattaroq bufer ichidagi ko'rinish bo'lishi mumkin.
+    await out.write(data.slice());
   }
   const entry: OpenedFile = {
     id,

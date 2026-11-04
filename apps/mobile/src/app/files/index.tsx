@@ -2,14 +2,14 @@
 // Juftlashsiz ham ishlaydi. Tizim "Ulashish / Ochish" (intent filtri, UTI) — faqat dev build'da (Expo Go'da yo'q).
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UHUB_LIMITS, UHUB_MESSAGES, UhubError } from '@hub-mobile/viewer/uhub';
+import { UHUB_LIMITS, UHUB_MESSAGES, isUhubError } from '@hub-mobile/viewer/uhub';
 import { BackButton } from '../../components/parts';
 import { Button, Dot, EmptyState, Spinner, T } from '../../components/ui';
+import { readPickedFile } from '../../files/readPicked';
 import { importUhub, listFiles, removeFile, type OpenedFile } from '../../files/store';
 import { uz } from '../../i18n/uz';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
@@ -43,13 +43,18 @@ export default function FilesScreen() {
     }
     setBusy(true);
     try {
-      const bytes = await new File(asset.uri).bytes();
+      const bytes = await readPickedFile(asset.uri);
       const opened = await importUhub(bytes);
       refresh();
       router.push({ pathname: '/files/[fileId]', params: { fileId: opened.id } });
     } catch (e) {
-      // Buzilgan fayl — tushunarli xabar, ilova yiqilmaydi (10.3, 10.5).
-      setError(e instanceof UhubError ? e.message : uz.files.readFailed);
+      // Buzilgan fayl — tushunarli xabar, ilova yiqilmaydi (10.3, 10.5). Dev'da asl sabab ham (diagnostika).
+      if (isUhubError(e)) setError(e.message);
+      else {
+        console.warn('uhub import', e);
+        const detail = __DEV__ ? ` (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)})` : '';
+        setError(`${uz.files.readFailed}${detail}`);
+      }
     } finally {
       setBusy(false);
     }

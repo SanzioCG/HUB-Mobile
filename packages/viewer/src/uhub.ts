@@ -61,6 +61,20 @@ export class UhubError extends Error {
   }
 }
 
+/**
+ * `instanceof` o'rniga: Babel/Hermes'da `Error` vorisi bo'lgan klass `instanceof` da ishonchsiz bo'lishi mumkin.
+ */
+export function isUhubError(e: unknown): e is UhubError {
+  return (
+    e instanceof UhubError ||
+    (typeof e === 'object' &&
+      e !== null &&
+      (e as { name?: unknown }).name === 'UhubError' &&
+      typeof (e as { code?: unknown }).code === 'string' &&
+      (e as { code: string }).code in UHUB_MESSAGES)
+  );
+}
+
 export type Vec3 = [number, number, number];
 export type Quat = [number, number, number, number];
 
