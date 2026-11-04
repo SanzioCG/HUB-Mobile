@@ -20,7 +20,7 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
-  type Group,
+  Group,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -36,6 +36,7 @@ import type {
   ViewMode,
   ViewName,
 } from './bridge.js';
+import { ArSession, type ArCallbacks } from './ar.js';
 import { ClipPlayer } from './clips.js';
 import { buildDims, disposeDims } from './dims.js';
 import { fetchBytes } from './fetch-bytes.js';
@@ -53,6 +54,7 @@ import {
 } from './model.js';
 import { BG, FOCUS_DURATION_S } from './theme.js';
 import { VIEWER_CONTRACT, isContractCompatible } from './version.js';
+import { buildZoneMeshes, computeZones, disposeZones } from './zones.js';
 
 /** O'ng panel ko'rinishlari (kamera yo'nalishi, kontrakt o'qlari: Y yuqoriga, +Z old). */
 const VIEW_DIRS: Record<ViewName, Vector3> = {
@@ -76,6 +78,10 @@ interface Loaded {
   clips: ClipPlayer;
   look: Look;
   dims: Group | null;
+  /** Ochilish zonalari (M-A5, 1b) — buyum ildiziga emas, `anchor` ga qo'shiladi. */
+  zones: Group;
+  /** Buyum ildizi fazosida pol (bounding box min Y). */
+  floorY: number;
   item: LoadedItem;
   /** `load` boshidan `loaded` gacha (ms). */
   loadMs: number;
@@ -103,6 +109,12 @@ export class Viewer {
   private readonly controls: OrbitControls;
   private readonly loader = new GLTFLoader();
   private readonly raycaster = new Raycaster();
+  /** Buyum, zonalar, soya tekisligi va yorug'lik. 3D'da o'zgarmas; AR'da faqat u joylashtiriladi (masshtabsiz). */
+  private readonly anchor = new Group();
+  private readonly sun = new DirectionalLight(0xffffff, 1.5);
+  private readonly floor = new ThreeMesh(new PlaneGeometry(6, 6), new ShadowMaterial({ opacity: 0.25 }));
+  private ar: ArSession | null = null;
+  private helpersOn = false;
   private model: Loaded | null = null;
   private loadSeq = 0;
   /** Har yangi `select`/`showAll` oldingi ketma-ketlikni bekor qiladi. */
@@ -138,8 +150,9 @@ export class Viewer {
     const pmrem = new PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
-    // Bitta yo'naltirilgan yorug'lik soya bilan + polda soya qabul qiluvchi tekislik.
-    const sun = new DirectionalLight(0xffffff, 1.5);
+    // Bitta yo'naltirilgan yorug'lik soya bilan + polda soya qabul qiluvchi tekislik — ikkalasi `anchor` ichida
+    // (AR'da buyum bilan birga ko'chadi).
+    const sun = this.sun;
     sun.position.set(1.5, 3, 2.5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -149,12 +162,12 @@ export class Viewer {
     sc.right = sc.top = 1.5;
     sc.near = 0.5;
     sc.far = 8;
-    this.scene.add(sun);
-    const floor = new ThreeMesh(new PlaneGeometry(6, 6), new ShadowMaterial({ opacity: 0.25 }));
+    const floor = this.floor;
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     floor.raycast = () => {};
-    this.scene.add(floor);
+    this.anchor.add(sun, sun.target, floor);
+    this.scene.add(this.anchor);
 
     // Bir barmoq — aylantirish, ikki barmoq — yaqinlashtirish/surish (OrbitControls standarti).
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -164,7 +177,7 @@ export class Viewer {
     this.installTapHandling(this.renderer.domElement);
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
-    this.renderer.setAnimationLoop(() => this.frame());
+    this.renderer.setAnimationLoop((_t, xrFrame) => this.frame(xrFrame));
   }
 
   handle(msg: HostMessage): void {
@@ -215,6 +228,10 @@ export class Viewer {
         break;
       case 'setGroupVisible':
         this.setGroupVisible(m.root, msg.group, msg.on);
+        break;
+      case 'setHelpers':
+        this.helpersOn = msg.on;
+        m.zones.visible = msg.on;
         break;
     }
   }
@@ -271,7 +288,13 @@ export class Viewer {
         }
       }
     });
-    this.scene.add(root);
+    // Zonalar kliplar ijrochisidan oldin: klip namunalari pozani o'zgartirib, yopiq holatga qaytaradi.
+    const zoneList = computeZones(root, gltf.animations);
+    const floorY = new Box3().setFromObject(root).min.y;
+    const zones = buildZoneMeshes(zoneList, floorY);
+    zones.visible = this.helpersOn;
+    this.floor.position.y = floorY;
+    this.anchor.add(root, zones);
     const itemNode = findItemNode(root);
     const itemExtras = (itemNode?.userData as { uhub?: { dimensions?: LoadedItem['dimensions'] } })?.uhub;
     const clips = new ClipPlayer(root, gltf.animations);
@@ -297,6 +320,8 @@ export class Viewer {
       clips,
       look,
       dims,
+      zones,
+      floorY,
       item,
       loadMs: Math.round(performance.now() - t0),
       texturesMb,
@@ -317,6 +342,7 @@ export class Viewer {
     m.clips.dispose();
     m.look.dispose();
     if (m.dims) disposeDims(m.dims);
+    disposeZones(m.zones);
     m.root.removeFromParent();
     m.root.traverse((o) => {
       const mesh = o as Mesh;
@@ -501,11 +527,19 @@ export class Viewer {
     this.labels.setSize(w, h);
   }
 
-  private frame(): void {
+  private frame(xrFrame?: XRFrame): void {
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.1);
     this.last = now;
     this.model?.clips.update(dt);
+    if (this.ar?.active && xrFrame) {
+      // AR: kamera XR'dan; orbit, kamera tweeni va 2D yorliqlar ishlatilmaydi.
+      this.ar.update(xrFrame);
+      this.model?.look.update();
+      this.renderer.render(this.scene, this.camera);
+      this.reportStats(now);
+      return;
+    }
     const tw = this.tween;
     if (tw) {
       tw.t = Math.min(tw.t + dt / tw.duration, 1);
@@ -536,6 +570,62 @@ export class Viewer {
       triangles: this.renderer.info.render.triangles,
       textures_mb: Math.round(m.texturesMb * 10) / 10,
     });
+  }
+
+  // ---------- AR (M-A5) ----------
+
+  /**
+   * AR sessiyasini boshlash (foydalanuvchi bosishi bilan). `overlay` — DOM overlay ildizi (tugmalar, yo'riqnoma).
+   * Model yuklangan bo'lishi kerak; sessiya tugaganda 3D ko'rinish tiklanadi.
+   */
+  async startAr(overlay: HTMLElement, cb: ArCallbacks): Promise<string[]> {
+    if (!this.model) throw new Error('model yuklanmagan');
+    if (this.ar?.active) return this.ar.features;
+    const restore = () => {
+      this.controls.enabled = true;
+      this.labels.domElement.style.display = '';
+    };
+    const ar = new ArSession(
+      {
+        renderer: this.renderer,
+        scene: this.scene,
+        camera: this.camera,
+        anchor: this.anchor,
+        sun: this.sun,
+        floorY: () => this.model?.floorY ?? 0,
+      },
+      overlay,
+      {
+        onState: cb.onState,
+        onEnd: () => {
+          restore();
+          this.ar = null;
+          this.resize();
+          if (this.model) this.fitHome(this.model.root);
+          cb.onEnd();
+        },
+      },
+    );
+    this.controls.enabled = false;
+    this.labels.domElement.style.display = 'none';
+    this.tween = null;
+    this.ar = ar;
+    try {
+      await ar.start();
+    } catch (e) {
+      restore();
+      this.ar = null;
+      throw e;
+    }
+    return ar.features;
+  }
+
+  arReplace(): void {
+    this.ar?.replace();
+  }
+
+  arExit(): void {
+    this.ar?.end();
   }
 
   private error(code: ErrorCode, message: string): void {

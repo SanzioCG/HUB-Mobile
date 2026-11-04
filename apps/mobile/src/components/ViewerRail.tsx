@@ -1,4 +1,5 @@
-// 3D ekrandagi o'ng vertikal panel (dizayn 3-ekran): Ko'rinishlar, Qatlamlar, Sig'dirish, "…" (reviziya ma'lumoti).
+// 3D ekrandagi o'ng vertikal panel (dizayn 3-ekran): Ko'rinishlar, Qatlamlar, Sig'dirish, Ochilish zonalari (M-A5),
+// "…" (reviziya ma'lumoti).
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -43,10 +44,15 @@ export function ViewerRail({
   send,
   info,
   disabled,
+  zonesOn,
+  onToggleZones,
 }: {
   send: (msg: HostMessage) => void;
   info: RailInfo;
   disabled: boolean;
+  /** Ochilish zonalari holati ota ekranda (panel detal kartasi ochilganda yashirinadi). */
+  zonesOn: boolean;
+  onToggleZones: () => void;
 }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [visible, setVisible] = useState<Record<Group, boolean>>({
@@ -128,6 +134,13 @@ export function ViewerRail({
           label={uz.viewer.fit}
           disabled={disabled}
           onPress={() => send({ type: 'fit' })}
+        />
+        <RailButton
+          icon="expand-outline"
+          label={uz.viewer.zones}
+          active={zonesOn}
+          disabled={disabled}
+          onPress={onToggleZones}
         />
         <RailButton
           icon="ellipsis-horizontal"

@@ -135,6 +135,8 @@ function ItemViewer({
   const [clips, setClips] = useState<string[]>([]);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [stats, setStats] = useState<string | null>(null);
+  // Ochilish zonalari (M-A5, 1b): viewer holatni o'zida saqlaydi; bu — tugma ko'rinishi uchun.
+  const [zonesOn, setZonesOn] = useState(false);
   const [selected, setSelected] = useState<{
     part: PartExtras;
     clip: string | null;
@@ -379,6 +381,11 @@ function ItemViewer({
         <ViewerRail
           send={send}
           disabled={phase !== 'loaded'}
+          zonesOn={zonesOn}
+          onToggleZones={() => {
+            send({ type: 'setHelpers', on: !zonesOn });
+            setZonesOn(!zonesOn);
+          }}
           info={{
             revisionLabel: target.revisionLabel,
             approved: target.approved,

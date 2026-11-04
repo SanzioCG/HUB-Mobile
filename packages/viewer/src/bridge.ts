@@ -71,7 +71,9 @@ export type HostMessage =
   /** O'ng panel: qatlam (`group__<group>`) ko'rinishi. */
   | { type: 'setGroupVisible'; group: GroupName; on: boolean }
   /** O'ng panel: modelni ekranga sig'dirish. */
-  | { type: 'fit' };
+  | { type: 'fit' }
+  /** Ochilish zonalari (M-A5): eshik yoyi va tortma yurishi — yoqish/o'chirish. Standart — o'chiq. */
+  | { type: 'setHelpers'; on: boolean };
 
 export type ErrorCode =
   'bad_message' | 'not_loaded' | 'load_failed' | 'part_not_found' | 'clip_not_found' | 'contract_mismatch';
@@ -145,6 +147,9 @@ export function parseIncoming(raw: unknown): ParseResult {
       return { ok: true, msg: { type: 'setGroupVisible', group: m.group as GroupName, on: m.on } };
     case 'fit':
       return { ok: true, msg: { type: 'fit' } };
+    case 'setHelpers':
+      if (typeof m.on !== 'boolean') return bad('on');
+      return { ok: true, msg: { type: 'setHelpers', on: m.on } };
     case 'showAll':
     case 'openAll':
     case 'closeAll':
