@@ -2,14 +2,15 @@
 // Progress haqiqiy bosqichlarga bog'langan: shriftlar → secure-store (server, token) → kesh indeksi → birinchi API
 // so'rovi (oflaynda — keshdan). Soxta taymer yo'q.
 //
-// Miltillamaslik qarori: tizim splash'i `SHOW_AFTER_MS` gacha ushlab turiladi. Shu vaqtgacha hammasi tayyor bo'lsa —
-// yuklanish ekrani umuman ko'rsatilmaydi (to'g'ridan-to'g'ri ilovaga). Ko'rsatilgan bo'lsa — kamida `MIN_SHOW_MS`.
+// Founder qarori (2026-11-04): yuklanish ekrani har doim ko'rsatiladi va kamida `MIN_SHOW_MS` (≈1–1.5 s) turadi —
+// brend ekrani ko'rinsin. Bosqichlar undan uzoq cho'zilsa — tugaguncha (progress haqiqiy).
 
 export const BOOT_STAGES = ['fonts', 'session', 'cache', 'api'] as const;
 export type BootStage = (typeof BOOT_STAGES)[number];
 
-export const SHOW_AFTER_MS = 300;
-export const MIN_SHOW_MS = 600;
+/** Tizim splash'idan yuklanish ekraniga darhol o'tiladi. */
+export const SHOW_AFTER_MS = 0;
+export const MIN_SHOW_MS = 1200;
 /** Birinchi API so'rovi yuklanishni shundan ko'p ushlab turmaydi — keyin ilova o'zi oflayn/xato holatini ko'rsatadi. */
 export const API_STAGE_TIMEOUT_MS = 4000;
 
@@ -28,10 +29,7 @@ export function nextPhase(p: {
   shownFor: number;
 }): BootPhase {
   if (p.phase === 'ready') return 'ready';
-  if (p.phase === 'splash') {
-    if (p.allDone) return 'ready';
-    return p.elapsed >= SHOW_AFTER_MS ? 'loading' : 'splash';
-  }
+  if (p.phase === 'splash') return p.elapsed >= SHOW_AFTER_MS ? 'loading' : 'splash';
   return p.allDone && p.shownFor >= MIN_SHOW_MS ? 'ready' : 'loading';
 }
 

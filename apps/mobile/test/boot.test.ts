@@ -16,14 +16,16 @@ it('progress — bajarilgan bosqichlar ulushi (shriftlar → secure-store → ke
   expect(bootProgress(new Set(BOOT_STAGES))).toBe(1);
 });
 
-it(`${SHOW_AFTER_MS} ms gacha tayyor — yuklanish ekrani ko‘rsatilmaydi (miltillamaydi)`, () => {
-  expect(nextPhase({ phase: 'splash', allDone: true, elapsed: 120, shownFor: 0 })).toBe('ready');
-  expect(nextPhase({ phase: 'splash', allDone: false, elapsed: 120, shownFor: 0 })).toBe('splash');
+it('yuklanish ekrani har doim ko‘rsatiladi — hammasi tez tayyor bo‘lsa ham', () => {
+  expect(SHOW_AFTER_MS).toBe(0);
+  expect(nextPhase({ phase: 'splash', allDone: true, elapsed: 0, shownFor: 0 })).toBe('loading');
+  expect(nextPhase({ phase: 'splash', allDone: false, elapsed: 0, shownFor: 0 })).toBe('loading');
 });
 
-it(`uzoq davom etsa — yuklanish ekrani, kamida ${MIN_SHOW_MS} ms`, () => {
-  expect(nextPhase({ phase: 'splash', allDone: false, elapsed: SHOW_AFTER_MS, shownFor: 0 })).toBe('loading');
+it(`kamida ${MIN_SHOW_MS} ms turadi; bosqichlar tugamasa — tugaguncha`, () => {
+  expect(MIN_SHOW_MS).toBeGreaterThanOrEqual(1000);
   expect(nextPhase({ phase: 'loading', allDone: true, elapsed: 900, shownFor: 100 })).toBe('loading');
+  expect(nextPhase({ phase: 'loading', allDone: false, elapsed: 5000, shownFor: 5000 })).toBe('loading');
   expect(nextPhase({ phase: 'loading', allDone: true, elapsed: 2000, shownFor: MIN_SHOW_MS })).toBe('ready');
   expect(nextPhase({ phase: 'ready', allDone: false, elapsed: 0, shownFor: 0 })).toBe('ready');
 });

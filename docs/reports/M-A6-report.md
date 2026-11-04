@@ -43,8 +43,8 @@ Ilovada Ionicons endi ishlatilmaydi; matnli "ikonka" (emoji, belgi) qolmadi.
 ## Yuklanish ekrani — qaror
 - Tizim splash'i `preventAutoHideAsync` bilan ushlanadi. Bosqichlar: **shriftlar → secure-store (server, token) →
   kesh indeksi (GLB keshi va fayllar) → birinchi API so'rovi** (juftlangan bo'lsa loyihalar; oflaynda — keshdan). Soxta taymer yo'q.
-- **300 ms gacha** hammasi tayyor bo'lsa — yuklanish ekrani **umuman ko'rsatilmaydi** (tizim splash'idan to'g'ridan-to'g'ri ilovaga, miltillamaydi).
-  Ko'rsatilsa — **kamida 600 ms**.
+- ~~300 ms gacha tayyor bo'lsa ko'rsatilmaydi, ko'rsatilsa kamida 600 ms~~ — **founder qarori (telefon sinovi, 2026-11-04):**
+  yuklanish ekrani **har doim** ko'rsatiladi va **kamida 1,2 s** turadi (brend ekrani ko'rinsin); bosqichlar uzoqroq bo'lsa — tugaguncha.
 - Server javob bermasa — **4 s** dan keyin ilova ochiladi; Loyihalar ekrani o'zi oflayn (kesh) yoki xato holatini ko'rsatadi.
   Juftlanmagan — API bosqichi yo'q.
 - Loyihalar ekrani yuklanishdagi javobni qayta so'ramaydi (`primeProjectList`, bir marta).
