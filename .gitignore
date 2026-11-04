@@ -11,6 +11,11 @@ Thumbs.db
 mock/fixtures/glb/
 mock/fixtures/qr/
 
+# .uhub — haqiqiy eksportlarda mijoz ma'lumoti bo'lishi mumkin (project.json, documents/): repoga kirmaydi.
+# Istisno — sintetik fixture (tools/sample-glb, M-A7).
+*.uhub
+!mock/fixtures/uhub/*.uhub
+
 # Expo (M-A1)
 apps/mobile/.expo/
 

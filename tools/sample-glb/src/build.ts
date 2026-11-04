@@ -23,6 +23,7 @@ import {
   REVISIONS,
   drawerRailBoxes,
   partExtras,
+  fileVariantParts,
   partsForRevision,
   type MaterialId,
   type PartSpec,
@@ -155,6 +156,11 @@ export interface BuildOptions {
   ar?: boolean;
   /** Og'ir namuna (`m0-heavy.glb`): yuzalar setkaga bo'lingan, 1024 px alohida teksturalar. */
   heavy?: boolean;
+  /**
+   * `.uhub` fixture buyumi (M-A7): boshqa `item_id`/nom; `variant` — shisha eshik, lmdf, pvc, noma'lum `kind`
+   * (`fileVariantParts`).
+   */
+  file?: { itemId: string; name: string; variant?: boolean };
 }
 
 /** Og'ir namuna: har yuza 23 × 23 katak → ~140 000 uchburchak (≤ 150 000, kontrakt 2). */
@@ -175,8 +181,8 @@ export function buildM0(rev: Revision, opts: BuildOptions = {}): Document {
         snapshot: HEAVY.snapshot,
       }
     : {
-        itemId: ITEM.itemId,
-        name: ITEM.name,
+        itemId: opts.file?.itemId ?? ITEM.itemId,
+        name: opts.file?.name ?? ITEM.name,
         revisionId: r.revisionId,
         revisionLabel: r.revisionLabel,
         snapshot: r.snapshot,
@@ -286,7 +292,8 @@ export function buildM0(rev: Revision, opts: BuildOptions = {}): Document {
     mids.set(id, mid);
   }
 
-  const parts: readonly PartSpec[] = heavy ? M0_PARTS : partsForRevision(rev);
+  const base: readonly PartSpec[] = heavy ? M0_PARTS : partsForRevision(rev);
+  const parts = opts.file?.variant ? fileVariantParts(base) : base;
   let decor = 0;
   for (const p of parts) {
     const number = M0_PARTS.indexOf(p) + 1; // etiketka raqami reviziyalar orasida barqaror

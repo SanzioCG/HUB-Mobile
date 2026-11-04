@@ -11,6 +11,8 @@
     "release": "node scripts/release.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "fflate": "^0.8.3",
     "three": "^0.187.0"
   },
   "devDependencies": {

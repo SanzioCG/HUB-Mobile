@@ -14,12 +14,14 @@
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.1",
+    "fflate": "^0.8.3",
     "gltf-validator": "^2.0.0-dev.3.10",
     "jpeg-js": "^0.4.4"
   },
   "exports": {
     "./build": "./src/build.ts",
     "./m0": "./src/m0.ts",
-    "./contract": "./src/contract.ts"
+    "./contract": "./src/contract.ts",
+    "./uhub": "./src/uhub.ts"
   }
 }

@@ -21,7 +21,18 @@ export interface MaterialExtras {
   code: string;
   supplier: string;
   name: string;
-  kind: 'ldsp' | 'mdf' | 'mdf_painted' | 'veneer' | 'hpl' | 'abs' | 'metal' | 'plastic' | 'glass';
+  kind:
+    | 'ldsp'
+    | 'lmdf'
+    | 'mdf'
+    | 'mdf_painted'
+    | 'veneer'
+    | 'hpl'
+    | 'abs'
+    | 'pvc'
+    | 'metal'
+    | 'plastic'
+    | 'glass';
   /** Kontrakt 1.4: ma'nosiz bo'lsa (`metal`, `plastic`) — null. */
   thickness_mm: number | null;
 }
