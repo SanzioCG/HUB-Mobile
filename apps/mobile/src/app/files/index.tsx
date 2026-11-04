@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UHUB_LIMITS, UHUB_MESSAGES, isUhubError } from '@hub-mobile/viewer/uhub';
 import { BackButton } from '../../components/parts';
 import { Button, Dot, EmptyState, Spinner, T } from '../../components/ui';
+import { SHOW_DEV_UI } from '../../config';
 import { readPickedFile } from '../../files/readPicked';
 import { importUhub, listFiles, removeFile, type OpenedFile } from '../../files/store';
 import { uz } from '../../i18n/uz';
@@ -57,7 +58,7 @@ export default function FilesScreen() {
       if (isUhubError(e)) setError(e.message);
       else {
         console.warn('uhub import', e);
-        const detail = __DEV__ ? ` (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)})` : '';
+        const detail = SHOW_DEV_UI ? ` (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)})` : '';
         setError(`${uz.files.readFailed}${detail}`);
       }
     } finally {

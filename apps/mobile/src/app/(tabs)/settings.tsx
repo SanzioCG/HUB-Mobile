@@ -1,12 +1,15 @@
 // Sozlamalar tabi: server manzili, foydalanuvchi (rol bilan) va kompaniya, qurilmani uzish, versiyalar.
 import { VIEWER_CONTRACT, VIEWER_VERSION } from '@hub-mobile/viewer/version';
+import * as Application from 'expo-application';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { roleLabel } from '../../api/types';
 import { Button, T } from '../../components/ui';
+import { SHOW_DEV_UI } from '../../config';
 import { uz } from '../../i18n/uz';
 import { usePairedSession, useSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, radius, space } from '../../theme';
@@ -30,12 +33,22 @@ export default function SettingsScreen() {
           <T>{session?.company.name ?? uz.common.dash}</T>
         </Section>
         <Section label={uz.settings.versions}>
-          <Row label={uz.settings.appVersion} value={Constants.expoConfig?.version ?? uz.common.dash} />
+          <Row
+            label={uz.settings.appVersion}
+            value={Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? uz.common.dash}
+          />
+          {/* M-A8: versionCode (EAS remote, avtomatik oshadi), kanal va OTA yangilanish ID'si. */}
+          <Row label={uz.settings.buildNumber} value={Application.nativeBuildVersion ?? uz.common.dash} />
           <Row label={uz.settings.viewerVersion} value={VIEWER_VERSION} />
           <Row label={uz.settings.contractVersion} value={VIEWER_CONTRACT} />
+          <Row label={uz.settings.channel} value={Updates.channel ?? uz.common.dash} />
+          <Row
+            label={uz.settings.updateId}
+            value={Updates.updateId ? Updates.updateId.slice(0, 8) : uz.settings.embedded}
+          />
         </Section>
         <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
-        {__DEV__ && (
+        {SHOW_DEV_UI && (
           <Section label={uz.settings.dev}>
             <Button
               label="Spike: GLB yetkazish"

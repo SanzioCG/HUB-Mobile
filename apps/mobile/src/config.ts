@@ -2,6 +2,24 @@ import Constants from 'expo-constants';
 
 export type Delivery = 'online' | 'offline';
 
+/** M-A8: ilova varianti (app.config `extra.appVariant`, `APP_VARIANT` dan). Noma'lum yoki yo'q — development. */
+export type AppVariant = 'development' | 'internal' | 'production';
+
+export function appVariantOf(value: unknown): AppVariant {
+  return value === 'internal' || value === 'production' ? value : 'development';
+}
+
+/**
+ * Dev elementlari (Spike, `ms · fps · △ · MB` statistikasi, dev sinov sahifalari, server manzilini qo'lda o'zgartirish,
+ * xatoning texnik tafsiloti) — faqat `__DEV__` (Expo Go / Metro) yoki `APP_VARIANT=development` da.
+ */
+export const showDevUi = (variant: AppVariant, isDev: boolean) => isDev || variant === 'development';
+
+export const APP_VARIANT: AppVariant = appVariantOf(
+  (Constants.expoConfig?.extra as { appVariant?: unknown } | undefined)?.appVariant,
+);
+export const SHOW_DEV_UI = showDevUi(APP_VARIANT, __DEV__);
+
 /** Mock server porti (mock/.env.example). Dev'da manzil Expo serverining IP'sidan olinadi. */
 const DEV_API_PORT = 8787;
 

@@ -118,6 +118,11 @@ export const uz = {
     appVersion: 'Ilova',
     viewerVersion: 'Viewer',
     contractVersion: 'Kontrakt',
+    buildNumber: 'Build (versionCode)',
+    channel: 'Kanal',
+    updateId: 'Yangilanish',
+    /** OTA yangilanish hali yo'q — APK ichidagi kod. */
+    embedded: 'APK ichidagi',
     dev: 'Dasturchi',
   },
   roles: {
