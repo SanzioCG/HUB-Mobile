@@ -73,6 +73,8 @@ export default function SettingsScreen() {
             style={styles.updateBtn}
           />
           {updateNote && <T muted>{updateNote}</T>}
+          {/* M-A8: OTA sinovi — faqat JS o'zgarishi (APK qayta o'rnatilmaydi). */}
+          <T muted>OTA sinovi 1</T>
         </Section>
         <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
         {SHOW_DEV_UI && (
