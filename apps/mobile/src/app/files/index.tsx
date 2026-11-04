@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UHUB_LIMITS, UHUB_MESSAGES, isUhubError } from '@hub-mobile/viewer/uhub';
 import { BackButton } from '../../components/parts';
@@ -33,7 +33,12 @@ export default function FilesScreen() {
 
   const pick = async () => {
     setError(null);
-    const res = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+    // Android / Expo Go: tanlagich keshi (`cache/DocumentPicker`) Expo Go tajribasi papkasidan tashqarida — o'qish rad
+    // etiladi. Shuning uchun nusxasiz: manbaning `content://` havolasidan o'qiladi (`readPicked.ts`).
+    const res = await DocumentPicker.getDocumentAsync({
+      type: '*/*',
+      copyToCacheDirectory: Platform.OS !== 'android',
+    });
     if (res.canceled || !res.assets[0]) return;
     const asset = res.assets[0];
     // Hajm cheklovi (10.3) — o'qishdan oldin.

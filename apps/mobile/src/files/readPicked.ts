@@ -1,6 +1,7 @@
 // Hujjat tanlagich (expo-document-picker) bergan faylni baytlar bilan o'qish.
-// Expo Go'da yangi `File.bytes()` tanlagich keshidagi faylga "'read' permission" bilan rad etilishi mumkin
-// (Honor X9d, SDK 58) — shunda legacy API (base64) bilan o'qiladi. Native build'da odatda birinchi yo'l ishlaydi.
+// Honor X9d / Expo Go (SDK 58): tanlagich keshi `cache/DocumentPicker` Expo Go tajribasi papkasidan tashqarida —
+// `File.bytes()` ham, legacy `readAsStringAsync` ham rad etadi. Shuning uchun Android'da tanlagich nusxa qilmaydi
+// (`copyToCacheDirectory: false`) va manbaning `content://` havolasi o'qiladi: avval yangi API, bo'lmasa legacy (base64).
 import { File } from 'expo-file-system';
 import { EncodingType, readAsStringAsync } from 'expo-file-system/legacy';
 
