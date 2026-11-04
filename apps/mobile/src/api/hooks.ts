@@ -11,14 +11,31 @@ export type Loadable<T> =
   /** `offline` — server yetmadi, oxirgi saqlangan javob ko'rsatilmoqda. */
   | { status: 'ok'; data: T; offline?: boolean };
 
+/** Yuklanish ekrani (M-A6) olgan birinchi javob — ekran uni qayta so'ramaydi (bir marta ishlatiladi). */
+let primed: { data: ProjectSummary[]; offline: boolean } | null = null;
+
+export function primeProjectList(data: ProjectSummary[], offline: boolean): void {
+  primed = { data, offline };
+}
+
+/** Bir marta: olingach tozalanadi. */
+function takePrimed() {
+  const p = primed;
+  primed = null;
+  return p;
+}
+
 /** Loyihalar ro'yxati; pull-to-refresh `updated_since` bilan faqat o'zgarganlarni oladi. Oflaynda — oxirgi javob. */
 export function useProjectList() {
   const { client } = useSession();
-  const [state, setState] = useState<Loadable<ProjectSummary[]>>({ status: 'loading' });
+  const [boot] = useState(takePrimed);
+  const [state, setState] = useState<Loadable<ProjectSummary[]>>(() =>
+    boot ? { status: 'ok', data: boot.data, ...(boot.offline && { offline: true }) } : { status: 'loading' },
+  );
   const [refreshing, setRefreshing] = useState(false);
   /** Oxirgi so'rov muvaffaqiyatli bo'ldimi (sarlavhadagi holat nuqtasi). */
-  const [online, setOnline] = useState<boolean | null>(null);
-  const data = useRef<ProjectSummary[] | null>(null);
+  const [online, setOnline] = useState<boolean | null>(boot ? !boot.offline : null);
+  const data = useRef<ProjectSummary[] | null>(boot?.data ?? null);
 
   const fetchAll = useCallback(
     () =>
@@ -67,8 +84,10 @@ export function useProjectList() {
   }, [client, reload]);
 
   useEffect(() => {
+    // Yuklanish ekrani bergan javob bor — qayta so'ralmaydi (pull-to-refresh bilan yangilanadi).
+    if (boot) return;
     void fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, boot]);
 
   return { state, refreshing, online, reload, refresh };
 }
