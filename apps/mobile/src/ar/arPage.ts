@@ -1,31 +1,12 @@
-// AR sahifasi (M-A3 tuzatishi): ilova imzolangan havola bilan AR sahifasini Chrome'da ochadi; sahifa Google
-// <model-viewer> orqali Chrome WebXR'da buyumni haqiqiy o'lchamda polga qo'yadi (Scene Viewer bo'lmasa ham).
+// AR sahifasi (kontrakt 1.4, 3): `ar-link` javobidagi `launch_url` — muddatli imzolangan AR sahifasi. Ilova uni tizim
+// brauzerida ochadi (Android — Chrome, iOS — Safari). Mock'da sahifa — viewer bundle `mode: "ar"` (M-A5, interaktiv).
 //
 // Nega Scene Viewer emas: Honor X9d'da Scene Viewer (Google app) har qanday tashqi model bilan ochilmay qaytdi,
-// expo-intent-launcher esa `packageName` ni `className` siz e'tiborsiz qoldiradi. Chrome WebXR ishladi.
+// Chrome WebXR ishladi (M-A3).
 
-export const TITLE_MAX = 60;
-
-/** Sarlavha ≤ 60 belgi (kod nuqtalari bo'yicha — o'zbekcha harflar bo'linmasin). */
-export const truncateTitle = (title: string) => [...title.trim()].slice(0, TITLE_MAX).join('');
-
-/**
- * AR sahifasi imzolangan havola bilan bir origin'da: `GET /ar/launch?file=…&title=…`. Faqat HTTPS (WebXR talabi).
- * TODO(contract): bunday sahifa kontraktda yo'q — faqat mock; haqiqiy backend uchun taklif (M-A3 hisoboti).
- */
-export function arPageUrl(fileUrl: string, title: string): string | null {
-  const origin = /^(https:\/\/[^/]+)/i.exec(fileUrl)?.[1];
-  if (!origin) return null;
-  return `${origin}/ar/launch?file=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(truncateTitle(title))}`;
-}
-
-/**
- * Ochiladigan AR sahifasi: `launch_url` (M-A5, interaktiv AR — eshik/tortmalar) bo'lsa u, aks holda eski
- * `<model-viewer>` sahifasi (M-A3, statik). Faqat HTTPS (WebXR talabi); bo'lmasa null.
- */
-export function arLaunchUrl(res: { url: string; launch_url?: string }, title: string): string | null {
-  if (res.launch_url) return res.launch_url.toLowerCase().startsWith('https://') ? res.launch_url : null;
-  return arPageUrl(res.url, title);
+/** WebXR faqat HTTPS sahifada ishlaydi — boshqa sxema bo'lsa null. */
+export function arLaunchUrl(res: { launch_url: string }): string | null {
+  return res.launch_url.toLowerCase().startsWith('https://') ? res.launch_url : null;
 }
 
 export type OpenUrl = (url: string) => Promise<unknown>;

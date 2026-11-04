@@ -39,6 +39,7 @@ import type {
 import { ArSession, type ArCallbacks } from './ar.js';
 import { ClipPlayer } from './clips.js';
 import { buildDims, disposeDims } from './dims.js';
+import { RevealIndex } from './sequence.js';
 import { fetchBytes } from './fetch-bytes.js';
 import { Look } from './look.js';
 import {
@@ -54,6 +55,7 @@ import {
 } from './model.js';
 import { BG, FOCUS_DURATION_S } from './theme.js';
 import { VIEWER_CONTRACT, isContractCompatible } from './version.js';
+import { IDENTITY, applyTransform, qualify, type ItemTransform } from './project.js';
 import { buildZoneMeshes, computeZones, disposeZones } from './zones.js';
 
 /** O'ng panel ko'rinishlari (kamera yo'nalishi, kontrakt o'qlari: Y yuqoriga, +Z old). */
@@ -64,23 +66,60 @@ const VIEW_DIRS: Record<ViewName, Vector3> = {
   iso: new Vector3(0.55, 0.45, 1).normalize(),
 };
 
-/** Detalning eshik/tortma klipi, faqat GLB'da mavjud bo'lsa. */
-const ownClip = (part: Object3D, clips: ClipPlayer) => {
-  const name = ownClipName(part);
-  return name && clips.has(name) ? name : null;
+/** Buyum ildizidagi kalit (loyiha rejimida klip nomlari shu bilan, `project.ts` → `qualify`). */
+const ITEM_KEY = 'uhubItemKey';
+const itemKeyOf = (o: Object3D | null): string => {
+  for (let n = o; n; n = n.parent) {
+    const k = (n.userData as Record<string, unknown>)[ITEM_KEY];
+    if (typeof k === 'string') return k;
+  }
+  return '';
 };
 
-interface Loaded {
-  url: string;
+/** Detalning eshik/tortma klipi (loyiha rejimida buyum kaliti bilan), faqat GLB'da mavjud bo'lsa. */
+const ownClip = (part: Object3D, clips: ClipPlayer) => {
+  const name = ownClipName(part);
+  const q = name ? qualify(itemKeyOf(part), name) : null;
+  return q && clips.has(q) ? q : null;
+};
+
+/** GLB manbasi: URL (token bilan) yoki tayyor baytlar (`.uhub` dan). */
+export type GlbSource = { url: string; token: string } | { bytes: ArrayBuffer };
+
+export interface ItemSource {
+  /** Bitta buyum — '' (klip nomlari o'zgarmaydi); loyihada — `<item_key>`. */
+  key: string;
+  source: GlbSource;
+  transform: ItemTransform;
+}
+
+/** Bitta buyum sahnada. */
+interface ItemModel {
+  key: string;
   gltf: GLTF;
   root: Object3D;
-  parts: Map<string, Object3D>;
-  clips: ClipPlayer;
-  look: Look;
-  dims: Group | null;
-  /** Ochilish zonalari (M-A5, 1b) — buyum ildiziga emas, `anchor` ga qo'shiladi. */
+  /** Loyiha ramkasidagi joy (`transform`); bitta buyumda — identik. */
+  holder: Group;
+  /** Ochilish zonalari (M-A5, 1b) — buyum ildiziga emas, alohida (o'sha `transform` bilan) `anchor` da. */
   zones: Group;
   /** Buyum ildizi fazosida pol (bounding box min Y). */
+  floorY: number;
+  dims: Group | null;
+  item: LoadedItem;
+}
+
+interface Loaded {
+  /** Qayta yuklamaslik kaliti (URL yoki loyiha manbalari). */
+  url: string;
+  items: ItemModel[];
+  /** Hamma buyumlar (`holder` lar) — sig'dirish, tanlov va ko'rinish rejimlari shu bo'yicha. */
+  container: Group;
+  parts: Map<string, Object3D>;
+  clips: ClipPlayer;
+  /** Kontrakt 1.6 (2.2): ichki tortma tartibi — `reveal` dan. */
+  reveal: RevealIndex;
+  look: Look;
+  /** AR: birinchi buyumning poli (fayldan AR yo'q — server rejimida doim bitta buyum). */
   floorY: number;
   item: LoadedItem;
   /** `load` boshidan `loaded` gacha (ms). */
@@ -185,6 +224,18 @@ export class Viewer {
       void this.load(msg.glbUrl, msg.token);
       return;
     }
+    if (msg.type === 'loadProject') {
+      // Kontrakt 1.6 (10.4): "Butun loyiha" — hamma buyum `transform` bo'yicha bitta sahnada.
+      void this.loadSources(
+        `project:${msg.items.map((i) => i.glbUrl).join('|')}`,
+        msg.items.map((i) => ({
+          key: i.key,
+          source: { url: i.glbUrl, token: msg.token },
+          transform: i.transform ?? IDENTITY,
+        })),
+      );
+      return;
+    }
     if (msg.type === 'resetView') return this.resetView();
     const m = this.model;
     if (!m) return this.error('not_loaded', `${msg.type}: model yuklanmagan`);
@@ -196,14 +247,14 @@ export class Viewer {
         this.showAll(m);
         break;
       case 'openAll':
-        void m.clips.playAll(1);
+        void m.clips.run(m.reveal.planAll(1, (c) => m.clips.isOpen(c)));
         break;
       case 'closeAll':
-        void m.clips.playAll(-1);
+        void m.clips.run(m.reveal.planAll(-1, (c) => m.clips.isOpen(c)));
         break;
       case 'toggle':
         if (!m.clips.has(msg.clip)) return this.error('clip_not_found', `klip topilmadi: ${msg.clip}`);
-        void m.clips.toggle(msg.clip);
+        void m.clips.run(m.reveal.toggle(msg.clip, (c) => m.clips.isOpen(c)));
         break;
       case 'setMode':
         this.mode = msg.mode;
@@ -212,7 +263,7 @@ export class Viewer {
         break;
       case 'setDims':
         this.dimsOn = msg.on;
-        if (m.dims) m.dims.visible = msg.on;
+        for (const it of m.items) if (it.dims) it.dims.visible = msg.on;
         break;
       case 'deselect':
         this.selectSeq++;
@@ -221,118 +272,184 @@ export class Viewer {
         m.look.apply();
         break;
       case 'setView':
-        this.setView(m.root, msg.view);
+        this.setView(m.container, msg.view);
         break;
       case 'fit':
-        this.fit(m.root, null);
+        this.fit(m.container, null);
         break;
       case 'setGroupVisible':
-        this.setGroupVisible(m.root, msg.group, msg.on);
+        this.setGroupVisible(m.container, msg.group, msg.on);
         break;
       case 'setHelpers':
         this.helpersOn = msg.on;
-        m.zones.visible = msg.on;
+        for (const it of m.items) it.zones.visible = msg.on;
         break;
     }
   }
 
   // ---------- yuklash ----------
 
-  private async load(url: string, token: string): Promise<void> {
+  private load(url: string, token: string): Promise<void> {
+    return this.loadSources(url, [{ key: '', source: { url, token }, transform: IDENTITY }]);
+  }
+
+  /**
+   * Bir yoki bir nechta GLB (`.uhub` loyihasi). Bitta buyum — `key: ''`, klip nomlari o'zgarmaydi.
+   * Brauzer viewer'i `.uhub` dan baytlar bilan chaqiradi (`GlbSource.bytes`).
+   */
+  async loadSources(cacheKey: string, sources: readonly ItemSource[]): Promise<void> {
     // Kontrakt 6.6: o'sha buyum bo'lsa qayta yuklanmaydi.
-    if (this.model?.url === url) {
+    if (this.model?.url === cacheKey) {
       this.postLoaded(this.model);
       return;
     }
     const seq = ++this.loadSeq;
     const t0 = performance.now();
-    let gltf: GLTF;
+    const gltfs: GLTF[] = [];
     try {
       // Progress xabari ko'pi bilan har 100 ms da (va oxirida) — RN ko'prigini to'ldirmaslik uchun.
       let last = 0;
-      const bytes = await fetchBytes(url, token, (loaded, total) => {
+      const loaded = sources.map(() => 0);
+      const totals: (number | null)[] = sources.map(() => null);
+      const report = () => {
         const now = performance.now();
-        if (seq !== this.loadSeq || (now - last < 100 && loaded !== total)) return;
+        const sum = loaded.reduce((a, b) => a + b, 0);
+        const total = totals.every((t) => t !== null) ? totals.reduce((a, b) => a! + b!, 0) : null;
+        if (seq !== this.loadSeq || (now - last < 100 && sum !== total)) return;
         last = now;
-        this.bridge.post({ type: 'progress', loaded, total });
-      });
-      gltf = await this.loader.parseAsync(bytes, '');
+        this.bridge.post({ type: 'progress', loaded: sum, total });
+      };
+      const buffers = await Promise.all(
+        sources.map((s, i) =>
+          'bytes' in s.source
+            ? Promise.resolve(s.source.bytes)
+            : fetchBytes(s.source.url, s.source.token, (l, t) => {
+                loaded[i] = l;
+                totals[i] = t;
+                report();
+              }),
+        ),
+      );
+      for (const b of buffers) gltfs.push(await this.loader.parseAsync(b, ''));
     } catch (e) {
-      if (seq === this.loadSeq) this.error('load_failed', `${url}: ${(e as Error).message}`);
+      if (seq === this.loadSeq) this.error('load_failed', `${cacheKey}: ${(e as Error).message}`);
       return;
     }
     if (seq !== this.loadSeq) return;
-    // Kontrakt 8: GLB kontrakt major'i mos kelmasa — xabar, model ko'rsatilmaydi.
-    const glbContract = (gltf.parser.json as { asset?: { extras?: { uhub?: { contract?: unknown } } } }).asset
-      ?.extras?.uhub?.contract;
-    if (!isContractCompatible(glbContract)) {
-      this.error('contract_mismatch', `GLB kontrakti ${String(glbContract)}, viewer ${VIEWER_CONTRACT}`);
-      return;
+    // Kontrakt 8: GLB kontrakt major'i mos kelmasa — xabar, model ko'rsatilmaydi (1.x hammasi qabul qilinadi).
+    for (const gltf of gltfs) {
+      const glbContract = (gltf.parser.json as { asset?: { extras?: { uhub?: { contract?: unknown } } } })
+        .asset?.extras?.uhub?.contract;
+      if (!isContractCompatible(glbContract)) {
+        this.error('contract_mismatch', `GLB kontrakti ${String(glbContract)}, viewer ${VIEWER_CONTRACT}`);
+        return;
+      }
     }
     this.unload();
 
-    const root = gltf.scene;
     let texturesMb = 0;
     const seenTex = new Set<Texture>();
-    root.traverse((o) => {
-      const mesh = o as Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      for (const mat of ([] as Material[]).concat(mesh.material)) {
-        const tex = (mat as { map?: Texture | null }).map;
-        const img = tex?.image as { width?: number; height?: number } | undefined;
-        if (tex && !seenTex.has(tex) && img?.width && img.height) {
-          seenTex.add(tex);
-          texturesMb += (img.width * img.height * 4) / (1024 * 1024);
+    const container = new Group();
+    container.name = 'viewer_items';
+    const items: ItemModel[] = sources.map((src, i) => {
+      const gltf = gltfs[i]!;
+      const root = gltf.scene;
+      (root.userData as Record<string, unknown>)[ITEM_KEY] = src.key;
+      root.traverse((o) => {
+        const mesh = o as Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        for (const mat of ([] as Material[]).concat(mesh.material)) {
+          const tex = (mat as { map?: Texture | null }).map;
+          const img = tex?.image as { width?: number; height?: number } | undefined;
+          if (tex && !seenTex.has(tex) && img?.width && img.height) {
+            seenTex.add(tex);
+            texturesMb += (img.width * img.height * 4) / (1024 * 1024);
+          }
         }
-      }
+      });
+      // Zonalar kliplar ijrochisidan oldin: klip namunalari pozani o'zgartirib, yopiq holatga qaytaradi.
+      const zoneList = computeZones(root, gltf.animations);
+      const floorY = new Box3().setFromObject(root).min.y;
+      const zones = new Group();
+      zones.add(buildZoneMeshes(zoneList, floorY));
+      applyTransform(zones, src.transform);
+      zones.visible = this.helpersOn;
+      this.anchor.add(zones);
+      const holder = new Group();
+      applyTransform(holder, src.transform);
+      holder.add(root);
+      container.add(holder);
+
+      const itemNode = findItemNode(root);
+      const itemExtras = (itemNode?.userData as { uhub?: { dimensions?: LoadedItem['dimensions'] } })?.uhub;
+      const lines: DimensionLine[] = itemExtras?.dimensions?.lines ?? [];
+      const dims = itemNode && lines.length ? buildDims(itemNode, lines) : null;
+      if (dims) dims.visible = this.dimsOn;
+      const item: LoadedItem = {
+        node: itemNode?.name ?? '',
+        meta: ((gltf.parser.json as { asset?: { extras?: { uhub?: Record<string, unknown> } } }).asset?.extras
+          ?.uhub ?? null) as Record<string, unknown> | null,
+        dimensions: itemExtras?.dimensions ?? null,
+        clips: openableClipNames(gltf.animations).map((c) => qualify(src.key, c)),
+      };
+      return { key: src.key, gltf, root, holder, zones, floorY, dims, item };
     });
-    // Zonalar kliplar ijrochisidan oldin: klip namunalari pozani o'zgartirib, yopiq holatga qaytaradi.
-    const zoneList = computeZones(root, gltf.animations);
-    const floorY = new Box3().setFromObject(root).min.y;
-    const zones = buildZoneMeshes(zoneList, floorY);
-    zones.visible = this.helpersOn;
-    this.floor.position.y = floorY;
-    this.anchor.add(root, zones);
-    const itemNode = findItemNode(root);
-    const itemExtras = (itemNode?.userData as { uhub?: { dimensions?: LoadedItem['dimensions'] } })?.uhub;
-    const clips = new ClipPlayer(root, gltf.animations);
-    const look = new Look(root);
+    this.floor.position.y = Math.min(...items.map((it) => it.floorY));
+    this.anchor.add(container);
+
+    const clips = new ClipPlayer(
+      items.map((it) => ({ root: it.root, clips: it.gltf.animations, prefix: it.key })),
+    );
+    const parts = new Map<string, Object3D>();
+    for (const it of items)
+      for (const [uid, node] of indexParts(it.root)) if (!parts.has(uid)) parts.set(uid, node);
+    clips.onChange = (open) => this.bridge.post({ type: 'clipState', open });
+    const look = new Look(container);
     look.mode = this.mode;
     look.apply();
-    const lines: DimensionLine[] = itemExtras?.dimensions?.lines ?? [];
-    const dims = itemNode && lines.length ? buildDims(itemNode, lines) : null;
-    if (dims) dims.visible = this.dimsOn;
 
-    const item: LoadedItem = {
-      node: itemNode?.name ?? '',
-      meta: ((gltf.parser.json as { asset?: { extras?: { uhub?: Record<string, unknown> } } }).asset?.extras
-        ?.uhub ?? null) as Record<string, unknown> | null,
-      dimensions: itemExtras?.dimensions ?? null,
-      clips: openableClipNames(gltf.animations),
-    };
+    const first = items[0]!;
     this.model = {
-      url,
-      gltf,
-      root,
-      parts: indexParts(root),
+      url: cacheKey,
+      items,
+      container,
+      parts,
+      reveal: new RevealIndex(
+        [...parts.values()].map((node) => {
+          const x = partExtras(node)!;
+          const key = itemKeyOf(node);
+          return {
+            clip: ownClip(node, clips),
+            kind: x.kind,
+            reveal: (x.reveal ?? []).map((c) => qualify(key, c)),
+          };
+        }),
+        clips.names,
+      ),
       clips,
       look,
-      dims,
-      zones,
-      floorY,
-      item,
+      floorY: first.floorY,
+      // Loyiha rejimida `clips` — hamma buyumniki (kalit bilan).
+      item: { ...first.item, clips: items.flatMap((it) => it.item.clips) },
       loadMs: Math.round(performance.now() - t0),
       texturesMb,
     };
-    this.fitHome(root);
+    this.fitHome(container);
     this.postLoaded(this.model);
   }
 
   private postLoaded(m: Loaded): void {
     const parts = [...m.parts.values()].map((o) => partExtras(o)!);
-    this.bridge.post({ type: 'loaded', item: m.item, parts });
+    this.bridge.post({
+      type: 'loaded',
+      item: m.item,
+      parts,
+      ...(m.items.length > 1 || m.items[0]!.key
+        ? { items: m.items.map((it) => ({ key: it.key, ...it.item })) }
+        : {}),
+    });
   }
 
   private unload(): void {
@@ -341,13 +458,15 @@ export class Viewer {
     this.selectSeq++;
     m.clips.dispose();
     m.look.dispose();
-    if (m.dims) disposeDims(m.dims);
-    disposeZones(m.zones);
-    m.root.removeFromParent();
-    m.root.traverse((o) => {
-      const mesh = o as Mesh;
-      if (mesh.isMesh) mesh.geometry.dispose();
-    });
+    for (const it of m.items) {
+      if (it.dims) disposeDims(it.dims);
+      disposeZones(it.zones);
+      it.root.traverse((o) => {
+        const mesh = o as Mesh;
+        if (mesh.isMesh) mesh.geometry.dispose();
+      });
+    }
+    m.container.removeFromParent();
     this.model = null;
   }
 
@@ -364,11 +483,17 @@ export class Viewer {
     m.look.ghost = true;
     m.look.apply();
 
-    const { clips, missing } = revealPlan(extras, new Set(m.clips.names));
+    const key = itemKeyOf(node);
+    const { clips, missing } = revealPlan(
+      { ...extras, reveal: (extras.reveal ?? []).map((c) => qualify(key, c)) },
+      new Set(m.clips.names),
+    );
     if (missing.length) this.error('clip_not_found', `reveal kliplari topilmadi: ${missing.join(', ')}`);
     // Avvalgi tanlovdan ochiq qolgan, endi kerak bo'lmagan kliplar yopiladi.
-    for (const name of m.clips.names)
-      if (m.clips.isOpen(name) && !clips.includes(name)) void m.clips.play(name, -1);
+    // Kontrakt 1.6 (2.2): avval ichki tortmalar, keyin eshiklar.
+    const toClose = m.clips.names.filter((name) => m.clips.isOpen(name) && !clips.includes(name));
+    if (toClose.length && !(await m.clips.run(m.reveal.planSet(toClose, -1), () => seq !== this.selectSeq)))
+      return;
     const done = await m.clips.openSequence(clips, () => seq !== this.selectSeq);
     if (done) this.focus(node);
   }
@@ -403,9 +528,11 @@ export class Viewer {
     );
   }
 
+  /** Loyiha rejimida har buyumdagi `group__<group>`. */
   private setGroupVisible(root: Object3D, group: GroupName, on: boolean): void {
-    const node = root.getObjectByName(`group__${group}`);
-    if (node) node.visible = on;
+    root.traverse((o) => {
+      if (o.name === `group__${group}`) o.visible = on;
+    });
   }
 
   private showAll(m: Loaded): void {
@@ -413,7 +540,7 @@ export class Viewer {
     m.look.selected = null;
     m.look.ghost = false;
     m.look.apply();
-    void m.clips.playAll(-1);
+    void m.clips.run(m.reveal.planAll(-1, (c) => m.clips.isOpen(c)));
   }
 
   /** Bosish = tanlash. Eshik bosilganda ochilmaydi — faqat `selected`. */
@@ -601,7 +728,7 @@ export class Viewer {
           restore();
           this.ar = null;
           this.resize();
-          if (this.model) this.fitHome(this.model.root);
+          if (this.model) this.fitHome(this.model.container);
           cb.onEnd();
         },
       },
@@ -618,6 +745,11 @@ export class Viewer {
       throw e;
     }
     return ar.features;
+  }
+
+  /** Dev sinov sahifasi: klipni `reveal` tartibisiz yolg'iz ijro etish (kontrakt 2.2). */
+  rawToggle(clip: string): void {
+    if (this.model?.clips.has(clip)) void this.model.clips.toggle(clip);
   }
 
   arReplace(): void {

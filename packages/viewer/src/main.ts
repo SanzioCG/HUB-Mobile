@@ -8,6 +8,7 @@ import {
 } from './bridge.js';
 import { isArSupported } from './ar.js';
 import { mountArUi } from './ar-ui.js';
+import { mountFileUi } from './file-ui.js';
 import { parseUhubConfig } from './model.js';
 import { Viewer } from './viewer.js';
 
@@ -24,12 +25,21 @@ if (config) {
   if (config.mode === 'ar') mountArUi(viewer, bridge, config.title ?? '', isArSupported());
   viewer.handle({ type: 'load', glbUrl: config.glb_url, token: '' });
 } else if (isStandalone()) {
-  // Dev / brauzer rejimi: GLB manzili URL parametridan, standart — mock'dagi M-0.
   const q = new URLSearchParams(location.search);
-  const glbUrl = q.get('glb') ?? `http://${location.hostname || 'localhost'}:8787/files/glb/m0-r5.glb`;
-  const token = q.get('token') ?? 'dev-token';
-  devPanel((msg) => viewer?.handle(msg), bridge.onOutgoing);
-  viewer.handle({ type: 'load', glbUrl, token });
+  if (q.has('glb') || q.has('dev')) {
+    // Dev sinov sahifasi: GLB manzili URL parametridan, standart — mock'dagi M-0.
+    const glbUrl = q.get('glb') ?? `http://${location.hostname || 'localhost'}:8787/files/glb/m0-r5.glb`;
+    const token = q.get('token') ?? 'dev-token';
+    devPanel(
+      (msg) => viewer?.handle(msg),
+      bridge.onOutgoing,
+      (clip) => viewer?.rawToggle(clip),
+    );
+    viewer.handle({ type: 'load', glbUrl, token });
+  } else {
+    // Kontrakt 1.6 (10.3): statik sahifa — `.uhub` ni tanlash yoki sudrab tashlash (DEMO-1).
+    mountFileUi(viewer, bridge);
+  }
 }
 
 bridge.post({ type: 'ready' });
@@ -38,6 +48,7 @@ bridge.post({ type: 'ready' });
 function devPanel(
   send: (msg: HostMessage) => void,
   onOutgoing: (fn: (m: ViewerMessage) => void) => void,
+  rawToggle: (clip: string) => void,
 ): void {
   const panel = document.createElement('div');
   panel.className = 'dev';
@@ -82,6 +93,8 @@ function devPanel(
   );
   row(...modeBtns, dimsBtn);
   const clipRow = row();
+  // Faqat dev: klipni `reveal` tartibisiz (ichki tortma fasadi yopiq eshikdan o'tib ketadi).
+  const rawRow = row();
   const select = document.createElement('select');
   select.onchange = () => select.value && send({ type: 'select', uid: select.value });
   row(select);
@@ -112,6 +125,9 @@ function devPanel(
       status.textContent = `${String(meta.revision_id ?? m.item.node)}${meta.approved === false ? ' · Tasdiqlanmagan holat' : ''}`;
       clipRow.replaceChildren(
         ...m.item.clips.map((c) => btn(c.replace(/__open$/, ''), () => send({ type: 'toggle', clip: c }))),
+      );
+      rawRow.replaceChildren(
+        ...m.item.clips.map((c) => btn(`yolg'iz: ${c.replace(/__open$/, '')}`, () => rawToggle(c))),
       );
       select.replaceChildren(new Option('QR sinovi: detal tanlang…', ''));
       for (const p of m.parts) select.append(new Option(`${p.number}. ${p.name}`, p.uid));

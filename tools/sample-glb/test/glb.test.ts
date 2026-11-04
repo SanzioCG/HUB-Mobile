@@ -87,11 +87,9 @@ describe('nom kodlash (2.1)', () => {
     expect(base32Decode(code)).toBe(text);
   });
 
-  // TODO(contract): kontrakt 2.1 misoli `A/1` → `part__xifxte`, lekin RFC 4648 bo'yicha base32("A/1") = "IEXTC===":
-  // 0x41 0x2F 0x31 → 01000|00100|10111|10011|0001(0) → i e x t c. Normativ qoida (RFC 4648) ustun — architect'ga savol.
-  it('kontraktdagi misol A/1: RFC 4648 bo‘yicha part__xiextc (kontraktda xifxte — misol xatosi)', () => {
+  // Kontrakt 1.4 (2.1) tuzatilgan misoli: `A/1` (baytlar 41 2F 31) → `part__xiextc`.
+  it('kontraktdagi misol A/1 → part__xiextc', () => {
     expect(nodeName.part('A/1')).toBe('part__xiextc');
-    expect(nodeName.part('A/1')).not.toBe('part__xifxte');
   });
 
   it('qoida: mos va `__` siz — o‘zi; aks holda x+base32; item va eshik/tortma id’ga ham', () => {
@@ -118,7 +116,7 @@ describe.each(Object.keys(REVISIONS) as Revision[])('M-0 %s', (rev) => {
     const { doc } = await roundTrip(rev);
     const meta = (doc.getRoot().getAsset().extras as { uhub: AssetMeta & { approved?: unknown } }).uhub;
     expect(meta).toMatchObject({
-      contract: '1.3',
+      contract: '1.6',
       project_number: ITEM.projectNumber,
       item_id: ITEM.itemId,
       revision_id: REVISIONS[rev].revisionId,

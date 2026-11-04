@@ -120,13 +120,7 @@ export function mountArUi(
   };
 
   allBtn.onclick = () => {
-    allOpen = !allOpen;
-    viewer.handle({ type: allOpen ? 'openAll' : 'closeAll' });
-    for (const { clip } of clipBtns) {
-      if (allOpen) open.add(clip);
-      else open.delete(clip);
-    }
-    syncClips();
+    viewer.handle({ type: allOpen ? 'closeAll' : 'openAll' });
   };
   zonesBtn.onclick = () => {
     zonesOn = !zonesOn;
@@ -167,13 +161,8 @@ export function mountArUi(
       loaded = true;
       clipBtns = clipButtons(m.item.clips).map(({ clip, label }) => {
         const btn = el('button', 'ar-btn', label);
-        btn.onclick = () => {
-          viewer.handle({ type: 'toggle', clip });
-          if (open.has(clip)) open.delete(clip);
-          else open.add(clip);
-          allOpen = clipBtns.every((c) => open.has(c.clip));
-          syncClips();
-        };
+        // Holat viewer'dan (`clipState`): ichki tortma eshikni ham ochadi/yopadi (kontrakt 1.6, 2.2).
+        btn.onclick = () => viewer.handle({ type: 'toggle', clip });
         return { clip, btn };
       });
       clipsRow.replaceChildren(...clipBtns.map((c) => c.btn));
@@ -182,6 +171,11 @@ export function mountArUi(
         canAr = ok;
         showStart();
       });
+    } else if (m.type === 'clipState') {
+      open.clear();
+      for (const c of m.open) open.add(c);
+      allOpen = clipBtns.length > 0 && clipBtns.every((c) => open.has(c.clip));
+      syncClips();
     } else if (m.type === 'error' && (m.code === 'load_failed' || m.code === 'contract_mismatch')) {
       hint.textContent = AR_TEXT.loadFailed(m.message);
     }

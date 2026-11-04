@@ -53,6 +53,10 @@ function Routes() {
       </Stack.Protected>
       {/* Skaner juftlanmagan holatda ham: "QR bilan ulash" (kontrakt 4.1). */}
       <Stack.Screen name="scan" options={{ animation: 'fade' }} />
+      {/* Kontrakt 1.6 (10): `.uhub` faylidan ochish — juftlashsiz ham. */}
+      <Stack.Screen name="files/index" />
+      <Stack.Screen name="files/[fileId]" />
+      <Stack.Screen name="files/view" />
       <Stack.Screen name="dev/spike" />
     </Stack>
   );

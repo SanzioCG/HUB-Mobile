@@ -54,8 +54,20 @@ export interface MaterialInfo {
   thickness_mm: number | null;
 }
 
+/** Kontrakt 1.6 (10.2): buyumning loyiha ramkasidagi joyi — metr va kvaternion `[x, y, z, w]`. */
+export interface ProjectItemTransform {
+  translation: [number, number, number];
+  rotation: [number, number, number, number];
+}
+
 export type HostMessage =
   | { type: 'load'; glbUrl: string; token: string }
+  /** "Butun loyiha" (10.4): hamma buyum `transform` bo'yicha bitta sahnada; klip nomlari `<key>::<klip>`. */
+  | {
+      type: 'loadProject';
+      items: { key: string; glbUrl: string; transform?: ProjectItemTransform }[];
+      token: string;
+    }
   | { type: 'select'; uid: string }
   | { type: 'showAll' }
   | { type: 'openAll' }
@@ -82,7 +94,8 @@ export type ViewerMessage =
   | { type: 'ready' }
   /** GLB yuklanishi (baytlar); `total` — server hajmni bermasa null. */
   | { type: 'progress'; loaded: number; total: number | null }
-  | { type: 'loaded'; item: LoadedItem; parts: PartExtras[] }
+  /** `items` — loyiha rejimida (har buyum, `key` bilan); bitta buyumda yo'q. */
+  | { type: 'loaded'; item: LoadedItem; parts: PartExtras[]; items?: (LoadedItem & { key: string })[] }
   /** `clip` — detal joylashgan eshik/tortma klipi (`pivot__door__<id>` → `door__<id>__open`), bo'lmasa null. */
   | {
       type: 'selected';
@@ -96,6 +109,8 @@ export type ViewerMessage =
     }
   /** Bo'sh joyga bosildi — tanlov bekor. */
   | { type: 'deselected' }
+  /** Ochiq kliplar (kontrakt 1.6, 2.2: viewer `reveal` tartibida o'zi ham ochadi/yopadi). */
+  | { type: 'clipState'; open: string[] }
   | { type: 'error'; code: ErrorCode; message: string }
   /** Dev: ishlash ko'rsatkichlari (renderer.info asosida), har ~2 s. */
   | { type: 'stats'; load_ms: number; fps: number; triangles: number; textures_mb: number };
@@ -126,6 +141,24 @@ export function parseIncoming(raw: unknown): ParseResult {
       if (!nonEmpty(m.glbUrl)) return bad('glbUrl');
       if (!isStr(m.token)) return bad('token');
       return { ok: true, msg: { type: 'load', glbUrl: m.glbUrl, token: m.token } };
+    case 'loadProject': {
+      if (!isStr(m.token)) return bad('token');
+      if (!Array.isArray(m.items) || m.items.length === 0) return bad('items');
+      const items: { key: string; glbUrl: string; transform?: ProjectItemTransform }[] = [];
+      for (const raw of m.items as Record<string, unknown>[]) {
+        if (!isStr(raw?.key) || !nonEmpty(raw.glbUrl)) return bad('items');
+        const t = raw.transform as Record<string, unknown> | undefined;
+        const nums = (v: unknown, n: number) =>
+          Array.isArray(v) && v.length === n && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+        if (t !== undefined && !(nums(t?.translation, 3) && nums(t?.rotation, 4))) return bad('transform');
+        items.push({
+          key: raw.key,
+          glbUrl: raw.glbUrl,
+          ...(t ? { transform: t as unknown as ProjectItemTransform } : {}),
+        });
+      }
+      return { ok: true, msg: { type: 'loadProject', items, token: m.token } };
+    }
     case 'select':
       if (!nonEmpty(m.uid)) return bad('uid');
       return { ok: true, msg: { type: 'select', uid: m.uid } };

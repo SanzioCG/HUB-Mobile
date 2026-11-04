@@ -1,7 +1,7 @@
 # HUB-Mobile ↔ U-HUB — modellar qanday keladi (dasturchi uchun)
 
 Holat: 2026-11-03. Manba: U-HUB architect. Format va API'ning yagona manbasi — `docs/mobile/VIEWER-CONTRACT.md`
-(`uhub-mobile/1.3`). Bu hujjat — o'sha kontraktning "qanday ishlaydi" tushuntirishi; ziddiyat bo'lsa kontrakt ustun.
+(`uhub-mobile/1.4`). Bu hujjat — o'sha kontraktning "qanday ishlaydi" tushuntirishi; ziddiyat bo'lsa kontrakt ustun.
 
 ## 1. Hozirgi holat (halol)
 | Narsa | Holat |
@@ -11,7 +11,7 @@ Holat: 2026-11-03. Manba: U-HUB architect. Format va API'ning yagona manbasi —
 | `/mobile/*` endpointlar | **Hali yo'q** — V-1 bilan birga |
 | Desktop "Telefonni ulash" | Hali yo'q — V-1 bilan birga |
 | Server internetda (VPS) | Yo'q — DEP-1 (keyin) |
-Shuning uchun hozir **faqat mock** (`mobile/mock/`) bilan ishlang. Mock kontrakt bo'yicha bo'lsa, V-1 tayyor
+Shuning uchun hozir **faqat mock** (HUB-Mobile `mock/`) bilan ishlang. Mock kontrakt bo'yicha bo'lsa, V-1 tayyor
 bo'lganda ilovada faqat server manzili o'zgaradi.
 
 ## 2. Model qayerdan paydo bo'ladi (U-HUB ichida)
@@ -26,7 +26,7 @@ Loyiha (ish nusxasi) ──saqlash──► Reviziya (o'zgarmas, ADR-002)
    + animatsiyalar (eshik, tortma) + detal ma'lumoti (extras.uhub)
                                       │
                                       ▼
-             <revision_id>.glb   (+ keyin .usdz, thumb.jpg)
+             <revision_id>.glb  +  <revision_id>.ar.glb (animatsiyasiz)  (+ keyin .usdz, thumb.jpg)
                                       │
                        /mobile API orqali beriladi
 ```
@@ -63,7 +63,7 @@ Hammasi GLB ichida (kontrakt 2.5). Ilova uchun qisqacha:
   nusxasini oling, asl materialni o'zgartirmang (bir material ko'p detalda ishlatiladi).
 
 ## 5. Hozir nima qilish kerak (M-A1)
-1. Mock'ni **1.3** ga yangilang: namunaviy GLB'da
+1. Mock'ni **1.4** ga yangilang (AR: `launch_url`, animatsiyasiz AR GLB varianti; `400 pair_code_invalid`): namunaviy GLB'da
    - kamida 2 xil dekor (LDSP tekstura bilan, bo'yalgan MDF rangi bilan), kromka primitive'lari;
    - furnitura (metall), bitta shisha detal;
    - material `extras.uhub`; tola yo'nalishi bir detalda 90° burilgan (UV tekshiruvi uchun).

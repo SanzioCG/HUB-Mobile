@@ -11,6 +11,8 @@
     "release": "node scripts/release.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "fflate": "^0.8.3",
     "three": "^0.187.0"
   },
   "devDependencies": {
@@ -23,6 +25,7 @@
   },
   "exports": {
     "./bridge": "./src/bridge.ts",
-    "./version": "./src/version.ts"
+    "./version": "./src/version.ts",
+    "./uhub": "./src/uhub.ts"
   }
 }

@@ -73,7 +73,11 @@ export type MaterialId =
   | 'abs-h1145'
   | 'abs-w980'
   | 'glass-clear-6'
-  | 'steel-handle';
+  | 'steel-handle'
+  // `.uhub` fixture varianti (kontrakt 1.6, 2.5): lmdf, pvc va noma'lum `kind`.
+  | 'lmdf-w1000-16'
+  | 'pvc-w1000'
+  | 'akril-gloss-18';
 
 export interface MaterialSpec {
   extras: MaterialExtras;
@@ -179,6 +183,41 @@ export const MATERIALS: Record<MaterialId, MaterialSpec> = {
     null,
     'Hettich tutqich H128',
     { color: [0.75, 0.76, 0.78], roughness: 0.4, metallic: 1 },
+  ),
+  'lmdf-w1000-16': mat(
+    'lmdf-w1000-16',
+    'lmdf',
+    'W1000 ST9',
+    'Egger',
+    'Premium White',
+    16,
+    'Egger W1000 ST9 Premium White, LMDF 16 mm',
+    { color: [0.95, 0.95, 0.93], roughness: 0.7, metallic: 0 },
+  ),
+  'pvc-w1000': mat(
+    'pvc-w1000',
+    'pvc',
+    'W1000',
+    'Rehau',
+    'PVX kromka 22×0.8',
+    0.8,
+    'Rehau PVX W1000, 22×0.8 mm',
+    {
+      color: [0.95, 0.95, 0.93],
+      roughness: 0.6,
+      metallic: 0,
+    },
+  ),
+  // Noma'lum `kind` (kontrakt 1.6, 2.5) — xato emas, ilova oddiy material deb ko'rsatadi.
+  'akril-gloss-18': mat(
+    'akril-gloss-18',
+    'akril' as MaterialExtras['kind'],
+    'AG 18',
+    'Fundermax',
+    'Akril glyanes oq',
+    18,
+    'Fundermax akril glyanes oq, 18 mm',
+    { color: [0.97, 0.97, 0.97], roughness: 0.15, metallic: 0 },
   ),
 };
 
@@ -345,6 +384,20 @@ export function drawerRailBoxes(
   const y = d.cy - 73 + 20 + 20;
   const len = PROTOTYPE.drawerTravelMm;
   return [-x, x].map((cx) => ({ box: [10, 35, len], center: [cx, y, -T - len / 2] }));
+}
+
+/**
+ * `.uhub` fixture varianti (M-A7, kontrakt 1.6): shisha eshik, LMDF tub PVX kromka bilan, noma'lum `kind` li qopqoq.
+ * Geometriya, uid va kliplar o'sha.
+ */
+export function fileVariantParts(parts: readonly PartSpec[]): PartSpec[] {
+  return parts.map((p) => {
+    if (p.kind === 'door')
+      return { ...p, name: 'Shisha eshik', material: 'glass-clear-6', edges: {}, handle: true };
+    if (p.name === 'Tub') return { ...p, material: 'lmdf-w1000-16', edges: { L1: 'pvc-w1000' } };
+    if (p.name === 'Qopqoq') return { ...p, material: 'akril-gloss-18', edges: {} };
+    return p;
+  });
 }
 
 export function partsForRevision(rev: Revision): PartSpec[] {

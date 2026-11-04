@@ -1,6 +1,6 @@
-// Kontrakt uhub-mobile/1.3 (docs/contract/uhub-mobile-1.3.md), 2-bo'lim: GLB ichidagi extras.uhub tiplari va nomlash.
+// Kontrakt uhub-mobile/1.6 (docs/contract/uhub-mobile-1.6.md), 2-bo'lim: GLB ichidagi extras.uhub tiplari va nomlash.
 
-export const CONTRACT_VERSION = '1.3';
+export const CONTRACT_VERSION = '1.6';
 
 export type PartKind = 'panel' | 'door' | 'drawer_front' | 'hardware';
 
@@ -21,8 +21,19 @@ export interface MaterialExtras {
   code: string;
   supplier: string;
   name: string;
-  kind: 'ldsp' | 'mdf' | 'mdf_painted' | 'veneer' | 'hpl' | 'abs' | 'metal' | 'plastic' | 'glass';
-  /** TODO(contract): metall furnitura uchun qalinlik ma'nosi kontraktda yo'q — null. */
+  kind:
+    | 'ldsp'
+    | 'lmdf'
+    | 'mdf'
+    | 'mdf_painted'
+    | 'veneer'
+    | 'hpl'
+    | 'abs'
+    | 'pvc'
+    | 'metal'
+    | 'plastic'
+    | 'glass';
+  /** Kontrakt 1.4: ma'nosiz bo'lsa (`metal`, `plastic`) — null. */
   thickness_mm: number | null;
 }
 
@@ -71,7 +82,7 @@ export const NODE_NAME_RE = /^[a-z0-9_-]+$/;
 /** 2.1: nomda o'zicha turadigan id — shu ifodaga mos va ichida `__` yo'q. */
 export const PLAIN_ID_RE = /^[a-z0-9-]+(_[a-z0-9-]+)*$/;
 
-/** 2.1 kodlash: mos id — o'zi, aks holda `x` + base32 (UTF-8, RFC 4648, kichik, `=` siz). `A/1` → `xiextc` (kontrakt misolidagi `xifxte` RFC 4648 ga mos emas — TODO(contract)). */
+/** 2.1 kodlash: mos id — o'zi, aks holda `x` + base32 (UTF-8, RFC 4648, kichik, `=` siz). `A/1` → `xiextc` (kontrakt 1.4 misoli). */
 export const encodeId = (id: string) =>
   PLAIN_ID_RE.test(id) && !id.includes('__') ? id : `x${base32Encode(id)}`;
 

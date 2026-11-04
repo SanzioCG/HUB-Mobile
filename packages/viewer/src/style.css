@@ -186,3 +186,85 @@ body {
 [hidden] {
   display: none !important;
 }
+
+/* Fayl rejimi (M-A7, kontrakt 10.3): .uhub tanlash / sudrab tashlash. */
+.file-panel {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  max-width: min(420px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  background: rgba(25, 26, 29, 0.92);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.file-hint,
+.file-meta {
+  color: var(--muted);
+}
+
+.file-input {
+  display: none;
+}
+
+.file-error:not(:empty),
+.file-warn {
+  color: #f2c14e;
+}
+
+.file-warn {
+  font-size: 12px;
+}
+
+.file-list,
+.file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.file-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.file-btn {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.file-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.file-btn.active {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.file-card:not(:empty) {
+  background: var(--panel-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.5;
+}

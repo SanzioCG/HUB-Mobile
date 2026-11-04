@@ -96,7 +96,8 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
               `${uz.part.code}: ${material.code}`,
               `${uz.part.supplier}: ${material.supplier}`,
               `${uz.part.kind}: ${material.kind}`,
-              material.thickness_mm !== null ? `${uz.part.thickness}: ${material.thickness_mm} mm` : null,
+              // Kontrakt 1.4: `null` — qalinlik ma'nosiz (metall, plastik) → "—".
+              `${uz.part.thickness}: ${material.thickness_mm !== null ? `${material.thickness_mm} mm` : uz.common.dash}`,
             ]
               .filter(Boolean)
               .join(' · ')}

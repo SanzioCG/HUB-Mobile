@@ -1,4 +1,5 @@
 // Loyihalar (dizayn 1-ekran): brend, sarlavha + kompaniya holati, qidiruv, segment filtr, ro'yxat, pull-to-refresh.
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
@@ -11,7 +12,7 @@ import { StatusLine, Thumb } from '../../components/parts';
 import { Dot, EmptyState, ErrorState, Segmented, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
 import { usePairedSession } from '../../session/SessionProvider';
-import { colors, fontSize, fonts, hit, radius, space } from '../../theme';
+import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
 import { relativeTime } from '../../utils/time';
 
 const FILTERS = [
@@ -39,6 +40,15 @@ export default function ProjectsScreen() {
         </T>
         <View style={styles.titleRow}>
           <T style={styles.title}>{uz.projects.title}</T>
+          {/* Kontrakt 1.6 (10.3): "Fayldan ochilganlar" — server loyihalaridan alohida. */}
+          <Pressable
+            onPress={() => router.push('/files')}
+            accessibilityRole="button"
+            accessibilityLabel={uz.files.title}
+            style={styles.filesBtn}
+          >
+            <Ionicons name="folder-open-outline" size={size.icon} color={colors.text} />
+          </Pressable>
           <View style={styles.company}>
             <Dot color={online === false ? colors.yellow : colors.green} />
             <T style={styles.companyText} numberOfLines={1}>
@@ -105,6 +115,7 @@ function ProjectRow({ project: p }: { project: ProjectSummary }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   top: { padding: space.lg, gap: space.md },
+  filesBtn: { width: hit, height: hit, alignItems: 'center', justifyContent: 'center' },
   brand: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.accentTertiary, letterSpacing: 1 },
   brandSub: {
     fontFamily: fonts.medium,

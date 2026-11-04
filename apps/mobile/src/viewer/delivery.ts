@@ -2,8 +2,10 @@
 //   A (online):  viewer HTML `source.html` + `baseUrl` = server; viewer GLB'ni o'zi fetch qiladi (token header'da).
 //   B (offline): GLB `documentDirectory/cache/<revision_id>.glb` ga yuklanadi, viewer.html shu katalogga yoziladi,
 //                WebView `file://` dan ochiladi, viewer GLB'ni nisbiy yo'l bilan oladi.
+//   Fayl (`.uhub`, kontrakt 1.6, 10): B bilan bir xil — GLB'lar `documentDirectory/uhub/<id>/viewer/` da.
 import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
+import { Directory, File } from 'expo-file-system';
+import type { HostMessage } from './bridge';
 import type { Delivery } from '../config';
 import { cacheDir, ensureCached, isCached } from '../offline/glbCache';
 import { glbFileName } from '../offline/policy';
@@ -25,6 +27,16 @@ export interface Prepared {
   /** B: yuklab olish vaqti (ms); keshdan bo'lsa null. */
   downloadMs: number | null;
   cacheHit: boolean;
+  /** Fayl rejimi, "Butun loyiha" (10.4): `load` o'rniga `loadProject`. */
+  project?: Extract<HostMessage, { type: 'loadProject' }>['items'];
+}
+
+/** `.uhub` dan ochilgan loyiha (`files/store.ts`): viewer.html shu katalogga yoziladi, GLB'lar nisbiy yo'l bilan. */
+export interface LocalSource {
+  dirUri: string;
+  /** Bitta buyum: `viewer/<item_key>.glb`. */
+  glbUrl?: string;
+  project?: Prepared['project'];
 }
 
 const originOf = (url: string) => /^(https?:\/\/[^/]+)/i.exec(url)?.[1] ?? null;
@@ -76,6 +88,25 @@ export async function prepareOffline(glbUrl: string, revisionId: string, token: 
     readAccessUrl: dir.uri,
     downloadMs: cacheHit ? null : Date.now() - t0,
     cacheHit,
+  };
+}
+
+/** Fayl rejimi: `file://` sahifa (offline yo'li bilan bir xil), server va token yo'q. */
+export async function prepareLocal(local: LocalSource): Promise<Prepared> {
+  const dir = new Directory(local.dirUri);
+  const viewer = new File(dir, 'viewer.html');
+  if (viewer.exists) viewer.delete();
+  await (await viewerFile()).copy(viewer);
+  return {
+    delivery: 'offline',
+    source: { uri: viewer.uri },
+    glbUrl: local.glbUrl ?? '',
+    token: '',
+    fileAccess: true,
+    readAccessUrl: dir.uri,
+    downloadMs: null,
+    cacheHit: true,
+    ...(local.project ? { project: local.project } : {}),
   };
 }
 
