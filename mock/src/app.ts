@@ -22,6 +22,8 @@ export interface AppOptions {
   qrDir?: string;
   /** Juftlash QR matni (kontrakt 4.1) — /dev/qr sahifasining tepasida. */
   pairQr?: string;
+  /** Viewer bundle (`packages/viewer/dist/index.html`) — AR sahifasi `/ar/<imzo>` uchun (M-A5). Yo'q bo'lsa null. */
+  viewerHtml?: () => Promise<string | null>;
   logger?: boolean;
 }
 
@@ -219,13 +221,18 @@ export function buildApp(opts: AppOptions) {
         ?.revisions.find((r) => r.revision_id === revision_id);
       if (!rev) return notFound(reply, 'Buyum yoki reviziya topilmadi');
       if (format === 'usdz') return notFound(reply, 'USDZ mock’da yo‘q (V-1b)');
-      // AR varianti: animatsiyasiz, yopiq holat (M-A3). TODO(contract): kontraktda AR varianti yo'q — taklif.
-      const file = `${revision_id}-ar.glb`;
-      if (!opts.glbs[`${revision_id}-ar`]) return notFound(reply, 'AR varianti topilmadi');
+      if (!opts.glbs[revision_id]) return notFound(reply, 'Reviziya GLB’i topilmadi');
       const exp = Math.floor((now() + AR_LINK_TTL_MS) / 1000);
+      const pub = opts.publicUrl ?? base(req);
+      // `url` — statik ko'ruvchilar uchun AR varianti (animatsiyasiz, M-A3); bo'lmasa asosiy GLB.
+      // TODO(contract): kontraktda AR varianti yo'q — taklif (1.4, 4-band).
+      const file = opts.glbs[`${revision_id}-ar`] ? `${revision_id}-ar.glb` : `${revision_id}.glb`;
       return {
-        url: `${opts.publicUrl ?? base(req)}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
+        url: `${pub}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
         expires_at: new Date(exp * 1000).toISOString(),
+        // M-A5: AR sahifasi — viewer bundle `mode: "ar"`, asosiy GLB (kliplar bilan).
+        // TODO(contract): `launch_url` kontraktda yo'q — 1.4 taklifi 6-bo'lim.
+        launch_url: `${pub}/ar/${revision_id}.${exp}.${sign(`launch:${revision_id}`, exp)}`,
       };
     },
   );
@@ -254,7 +261,32 @@ export function buildApp(opts: AppOptions) {
     },
   );
 
-  // AR sahifasi (M-A3 tuzatishi): Chrome'ning o'zida WebXR AR, Google <model-viewer> bilan. Honor X9d'da Scene Viewer
+  // AR sahifasi (M-A5): viewer bundle'ining o'zi, ichida `uhub-config` (`mode: "ar"`, asosiy GLB'ning imzolangan URL'i,
+  // sarlavha). Kontrakt 8-bo'limdagi `/s/<token>` bilan bir mexanizm. Tokensiz, imzo bilan cheklangan.
+  app.get<{ Params: { token: string } }>('/ar/:token', async (req, reply) => {
+    const m = /^([a-z0-9-]+)\.(\d+)\.([0-9a-f]{64})$/.exec(req.params.token);
+    if (!m) return notFound(reply, 'AR havolasi yaroqsiz');
+    const [, revisionId, expText, sig] = m as unknown as [string, string, string, string];
+    const exp = Number(expText);
+    const expected = sign(`launch:${revisionId}`, exp);
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected)) || exp * 1000 <= now())
+      return notFound(reply, 'Havola yaroqsiz yoki muddati o‘tgan');
+    const item = ownItems().find((it) => it.revisions.some((r) => r.revision_id === revisionId));
+    if (!item || !opts.glbs[revisionId]) return notFound(reply);
+    const html = (await opts.viewerHtml?.()) ?? null;
+    if (!html)
+      return fail(reply, 503, 'viewer_missing', 'Viewer bundle yo‘q: npm run build -w @hub-mobile/viewer');
+    const file = `${revisionId}.glb`;
+    const config = {
+      glb_url: `${opts.publicUrl ?? base(req)}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
+      title: item.name.slice(0, 60),
+      mode: 'ar',
+    };
+    return reply.type('text/html; charset=utf-8').send(injectConfig(html, config));
+  });
+
+  // Eski AR sahifasi (M-A3, zaxira): Chrome'ning o'zida WebXR AR, Google <model-viewer> bilan, statik.
+  // Ilova endi `launch_url` ni ochadi (M-A5); bu sahifa taqqoslash uchun qoldirildi. Honor X9d'da Scene Viewer
   // (Google app) har qanday tashqi model bilan ochilmay qaytgan, Chrome WebXR esa ishlagan.
   // TODO(contract): bunday sahifa kontraktda yo'q — faqat mock; haqiqiy backend uchun taklif (M-A3 hisoboti).
   app.get<{ Querystring: { file?: string; title?: string } }>('/ar/launch', async (req, reply) => {
@@ -338,6 +370,13 @@ async function listPngs(dir: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+/** Kontrakt 8: `<script id="uhub-config" type="application/json">` — `</head>` oldiga; `<` qochiriladi. */
+export function injectConfig(html: string, config: object): string {
+  const json = JSON.stringify(config).replace(/</g, '\\u003c');
+  const tag = `<script id="uhub-config" type="application/json">${json}</script>`;
+  return html.includes('</head>') ? html.replace('</head>', () => `${tag}</head>`) : tag + html;
 }
 
 const esc = (s: string) =>

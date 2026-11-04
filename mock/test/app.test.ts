@@ -3,7 +3,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { NodeIO } from '@gltf-transform/core';
 import { buildM0 } from '@hub-mobile/sample-glb/build';
 import { REVISIONS, UNSAFE_UID } from '@hub-mobile/sample-glb/m0';
-import { AR_LINK_TTL_MS, MODEL_VIEWER_SRC, PAIR_RATE, buildApp, pairQrText } from '../src/app.js';
+import {
+  AR_LINK_TTL_MS,
+  MODEL_VIEWER_SRC,
+  PAIR_RATE,
+  buildApp,
+  injectConfig,
+  pairQrText,
+} from '../src/app.js';
 import { createStore } from '../src/data.js';
 
 const TOKEN = 'test-token';
@@ -384,5 +391,93 @@ describe('GET /ar/launch (AR zaxira sahifasi)', () => {
     const a = await build();
     expectError(await page(a, file), 404, 'not_found');
     await a.close();
+  });
+});
+
+describe('GET /ar/<imzo> (M-A5: viewer AR sahifasi)', () => {
+  const PUBLIC = 'https://abc.trycloudflare.com';
+  const VIEWER =
+    '<!doctype html><html><head><title>U-HUB viewer</title></head><body><div id="app"></div></body></html>';
+  const build = async (viewerHtml: () => Promise<string | null> = async () => VIEWER) =>
+    buildApp({
+      store: await createStore(glbs),
+      glbs,
+      devToken: TOKEN,
+      pairCode: '123456',
+      signSecret: 'test-secret',
+      publicUrl: PUBLIC,
+      now: () => clock,
+      viewerHtml,
+    });
+  const launch = async (a: Awaited<ReturnType<typeof build>>, revision_id = 'm0-r5') => {
+    const res = await a.inject({
+      method: 'POST',
+      url: '/mobile/ar-link',
+      payload: { item_id: 'm0', revision_id, format: 'glb' },
+      headers: auth,
+    });
+    expect(res.statusCode).toBe(200);
+    return (res.json() as { url: string; launch_url: string }).launch_url;
+  };
+  const configOf = (html: string) =>
+    JSON.parse(/<script id="uhub-config" type="application\/json">(.*?)<\/script>/.exec(html)![1]!) as {
+      glb_url: string;
+      title: string;
+      mode: string;
+    };
+
+  it('ar-link → launch_url; sahifa — viewer bundle, uhub-config mode "ar" + asosiy GLB (kliplar bilan)', async () => {
+    clock = T0;
+    const a = await build();
+    const url = await launch(a);
+    expect(url).toMatch(/^https:\/\/abc\.trycloudflare\.com\/ar\/m0-r5\.\d+\.[0-9a-f]{64}$/);
+    const page = await a.inject({ method: 'GET', url: url.replace(PUBLIC, '') });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers['content-type']).toContain('text/html');
+    const cfg = configOf(page.body);
+    expect(cfg.mode).toBe('ar');
+    expect(cfg.title).toBe('M-0 namuna');
+    expect(cfg.glb_url).toMatch(
+      /^https:\/\/abc\.trycloudflare\.com\/files\/ar\/m0-r5\.glb\?exp=\d+&sig=[0-9a-f]{64}$/,
+    );
+    // GLB tokensiz, CORS bilan; asosiy GLB (AR varianti emas)
+    const file = await a.inject({ method: 'GET', url: cfg.glb_url.replace(PUBLIC, '') });
+    expect(file.statusCode).toBe(200);
+    expect(file.headers['access-control-allow-origin']).toBe('*');
+    expect(Buffer.compare(file.rawPayload, Buffer.from(glbs['m0-r5']!))).toBe(0);
+    await a.close();
+  });
+
+  it('muddati o‘tgan yoki buzilgan imzo → 404', async () => {
+    clock = T0;
+    const a = await build();
+    const path = (await launch(a)).replace(PUBLIC, '');
+    expectError(
+      await a.inject({ method: 'GET', url: path.replace(/[0-9a-f]{64}$/, '0'.repeat(64)) }),
+      404,
+      'not_found',
+    );
+    expectError(await a.inject({ method: 'GET', url: path.replace('m0-r5.', 'm0-r3.') }), 404, 'not_found');
+    expectError(await a.inject({ method: 'GET', url: '/ar/m0-r5' }), 404, 'not_found');
+    clock = T0 + AR_LINK_TTL_MS + 1000;
+    expectError(await a.inject({ method: 'GET', url: path }), 404, 'not_found');
+    clock = T0;
+    await a.close();
+  });
+
+  it('viewer build qilinmagan → 503 viewer_missing', async () => {
+    clock = T0;
+    const a = await build(async () => null);
+    expectError(
+      await a.inject({ method: 'GET', url: (await launch(a)).replace(PUBLIC, '') }),
+      503,
+      'viewer_missing',
+    );
+    await a.close();
+  });
+
+  it('konfiguratsiya </head> oldiga, "<" qochiriladi', () => {
+    const html = injectConfig(VIEWER, { title: '</script><b>' });
+    expect(html).toContain('{"title":"\\u003c/script>\\u003cb>"}</script></head>');
   });
 });

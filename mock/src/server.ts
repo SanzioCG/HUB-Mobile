@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import QRCode from 'qrcode';
@@ -18,6 +18,7 @@ const pairQr = pairQrText(server, config.pairCode);
 await mkdir(QR_DIR, { recursive: true });
 await QRCode.toFile(path.join(QR_DIR, PAIR_QR_FILE), pairQr, { width: 480, margin: 2 });
 
+const VIEWER_HTML = new URL('../../packages/viewer/dist/index.html', import.meta.url);
 const glbs = await readGlbFixtures();
 const app = buildApp({
   store: await createStore(glbs),
@@ -28,6 +29,8 @@ const app = buildApp({
   pairCode: config.pairCode,
   qrDir: QR_DIR,
   pairQr,
+  // M-A5: AR sahifasi — viewer bundle har so'rovda o'qiladi (viewer qayta build qilinsa mock qayta ishga tushmaydi).
+  viewerHtml: () => readFile(VIEWER_HTML, 'utf8').catch(() => null),
   logger: true,
 });
 
