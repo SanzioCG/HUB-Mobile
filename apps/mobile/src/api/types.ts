@@ -99,6 +99,11 @@ export interface ArLinkResponse {
   url: string;
   /** ISO-8601. */
   expires_at: string;
+  /**
+   * M-A5: AR sahifasi (viewer bundle `mode: "ar"`, asosiy GLB kliplar bilan). Bo'lmasa — eski `/ar/launch` sahifasi.
+   * TODO(contract): kontraktda yo'q — 1.4 taklifi 6-bo'lim.
+   */
+  launch_url?: string;
 }
 
 export type ArFormat = 'usdz' | 'glb';

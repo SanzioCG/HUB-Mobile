@@ -1,6 +1,6 @@
 # ADR-M003 — Ilova ichidagi animatsiyali AR (eshik va tortmalarni AR ichida ochish)
 
-- Holat: **taklif** — qaror founder'niki (M-A3 spike'i, kod yo'q).
+- Holat: **qabul qilingan (Android qismi)**, 2026-11-03. iOS qismi — keyin (Apple Developer akkaunti bilan).
 - Kontekst: kontrakt `uhub-mobile/1.2` (qoralama) — 3 (AR), 5 (A-2: "eshik/tortmalarni AR ichida ochish"),
   7 (qabul: AR'da o'lcham real, ±1 %).
 - Bog'liq: ADR-M002 (WebView'da viewer), M-A3 (statik AR: Android Scene Viewer, iOS Quick Look yo'li).
@@ -94,3 +94,12 @@ Xulosa: hozirgi stek (Expo Go + WebView + tashqi AR ko'ruvchilar) bilan **AR ich
    ViroReact SDK 58 da ishga tushadimi, M-0 GLB'si nomli kliplar bilan ochiladimi va o'lcham ±1 % mi.
    Spike muvaffaqiyatsiz bo'lsa — (b) ning "statik ochiq holat" varianti.
 3. Founder'dan kerak: A-2 da interaktiv AR majburiymi; Apple Developer akkaunti (kontrakt 9.3).
+
+## Qaror (2026-11-03, founder)
+
+- A-2 da **interaktiv AR majburiy**: AR ichida eshik va tortmalarni ochish-yopish (bittasi yoki hammasi).
+- **Android — (d) Chrome WebXR sahifasi**, bizning `packages/viewer` asosida (`uhub-config` `mode: "ar"`).
+  Expo Go'da qolamiz; ilova AR sahifasini Custom Tabs yoki to'liq Chrome'da ochadi.
+- **iOS — (a) native AR**, Apple Developer akkaunti bilan, keyin. Hozircha iOS'da Quick Look (statik) qoladi.
+- Amalga oshirish: M-A5 — viewer AR rejimi (hit-test, polga qo'yish, surish va aylantirish, masshtabsiz), DOM overlay'da
+  eshik/tortma tugmalari, ochilish zonalari; mock `launch_url` (`/ar/<imzo>`). Eski `<model-viewer>` sahifasi zaxira.

@@ -1,7 +1,7 @@
 // AR: ar-link → AR sahifasi Chrome'da (WebXR, M-A3 tuzatishi); iOS Quick Look yo'li; xato holatlari.
 import type { ApiClient } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
-import { arPageUrl, truncateTitle } from '../src/ar/arPage';
+import { arLaunchUrl, arPageUrl, truncateTitle } from '../src/ar/arPage';
 import { openArAndroid, openArIos } from '../src/ar/openAr';
 import { uz } from '../src/i18n/uz';
 
@@ -31,6 +31,19 @@ describe('AR sahifasi havolasi', () => {
   });
 });
 
+describe('arLaunchUrl (M-A5)', () => {
+  const LAUNCH = 'https://abc.trycloudflare.com/ar/m0-r5.1793700000.' + 'a'.repeat(64);
+  it('launch_url bo‘lsa — interaktiv AR sahifasi', () => {
+    expect(arLaunchUrl({ url: FILE, launch_url: LAUNCH }, 'M-0')).toBe(LAUNCH);
+  });
+  it('launch_url yo‘q — eski statik sahifa (M-A3)', () => {
+    expect(arLaunchUrl({ url: FILE }, 'M-0 namuna')).toBe(arPageUrl(FILE, 'M-0 namuna'));
+  });
+  it('launch_url HTTPS emas — null (WebXR talabi)', () => {
+    expect(arLaunchUrl({ url: FILE, launch_url: 'http://10.0.0.5:8787/ar/x' }, 'M-0')).toBeNull();
+  });
+});
+
 describe('openArAndroid', () => {
   const req = { itemId: 'm0', revisionId: 'm0-r5', title: 'M-0 namuna' };
   const ok = (url: string) => client(async () => ({ url, expires_at: '2026-11-03T10:10:00Z' }));
@@ -41,6 +54,14 @@ describe('openArAndroid', () => {
     expect(await openArAndroid(req, { client: client(arLink), openUrl, dev: false })).toEqual({ ok: true });
     expect(arLink).toHaveBeenCalledWith('m0', 'm0-r5', 'glb');
     expect(openUrl).toHaveBeenCalledWith(arPageUrl(FILE, 'M-0 namuna'));
+  });
+
+  it('launch_url → o‘sha sahifa ochiladi (interaktiv AR)', async () => {
+    const launch = 'https://abc.trycloudflare.com/ar/m0-r5.1.' + 'b'.repeat(64);
+    const openUrl = jest.fn(async () => true);
+    const c = client(async () => ({ url: FILE, expires_at: '', launch_url: launch }));
+    expect(await openArAndroid(req, { client: c, openUrl, dev: false })).toEqual({ ok: true });
+    expect(openUrl).toHaveBeenCalledWith(launch);
   });
 
   it('http:// havola → ochilmaydi; dev’da aniq sabab', async () => {

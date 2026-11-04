@@ -21,6 +21,15 @@ export function defaultApiUrl(): string | null {
 /** GLB yetkazish yo'li (ADR-M002), EXPO_PUBLIC_GLB_DELIVERY bilan almashtiriladi. */
 export const defaultDelivery: Delivery = ENV_GLB_DELIVERY === 'offline' ? 'offline' : 'online';
 
+/**
+ * Android AR sahifasini ochish yo'li (M-A5): `custom-tabs` — expo-web-browser (Chrome Custom Tabs, ilovaga qaytish
+ * qulay); `chrome` — Linking.openURL (to'liq Chrome). WebXR Custom Tabs'da ishlamasa —
+ * EXPO_PUBLIC_AR_OPEN=chrome. Founder telefonda tekshiradi (M-A5 hisoboti).
+ */
+export type ArOpen = 'custom-tabs' | 'chrome';
+export const AR_OPEN: ArOpen =
+  envString(process.env.EXPO_PUBLIC_AR_OPEN) === 'chrome' ? 'chrome' : 'custom-tabs';
+
 /** API so'rovlari uchun timeout. */
 export const API_TIMEOUT_MS = 15_000;
 

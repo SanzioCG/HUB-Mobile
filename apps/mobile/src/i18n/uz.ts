@@ -133,6 +133,7 @@ export const uz = {
     layerFronts: 'Fasadlar',
     layerHardware: 'Furnitura',
     fit: "Sig'dirish",
+    zones: 'Ochilish zonalari',
     info: "Ma'lumot",
     infoRevision: 'Reviziya',
     infoStatus: 'Holat',

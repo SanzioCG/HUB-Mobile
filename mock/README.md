@@ -31,8 +31,14 @@ Sinov uchun bepul Cloudflare tunnel (hisob shart emas):
 
 Kod tunnelga bog'lanmagan — faqat `MOCK_PUBLIC_URL` sozlamasi. Tunnel manzili har ishga tushirishda o'zgaradi.
 
-**AR sahifasi** `GET /ar/launch?file=<imzolangan havola>&title=…` (tokensiz): ilova AR tugmasida shu sahifani
-Chrome'da ochadi. Sahifa Google `<model-viewer>` (jsDelivr, 4.0.0) bilan buyumni **Chrome WebXR**'da polga qo'yadi:
+**AR sahifasi (M-A5, interaktiv)** — `ar-link` javobidagi `launch_url` = `GET /ar/<revision_id>.<exp>.<imzo>`
+(tokensiz, 10 daqiqa). Mock viewer bundle'ini (`packages/viewer/dist/index.html`) qaytaradi, ichiga
+`uhub-config` qo'yadi: `{"glb_url": "<asosiy GLB, imzolangan>", "title": "…", "mode": "ar"}`. Viewer o'zi WebXR AR'ni
+ochadi: polga qo'yish, eshik/tortmalarni ochish, ochilish zonalari. Avval viewer build qilingan bo'lishi kerak
+(`npm run build -w @hub-mobile/viewer`), aks holda `503 viewer_missing`. Kontraktda yo'q — 1.4 taklifi 6-bo'lim.
+
+**Eski AR sahifasi (M-A3, zaxira, statik)** `GET /ar/launch?file=<imzolangan havola>&title=…` (tokensiz): ilova
+`launch_url` bo'lmasa shu sahifani ochadi. Sahifa Google `<model-viewer>` (jsDelivr, 4.0.0) bilan buyumni **Chrome WebXR**'da polga qo'yadi:
 `ar-modes="webxr scene-viewer"`, `ar-scale="fixed"` (kattalashtirish o'chiq), `ar-placement="floor"`.
 Faqat shu serverning `/files/ar/` HTTPS havolalari qabul qilinadi. AR fayllari `Access-Control-Allow-Origin: *` bilan.
 Kontraktda yo'q — taklif (M-A3 hisoboti).

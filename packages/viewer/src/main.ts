@@ -6,6 +6,8 @@ import {
   type PartExtras,
   type ViewerMessage,
 } from './bridge.js';
+import { isArSupported } from './ar.js';
+import { mountArUi } from './ar-ui.js';
 import { parseUhubConfig } from './model.js';
 import { Viewer } from './viewer.js';
 
@@ -18,6 +20,8 @@ viewer = new Viewer(container, bridge);
 const config = parseUhubConfig(document.getElementById('uhub-config')?.textContent);
 if (config) {
   if (config.title) document.title = config.title;
+  // M-A5: AR sahifasi (backend `/ar/<token>`) — o'sha viewer, ustida AR overlay.
+  if (config.mode === 'ar') mountArUi(viewer, bridge, config.title ?? '', isArSupported());
   viewer.handle({ type: 'load', glbUrl: config.glb_url, token: '' });
 } else if (isStandalone()) {
   // Dev / brauzer rejimi: GLB manzili URL parametridan, standart — mock'dagi M-0.

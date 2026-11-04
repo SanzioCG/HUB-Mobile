@@ -101,12 +101,15 @@ export function partMaterialInfo(part: Object3D): MaterialInfo | null {
   return found;
 }
 
-/** Kontrakt 8: `<script id="uhub-config" type="application/json">` mazmuni. */
+/**
+ * Kontrakt 8: `<script id="uhub-config" type="application/json">` mazmuni. `mode: "ar"` — AR sahifasi (M-A5,
+ * backend `/ar/<token>`; TODO(contract): 1.4 taklifi 6-bo'lim).
+ */
 export interface UhubConfig {
   glb_url: string;
   usdz_url?: string | null;
   title?: string;
-  mode: 'share';
+  mode: 'share' | 'ar';
 }
 
 /** `uhub-config` matnini tekshiradi; yo'q yoki noto'g'ri bo'lsa null (viewer postMessage rejimida qoladi). */
@@ -115,7 +118,8 @@ export function parseUhubConfig(text: string | null | undefined): UhubConfig | n
   try {
     const c = JSON.parse(text) as Partial<UhubConfig>;
     if (typeof c.glb_url !== 'string' || !c.glb_url) return null;
-    return { glb_url: c.glb_url, usdz_url: c.usdz_url ?? null, title: c.title ?? '', mode: 'share' };
+    const mode = c.mode === 'ar' ? 'ar' : 'share';
+    return { glb_url: c.glb_url, usdz_url: c.usdz_url ?? null, title: c.title ?? '', mode };
   } catch {
     return null;
   }

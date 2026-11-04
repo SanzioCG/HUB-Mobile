@@ -2,6 +2,7 @@
 // Skanerdan kelganda — tanlov holati (kontrakt 6): eski reviziya banneri, "R5 ni ochish", skaner kartasi.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../../api/errors';
@@ -12,7 +13,7 @@ import { ViewerRail } from '../../../components/ViewerRail';
 import { BackButton } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
-import type { Delivery } from '../../../config';
+import { AR_OPEN, type Delivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
 import { scanBanner, type ViewTarget } from '../../../scan/banner';
 import { ensureCached, isCached } from '../../../offline/glbCache';
@@ -135,6 +136,8 @@ function ItemViewer({
   const [clips, setClips] = useState<string[]>([]);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [stats, setStats] = useState<string | null>(null);
+  // Ochilish zonalari (M-A5, 1b): viewer holatni o'zida saqlaydi; bu — tugma ko'rinishi uchun.
+  const [zonesOn, setZonesOn] = useState(false);
   const [selected, setSelected] = useState<{
     part: PartExtras;
     clip: string | null;
@@ -245,18 +248,20 @@ function ItemViewer({
 
   const nextScan = () => router.push({ pathname: '/scan', params: { from: key } });
 
-  // AR (kontrakt 3): Android — AR sahifasi Chrome'da (WebXR), iOS — Quick Look (Safari); ar-link imzolangan havolasi bilan.
+  // AR (kontrakt 3): Android — AR sahifasi (WebXR, M-A5: interaktiv) Custom Tabs yoki Chrome'da, iOS — Quick Look
+  // (Safari); ar-link imzolangan havolasi bilan.
   const isIos = Platform.OS === 'ios';
   const arAvailable = Platform.OS === 'android' || (isIos && target.usdzUrl !== null);
   // Linking.openURL ichida `this` ishlatadi — metodni kontekstsiz uzatib bo'lmaydi.
   const openUrl = (url: string) => Linking.openURL(url);
+  const openArPage = AR_OPEN === 'custom-tabs' ? (url: string) => WebBrowser.openBrowserAsync(url) : openUrl;
   const openAr = async () => {
     setArBusy(true);
     setNotice(uz.ar.loading);
     const req = { itemId: target.itemId, revisionId: target.revisionId, title: target.name };
     const res = isIos
       ? await openArIos({ ...req, usdzUrl: target.usdzUrl }, { client, openUrl })
-      : await openArAndroid(req, { client, openUrl, dev: __DEV__ });
+      : await openArAndroid(req, { client, openUrl: openArPage, dev: __DEV__ });
     setNotice(res.ok ? null : res.message);
     setArBusy(false);
   };
@@ -379,6 +384,11 @@ function ItemViewer({
         <ViewerRail
           send={send}
           disabled={phase !== 'loaded'}
+          zonesOn={zonesOn}
+          onToggleZones={() => {
+            send({ type: 'setHelpers', on: !zonesOn });
+            setZonesOn(!zonesOn);
+          }}
           info={{
             revisionLabel: target.revisionLabel,
             approved: target.approved,

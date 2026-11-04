@@ -1,9 +1,10 @@
-// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android: AR sahifasi Chrome'da (WebXR); iOS: Quick Look (Safari orqali).
+// AR tugmasi: ar-link (kontrakt 1.2, 3–4) → Android: AR sahifasi Chrome'da (WebXR, M-A5: `launch_url` — interaktiv);
+// iOS: Quick Look (Safari orqali, statik).
 // Tashqi funksiyalar (openUrl) parametr sifatida beriladi — testlar uchun.
 import type { ApiClient } from '../api/client';
 import { ApiError, errorMessage, isOfflineError } from '../api/errors';
 import { uz } from '../i18n/uz';
-import { arPageUrl, type OpenUrl } from './arPage';
+import { arLaunchUrl, type OpenUrl } from './arPage';
 
 export interface ArRequest {
   itemId: string;
@@ -13,7 +14,7 @@ export interface ArRequest {
 
 export interface ArDeps {
   client: ApiClient;
-  /** AR sahifasini brauzerda (Chrome) ochish — Linking.openURL. */
+  /** AR sahifasini brauzerda ochish — Custom Tabs yoki to'liq Chrome (`config.AR_OPEN`). */
   openUrl: OpenUrl;
   /** Dev rejimda sabab aniqroq ko'rsatiladi. */
   dev: boolean;
@@ -22,14 +23,14 @@ export interface ArDeps {
 export type ArResult = { ok: true } | { ok: false; message: string };
 
 export async function openArAndroid(req: ArRequest, deps: ArDeps): Promise<ArResult> {
-  let url: string;
+  let link: { url: string; launch_url?: string };
   try {
-    ({ url } = await deps.client.arLink(req.itemId, req.revisionId, 'glb'));
+    link = await deps.client.arLink(req.itemId, req.revisionId, 'glb');
   } catch (e) {
     return { ok: false, message: isOfflineError(e) ? uz.ar.offline : errorMessage(e) };
   }
   // WebXR faqat HTTPS sahifada ishlaydi.
-  const page = arPageUrl(url, req.title);
+  const page = arLaunchUrl(link, req.title);
   if (!page) return { ok: false, message: deps.dev ? uz.ar.insecureDev : uz.ar.insecure };
   try {
     await deps.openUrl(page);

@@ -19,4 +19,13 @@ export function arPageUrl(fileUrl: string, title: string): string | null {
   return `${origin}/ar/launch?file=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(truncateTitle(title))}`;
 }
 
+/**
+ * Ochiladigan AR sahifasi: `launch_url` (M-A5, interaktiv AR — eshik/tortmalar) bo'lsa u, aks holda eski
+ * `<model-viewer>` sahifasi (M-A3, statik). Faqat HTTPS (WebXR talabi); bo'lmasa null.
+ */
+export function arLaunchUrl(res: { url: string; launch_url?: string }, title: string): string | null {
+  if (res.launch_url) return res.launch_url.toLowerCase().startsWith('https://') ? res.launch_url : null;
+  return arPageUrl(res.url, title);
+}
+
 export type OpenUrl = (url: string) => Promise<unknown>;
