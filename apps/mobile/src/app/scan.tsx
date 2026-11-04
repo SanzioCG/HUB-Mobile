@@ -1,6 +1,5 @@
 // QR skaner (kontrakt 6, 4.1): qorong'i kamera, markazda accent ramka, chiroq, yo'riqnoma, "Oxirgi skanerlar".
 // Prefikslar: `uhub:` — etiketka, `uhub-pair:` — juftlash (server manzili bilan), boshqasi — "Bu U-HUB etiketkasi emas".
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +7,8 @@ import { Alert, FlatList, Linking, Pressable, StyleSheet, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Centered, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
+import { illustrations } from '../ui/generated';
+import { Icon, type IconName } from '../ui/Icon';
 import { errorMessage } from '../api/errors';
 import { classifyQr, parsePairQr, type PairQr } from '../scan/pairQr';
 import { useSession } from '../session/SessionProvider';
@@ -19,6 +20,8 @@ import { resolveLabel } from '../scan/resolveLabel';
 import { fileIndexes } from '../files/store';
 import { fileLabelTarget } from '../files/resolveFile';
 import { emitSelection, itemKey, putSelection, type ScanSelection } from '../scan/selection';
+
+const CameraDenied = illustrations['camera-denied'];
 
 const FRAME = 240;
 const CORNER = 36;
@@ -145,10 +148,10 @@ export default function ScanScreen() {
       <View style={styles.scrim} pointerEvents="none" />
 
       <SafeAreaView style={styles.top} edges={['top']}>
-        <IconButton name="close" label={uz.common.close} onPress={() => router.back()} />
+        <IconButton name="x" label={uz.common.close} onPress={() => router.back()} />
         <T style={styles.title}>{uz.scan.title}</T>
         <IconButton
-          name={torch ? 'flashlight' : 'flashlight-outline'}
+          name={torch ? 'flashlight' : 'flashlight-off'}
           label={uz.scan.torch}
           active={torch}
           onPress={() => setTorch(!torch)}
@@ -216,7 +219,7 @@ function IconButton({
   onPress,
   active,
 }: {
-  name: keyof typeof Ionicons.glyphMap;
+  name: IconName;
   label: string;
   onPress: () => void;
   active?: boolean;
@@ -228,7 +231,7 @@ function IconButton({
       accessibilityLabel={label}
       style={({ pressed }) => [styles.icon, active && styles.iconActive, pressed && styles.pressed]}
     >
-      <Ionicons name={name} size={size.icon} color={colors.white} />
+      <Icon name={name} size={size.icon} color={colors.white} />
     </Pressable>
   );
 }
@@ -237,9 +240,10 @@ function PermissionScreen({ canAsk, onAsk }: { canAsk: boolean; onAsk: () => voi
   return (
     <SafeAreaView style={styles.permission}>
       <View style={styles.permissionTop}>
-        <IconButton name="close" label={uz.common.close} onPress={() => router.back()} />
+        <IconButton name="x" label={uz.common.close} onPress={() => router.back()} />
       </View>
       <Centered>
+        <CameraDenied size={size.illustration} />
         <T style={styles.title}>{uz.scan.permissionTitle}</T>
         <T muted style={styles.permissionText}>
           {uz.scan.permissionText}

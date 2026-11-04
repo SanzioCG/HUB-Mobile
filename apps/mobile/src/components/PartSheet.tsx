@@ -1,8 +1,8 @@
 // Detal kartasi: viewer `selected` xabaridan, pastdan chiqadi. Faqat kontraktdagi `extras.uhub` maydonlari.
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { uz } from '../i18n/uz';
+import { Icon } from '../ui/Icon';
 import { colors, duration, fontSize, fonts, hit, radius, size, space } from '../theme';
 import type { MaterialInfo, PartExtras } from '../viewer/bridge';
 import { Button, T } from './ui';
@@ -68,7 +68,7 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
           style={styles.close}
           hitSlop={space.sm}
         >
-          <Ionicons name="close" size={size.icon} color={colors.text} />
+          <Icon name="x" size={size.icon} color={colors.text} />
         </Pressable>
       </View>
 
@@ -80,7 +80,7 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
             primary
             onPress={scan.onNext}
             style={styles.grow}
-            right={<Ionicons name="scan" size={size.icon} color={colors.white} />}
+            icon="scan-qr-code"
           />
         </View>
       )}
@@ -122,6 +122,16 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
       {clip && (
         <Button
           label={clipOpen ? uz.part.close : uz.part.open}
+          // M-A6: eshik/tortma — ochish yoki yopish ikonkasi (klip nomidan).
+          icon={
+            clip.includes('door__')
+              ? clipOpen
+                ? 'door-close'
+                : 'door-open'
+              : clipOpen
+                ? 'drawer-close'
+                : 'drawer-open'
+          }
           active={clipOpen}
           onPress={() => onToggle(clip)}
           style={styles.toggle}

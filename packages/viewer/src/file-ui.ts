@@ -5,6 +5,7 @@ import type { Bridge, HostMessage, PartExtras } from './bridge.js';
 import { unqualify } from './project.js';
 import { UhubError, itemKey, openUhub, type UhubFile, type UhubItem } from './uhub.js';
 import type { ItemSource } from './viewer.js';
+import { iconEl } from './icons.js';
 
 export interface FileViewer {
   handle(msg: HostMessage): void;
@@ -88,7 +89,11 @@ export function mountFileUi(viewer: FileViewer, bridge: Bridge): void {
         // 1.6 (10.2): eksport ogohlantirishlari — sariq belgi; bo'sh bo'lsa hech narsa.
         if (it.warnings.length) {
           const w = el('div', 'file-warn');
-          for (const t of it.warnings) w.append(el('div', '', `⚠ ${t}`));
+          for (const t of it.warnings) {
+            const line = el('div', 'file-warn-line');
+            line.append(iconEl('triangle-alert'), el('span', '', t));
+            w.append(line);
+          }
           row.append(w);
         }
         return row;

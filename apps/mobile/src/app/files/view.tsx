@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { itemKey } from '@hub-mobile/viewer/uhub';
 import { BackButton } from '../../components/parts';
 import { PartSheet } from '../../components/PartSheet';
-import { Button, Dot, ErrorState, Segmented, Spinner, T } from '../../components/ui';
+import { BarButton, Dot, ErrorState, Segmented, Spinner, T } from '../../components/ui';
 import { ViewerRail } from '../../components/ViewerRail';
 import { fileDir, getFile, type OpenedFile } from '../../files/store';
 import { formatSize } from '../../api/types';
@@ -230,13 +230,14 @@ function FileView({
       ) : (
         <SafeAreaView style={styles.overlayBottom} edges={['bottom']}>
           <View style={styles.bar}>
-            <Button
+            <BarButton
+              icon="open-all"
               label={anyOpen ? uz.viewer.closeAll : uz.viewer.openAll}
               onPress={() => send({ type: anyOpen ? 'closeAll' : 'openAll' })}
               disabled={phase !== 'loaded' || !clips.length}
-              style={styles.grow}
             />
-            <Button
+            <BarButton
+              icon="ruler"
               label={uz.viewer.dims}
               active={dims}
               disabled={phase !== 'loaded'}
@@ -246,8 +247,9 @@ function FileView({
               }}
             />
             {/* Kontrakt 10.1: fayldan AR yo'q — AR server orqali. */}
-            <Button label={uz.viewer.ar} onPress={() => setNotice(uz.files.arNeedsServer)} />
-            <Button
+            <BarButton icon="box" label={uz.viewer.ar} onPress={() => setNotice(uz.files.arNeedsServer)} />
+            <BarButton
+              icon="rotate-ccw"
               label={uz.viewer.reset}
               onPress={() => {
                 send({ type: 'showAll' });

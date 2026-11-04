@@ -12,7 +12,7 @@ import { formatSize, type ProjectItem } from '../../../api/types';
 import { ViewerRail } from '../../../components/ViewerRail';
 import { BackButton } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
-import { Button, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
+import { BarButton, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
 import { AR_OPEN, type Delivery } from '../../../config';
 import { uz } from '../../../i18n/uz';
 import { scanBanner, type ViewTarget } from '../../../scan/banner';
@@ -417,13 +417,14 @@ function ItemViewer({
             </T>
           )}
           <View style={styles.bar}>
-            <Button
+            <BarButton
+              icon="open-all"
               label={anyOpen ? uz.viewer.closeAll : uz.viewer.openAll}
               onPress={openOrCloseAll}
               disabled={phase !== 'loaded' || !clips.length}
-              style={styles.grow}
             />
-            <Button
+            <BarButton
+              icon="ruler"
               label={uz.viewer.dims}
               active={dims}
               disabled={phase !== 'loaded'}
@@ -432,12 +433,17 @@ function ItemViewer({
                 send({ type: 'setDims', on: !dims });
               }}
             />
-            <Button
+            <BarButton
+              icon="box"
               label={uz.viewer.ar}
               disabled={!arAvailable || arBusy || phase !== 'loaded'}
               onPress={() => void openAr()}
             />
-            <Button label={uz.viewer.reset} onPress={() => send({ type: 'resetView' })} />
+            <BarButton
+              icon="rotate-ccw"
+              label={uz.viewer.reset}
+              onPress={() => send({ type: 'resetView' })}
+            />
           </View>
         </SafeAreaView>
       )}

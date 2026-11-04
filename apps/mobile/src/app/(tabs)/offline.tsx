@@ -1,5 +1,4 @@
 // Offline tabi: keshlangan buyumlar (nom, R, hajm), bittasini o'chirish, hammasini tozalash, band hajm (ADR-M002).
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -7,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, EmptyState, T } from '../../components/ui';
 import { CACHE_LIMITS } from '../../config';
 import { uz } from '../../i18n/uz';
+import { Icon } from '../../ui/Icon';
 import { cachedEntries, clearCache, removeCached } from '../../offline/glbCache';
 import { formatMb, usageOf, type CacheEntry } from '../../offline/policy';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
@@ -31,6 +31,7 @@ export default function OfflineScreen() {
         </View>
         <Button
           label={uz.offline.clearAll}
+          icon="trash-2"
           disabled={!usage.count}
           onPress={() => void clearCache().then(refresh)}
           style={styles.clear}
@@ -40,7 +41,9 @@ export default function OfflineScreen() {
         data={entries ?? []}
         keyExtractor={(e) => e.revisionId}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={entries ? <EmptyState text={uz.offline.empty} /> : undefined}
+        ListEmptyComponent={
+          entries ? <EmptyState text={uz.offline.empty} illustration="empty-offline" /> : undefined
+        }
         renderItem={({ item }) => (
           <View style={styles.row}>
             <View style={styles.rowText}>
@@ -55,7 +58,7 @@ export default function OfflineScreen() {
               accessibilityLabel={uz.offline.remove}
               style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
             >
-              <Ionicons name="trash-outline" size={size.icon} color={colors.textMuted} />
+              <Icon name="trash-2" size={size.icon} color={colors.textMuted} />
             </Pressable>
           </View>
         )}

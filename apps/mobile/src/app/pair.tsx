@@ -5,11 +5,13 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, errorMessage } from '../api/errors';
 import { ERROR } from '../api/types';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Button, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
+import { illustrations } from '../ui/generated';
 import { useSession } from '../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
+
+const PairScan = illustrations['pair-scan'];
 
 const CODE_LENGTH = 6;
 
@@ -59,21 +61,13 @@ export default function PairScreen() {
     <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.body}>
+          <PairScan size={size.illustration} style={styles.art} />
           <T style={styles.title}>{uz.pair.title}</T>
-          <Button
-            label={uz.pair.scanQr}
-            primary
-            onPress={() => router.push('/scan')}
-            right={<Ionicons name="qr-code-outline" size={size.icon} color={colors.white} />}
-          />
+          <Button label={uz.pair.scanQr} primary onPress={() => router.push('/scan')} icon="scan-qr-code" />
           <T muted style={styles.hint}>
             {uz.pair.scanHint}
           </T>
-          <Button
-            label={uz.files.serverless}
-            onPress={() => router.push('/files')}
-            right={<Ionicons name="folder-open-outline" size={size.icon} color={colors.text} />}
-          />
+          <Button label={uz.files.serverless} onPress={() => router.push('/files')} icon="folder-open" />
           <T style={styles.manual}>{uz.pair.manual}</T>
           <T muted style={styles.hint}>
             {uz.pair.hint}
@@ -155,6 +149,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, justifyContent: 'center', padding: space.xl, gap: space.lg },
   title: { fontFamily: fonts.semibold, fontSize: fontSize.title },
+  art: { alignSelf: 'center' },
   hint: { fontSize: fontSize.md },
   manual: { fontFamily: fonts.semibold, fontSize: fontSize.lg, marginTop: space.lg },
   cells: { flexDirection: 'row', gap: space.sm, justifyContent: 'center', marginTop: space.lg },

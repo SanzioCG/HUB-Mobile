@@ -1,5 +1,4 @@
 // Loyihalar (dizayn 1-ekran): brend, sarlavha + kompaniya holati, qidiruv, segment filtr, ro'yxat, pull-to-refresh.
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
@@ -11,6 +10,7 @@ import { statusLabel, statusTone, type ProjectSummary, type StatusFilter } from 
 import { StatusLine, Thumb } from '../../components/parts';
 import { Dot, EmptyState, ErrorState, Segmented, SkeletonList, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
+import { Icon } from '../../ui/Icon';
 import { usePairedSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
 import { relativeTime } from '../../utils/time';
@@ -47,7 +47,7 @@ export default function ProjectsScreen() {
             accessibilityLabel={uz.files.title}
             style={styles.filesBtn}
           >
-            <Ionicons name="folder-open-outline" size={size.icon} color={colors.text} />
+            <Icon name="folder-open" size={size.icon} color={colors.text} />
           </Pressable>
           <View style={styles.company}>
             <Dot color={online === false ? colors.yellow : colors.green} />
@@ -80,7 +80,10 @@ export default function ProjectsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.textMuted} />
           }
           ListEmptyComponent={
-            <EmptyState text={state.data.length ? uz.projects.emptySearch : uz.projects.empty} />
+            <EmptyState
+              text={state.data.length ? uz.projects.emptySearch : uz.projects.empty}
+              illustration="empty-projects"
+            />
           }
         />
       )}
