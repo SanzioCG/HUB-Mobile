@@ -11,15 +11,22 @@ const IS_DEV_BUILD = process.env.APP_VARIANT === 'development';
 const UHUB_UTI = 'uz.uhub.project';
 const UHUB_MIME = ['application/zip', 'application/octet-stream'];
 
+/**
+ * M-A6: rasmlar repo ildizidagi `assets/` dan (yagona manba, docs/design/ASSETS.md). Fayl shu nom bilan almashtiriladi —
+ * kod o'zgarmaydi. Expo Go'da loyiha ikonkasi va tizim splash'i ko'rinmaydi (Expo Go o'zinikini ko'rsatadi) — faqat build'da.
+ */
+const BRAND = '../../assets/brand';
+const BG = '#0B0D0F';
+
 const config: ExpoConfig = {
   name: 'U-HUB',
   slug: 'uhub-mobile',
   version: '0.1.0',
   scheme: 'uhub',
   orientation: 'portrait',
-  icon: './assets/icon.png',
+  icon: `${BRAND}/icon.png`,
   userInterfaceStyle: 'dark',
-  backgroundColor: '#111214',
+  backgroundColor: BG,
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'uz.uhub.mobile',
@@ -42,10 +49,9 @@ const config: ExpoConfig = {
   android: {
     package: 'uz.uhub.mobile',
     adaptiveIcon: {
-      backgroundColor: '#111214',
-      foregroundImage: './assets/android-icon-foreground.png',
-      backgroundImage: './assets/android-icon-background.png',
-      monochromeImage: './assets/android-icon-monochrome.png',
+      backgroundColor: BG,
+      foregroundImage: `${BRAND}/adaptive-foreground.png`,
+      monochromeImage: `${BRAND}/adaptive-monochrome.png`,
     },
     predictiveBackGestureEnabled: false,
     intentFilters: [
@@ -60,12 +66,14 @@ const config: ExpoConfig = {
       { action: 'SEND', category: ['DEFAULT'], data: UHUB_MIME.map((mimeType) => ({ mimeType })) },
     ],
   },
-  web: { favicon: './assets/favicon.png' },
+  web: { favicon: `${BRAND}/favicon-48.png` },
   plugins: [
     'expo-router',
     'expo-secure-store',
     'expo-font',
     'expo-asset',
+    // Tizim splash'i (Android 12+ — faqat markazdagi belgi): iOS va Android bir xil. Keyin ilovaning o'z yuklanish ekrani.
+    ['expo-splash-screen', { image: `${BRAND}/splash-icon.png`, imageWidth: 200, backgroundColor: BG }],
     // Faqat dev build: Android'da HTTP (cleartext) — LAN mock uchun.
     ['expo-build-properties', { android: { usesCleartextTraffic: IS_DEV_BUILD } }],
   ],

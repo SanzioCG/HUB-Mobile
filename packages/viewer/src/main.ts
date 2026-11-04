@@ -9,9 +9,11 @@ import {
 import { isArSupported } from './ar.js';
 import { mountArUi } from './ar-ui.js';
 import { mountFileUi } from './file-ui.js';
+import { installFavicon } from './brand.js';
 import { parseUhubConfig } from './model.js';
 import { Viewer } from './viewer.js';
 
+installFavicon();
 const container = document.getElementById('app')!;
 let viewer: Viewer | null = null;
 const bridge = createBridge((msg) => viewer?.handle(msg));
