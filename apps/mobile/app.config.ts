@@ -19,7 +19,7 @@ const ALLOW_HTTP = APP_VARIANT !== 'production';
  * EAS loyiha identifikatori (`eas init` beradi; maxfiy emas). Bo'sh bo'lsa — OTA (expo-updates) o'chiq,
  * Expo Go va lokal ishga tushirish o'zgarmaydi.
  */
-const EAS_PROJECT_ID: string | null = null;
+const EAS_PROJECT_ID: string | null = 'fc157f7a-83bf-4267-80b7-07a8a468e2f7';
 
 /**
  * Kontrakt 1.6 (10.3): tizim "Ulashish / Ochish" orqali `.uhub`. Expo Go bu native sozlamalarni ishlatmaydi —
@@ -38,6 +38,8 @@ const BG = '#0B0D0F';
 const config: ExpoConfig = {
   // Ichki o'rnatma keyingi production ilova bilan adashtirilmasin; `package` ikkalasida bir xil.
   name: APP_VARIANT === 'internal' ? 'U-HUB (test)' : 'U-HUB',
+  // M-A8: EAS loyihasi "uhub-mobile" tashkilotida (founder qarori).
+  owner: 'uhub-mobile',
   slug: 'uhub-mobile',
   version: '0.1.0',
   scheme: 'uhub',
