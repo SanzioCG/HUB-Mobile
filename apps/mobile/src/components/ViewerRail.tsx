@@ -1,9 +1,9 @@
 // 3D ekrandagi o'ng vertikal panel (dizayn 3-ekran): Ko'rinishlar, Qatlamlar, Sig'dirish, Ochilish zonalari (M-A5),
 // "…" (reviziya ma'lumoti).
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { uz } from '../i18n/uz';
+import { Icon, type IconName } from '../ui/Icon';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
 import type { HostMessage } from '../viewer/bridge';
 import { T } from './ui';
@@ -88,8 +88,8 @@ export function ViewerRail({
                   send({ type: 'setGroupVisible', group: g.key, on });
                 }}
               >
-                <Ionicons
-                  name={visible[g.key] ? 'checkbox' : 'square-outline'}
+                <Icon
+                  name={visible[g.key] ? 'square-check' : 'square'}
                   size={size.icon - 2}
                   color={visible[g.key] ? colors.accent : colors.textMuted}
                 />
@@ -116,34 +116,34 @@ export function ViewerRail({
       )}
       <View style={styles.rail}>
         <RailButton
-          icon="cube-outline"
+          icon="rotate-3d"
           label={uz.viewer.views}
           active={panel === 'views'}
           disabled={disabled}
           onPress={() => toggle('views')}
         />
         <RailButton
-          icon="layers-outline"
+          icon="layers"
           label={uz.viewer.layers}
           active={panel === 'layers'}
           disabled={disabled}
           onPress={() => toggle('layers')}
         />
         <RailButton
-          icon="scan-outline"
+          icon="scan"
           label={uz.viewer.fit}
           disabled={disabled}
           onPress={() => send({ type: 'fit' })}
         />
         <RailButton
-          icon="expand-outline"
+          icon="swing-zone"
           label={uz.viewer.zones}
           active={zonesOn}
           disabled={disabled}
           onPress={onToggleZones}
         />
         <RailButton
-          icon="ellipsis-horizontal"
+          icon="ellipsis"
           label={uz.viewer.info}
           active={panel === 'info'}
           onPress={() => toggle('info')}
@@ -160,7 +160,7 @@ function RailButton({
   active,
   disabled,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   label: string;
   onPress: () => void;
   active?: boolean;
@@ -179,7 +179,7 @@ function RailButton({
         disabled && styles.disabled,
       ]}
     >
-      <Ionicons name={icon} size={size.icon} color={active ? colors.white : colors.text} />
+      <Icon name={icon} size={size.icon} color={active ? colors.white : colors.text} />
     </Pressable>
   );
 }

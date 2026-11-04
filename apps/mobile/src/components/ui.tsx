@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
 import { uz } from '../i18n/uz';
+import { illustrations } from '../ui/generated';
+import { Icon, type IconName } from '../ui/Icon';
 
 export function T({ style, mono, muted, ...rest }: TextProps & { mono?: boolean; muted?: boolean }) {
   return <Text {...rest} style={[styles.text, mono && styles.mono, muted && styles.muted, style]} />;
@@ -28,10 +30,12 @@ type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   primary?: boolean;
   active?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** M-A6: tugma ikonkasi (chapda). */
+  icon?: IconName;
   right?: ReactNode;
 };
 
-export function Button({ label, primary, active, disabled, style, right, ...rest }: ButtonProps) {
+export function Button({ label, primary, active, disabled, style, icon, right, ...rest }: ButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -46,8 +50,51 @@ export function Button({ label, primary, active, disabled, style, right, ...rest
       ]}
       {...rest}
     >
-      <T style={[styles.buttonText, (active || primary) && styles.buttonTextStrong]}>{label}</T>
+      {icon && (
+        <Icon name={icon} size={size.icon - 2} color={active || primary ? colors.white : colors.text} />
+      )}
+      <T style={[styles.buttonText, (active || primary) && styles.buttonTextStrong]} numberOfLines={1}>
+        {label}
+      </T>
       {right}
+    </Pressable>
+  );
+}
+
+/**
+ * M-A6: pastki panel tugmasi — ikonka ustida, ostida bir qatorli yorliq (tor ekranda matn harfma-harf bo'linmasin).
+ */
+export function BarButton({
+  icon,
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, selected: active }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.barButton,
+        active && styles.buttonActive,
+        pressed && !disabled && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Icon name={icon} size={size.icon} color={active ? colors.white : colors.text} />
+      <T style={styles.barLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        {label}
+      </T>
     </Pressable>
   );
 }
@@ -100,10 +147,21 @@ export function Centered({ children }: { children: ReactNode }) {
   return <View style={styles.centered}>{children}</View>;
 }
 
-export function EmptyState({ text }: { text: string }) {
+/** Bo'sh holat; `illustration` — assets/illustrations (M-A6). */
+export function EmptyState({
+  text,
+  illustration,
+}: {
+  text: string;
+  illustration?: keyof typeof illustrations;
+}) {
+  const Art = illustration ? illustrations[illustration] : null;
   return (
     <Centered>
-      <T muted>{text}</T>
+      {Art && <Art size={size.illustration} />}
+      <T muted style={styles.emptyText}>
+        {text}
+      </T>
     </Centered>
   );
 }
@@ -138,7 +196,20 @@ export const styles = StyleSheet.create({
   },
   buttonPrimary: { backgroundColor: colors.accent },
   buttonActive: { backgroundColor: colors.border },
-  buttonText: { fontFamily: fonts.medium, fontSize: fontSize.md },
+  buttonText: { fontFamily: fonts.medium, fontSize: fontSize.md, flexShrink: 1 },
+  barButton: {
+    flex: 1,
+    minHeight: hit + space.sm,
+    paddingVertical: space.xs,
+    paddingHorizontal: space.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xxs,
+  },
+  barLabel: { fontFamily: fonts.medium, fontSize: fontSize.sm - 2 },
+  emptyText: { textAlign: 'center' },
   buttonTextStrong: { fontFamily: fonts.bold, color: colors.white },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.4 },

@@ -1,6 +1,5 @@
 // Fayldan ochilgan loyiha (kontrakt 1.6, 10.2 / 10.4): "Butun loyiha" va buyumlar; eksport paytidagi holat va
 // eksport ogohlantirishlari (`warnings`, sariq belgi; bo'sh bo'lsa hech narsa).
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -11,6 +10,7 @@ import { Dot, ErrorState, Spinner, T } from '../../components/ui';
 import { getFile, type OpenedFile } from '../../files/store';
 import { formatSize } from '../../api/types';
 import { uz } from '../../i18n/uz';
+import { Icon } from '../../ui/Icon';
 import { colors, fontSize, fonts, radius, size, space } from '../../theme';
 
 export default function FileProjectScreen() {
@@ -55,7 +55,7 @@ export default function FileProjectScreen() {
           style={({ pressed }) => [styles.row, styles.whole, pressed && styles.pressed]}
           accessibilityRole="button"
         >
-          <Ionicons name="grid-outline" size={size.icon} color={colors.accent} />
+          <Icon name="layout-grid" size={size.icon} color={colors.accent} />
           <View style={styles.rowText}>
             <T style={styles.itemName}>{uz.files.wholeProject}</T>
             <T muted>{uz.files.wholeProjectHint}</T>
@@ -83,7 +83,7 @@ export default function FileProjectScreen() {
               {it.warnings.length > 0 && (
                 <View style={styles.warn}>
                   <View style={styles.status}>
-                    <Ionicons name="warning-outline" size={size.icon - 4} color={colors.yellow} />
+                    <Icon name="triangle-alert" size={size.icon - 4} color={colors.yellow} />
                     <T style={styles.warnTitle}>{uz.files.warnings}</T>
                   </View>
                   {it.warnings.map((w) => (
@@ -94,7 +94,7 @@ export default function FileProjectScreen() {
                 </View>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={size.icon} color={colors.textMuted} />
+            <Icon name="chevron-right" size={size.icon} color={colors.textMuted} />
           </Pressable>
         ))}
       </ScrollView>

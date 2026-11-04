@@ -13,9 +13,13 @@ export const colors = {
   text: '#F3F5F6',
   /** Ikkinchi matn: fon 7.6:1, panel 7.0:1, surface 6.0:1 (WCAG AA). */
   textMuted: '#9AA3AD',
-  /** Holat nuqtalari: panel ustida sariq 10.6:1, yashil 8.0:1. */
-  yellow: '#F2C14E',
-  green: '#4CC38A',
+  /**
+   * Holat ranglari — Brand Kit v1 tokenlari (assets/design/design-tokens.json: warning, success, danger; ASSETS.md 6-izoh).
+   * Panel ustida: sariq 9.5:1, yashil 8.8:1, qizil 7.6:1. TODO(contract): kontrakt 1-bo'limida hali #F2C14E / #4CC38A.
+   */
+  yellow: '#E9B45F',
+  green: '#67C99A',
+  danger: '#ED8F8F',
   white: '#FFFFFF',
   scrim: 'rgba(0,0,0,0.5)',
 } as const;
@@ -50,6 +54,8 @@ export const size = {
   thumb: 56,
   pinCell: 48,
   icon: 22,
+  /** Bo'sh holat va ruxsat ekranlaridagi illyustratsiya balandligi. */
+  illustration: 120,
 } as const;
 
 export const duration = { sheet: 220 } as const;

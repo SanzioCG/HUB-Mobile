@@ -1,11 +1,11 @@
 // Ekranlar uchun bo'laklar: sarlavha, eskiz, holat qatori.
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import type { StatusTone } from '../api/types';
 import { uz } from '../i18n/uz';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
+import { Icon } from '../ui/Icon';
 import { Dot, T } from './ui';
 
 export const toneColor: Record<StatusTone, string> = {
@@ -23,7 +23,7 @@ export function BackButton({ onPress = () => router.back() }: { onPress?: () => 
       hitSlop={space.sm}
       style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
     >
-      <Ionicons name="chevron-back" size={size.icon} color={colors.text} />
+      <Icon name="chevron-left" size={size.icon} color={colors.text} />
     </Pressable>
   );
 }
@@ -44,8 +44,13 @@ export function Header({ title, meta, right }: { title: string; meta?: ReactNode
 }
 
 export function Thumb({ uri }: { uri: string | null }) {
-  // Eskiz yo'q — grafit joy.
-  if (!uri) return <View style={styles.thumb} />;
+  // Eskiz (`thumb_url`) yo'q — `cabinet` ikonkasi `surface` fonda (M-A6).
+  if (!uri)
+    return (
+      <View style={[styles.thumb, styles.thumbEmpty]}>
+        <Icon name="cabinet" size={size.icon + 4} color={colors.textMuted} />
+      </View>
+    );
   return <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />;
 }
 
@@ -77,5 +82,6 @@ export const styles = StyleSheet.create({
   },
   pressed: { backgroundColor: colors.surface },
   thumb: { width: size.thumb, height: size.thumb, borderRadius: radius.sm, backgroundColor: colors.surface },
+  thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
   status: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
 });

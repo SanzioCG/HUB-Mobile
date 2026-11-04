@@ -1,6 +1,5 @@
 // "Fayldan ochilganlar" (kontrakt 1.6, 10.3): `.uhub` ni hujjat tanlash bilan ochish, ro'yxat, o'chirish.
 // Juftlashsiz ham ishlaydi. Tizim "Ulashish / Ochish" (intent filtri, UTI) — faqat dev build'da (Expo Go'da yo'q).
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -12,6 +11,7 @@ import { Button, Dot, EmptyState, Spinner, T } from '../../components/ui';
 import { readPickedFile } from '../../files/readPicked';
 import { importUhub, listFiles, removeFile, type OpenedFile } from '../../files/store';
 import { uz } from '../../i18n/uz';
+import { Icon } from '../../ui/Icon';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
 
 const formatDate = (iso: string) => {
@@ -84,9 +84,7 @@ export default function FilesScreen() {
           primary
           disabled={busy}
           onPress={() => void pick()}
-          right={
-            busy ? <Spinner /> : <Ionicons name="folder-open-outline" size={size.icon} color={colors.white} />
-          }
+          right={busy ? <Spinner /> : <Icon name="folder-open" size={size.icon} color={colors.white} />}
         />
         {error && (
           <View style={styles.error}>
@@ -99,7 +97,9 @@ export default function FilesScreen() {
         data={files ?? []}
         keyExtractor={(f) => f.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={files ? <EmptyState text={uz.files.empty} /> : undefined}
+        ListEmptyComponent={
+          files ? <EmptyState text={uz.files.empty} illustration="empty-offline" /> : undefined
+        }
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push({ pathname: '/files/[fileId]', params: { fileId: item.id } })}
@@ -120,7 +120,7 @@ export default function FilesScreen() {
               accessibilityLabel={uz.files.remove}
               style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
             >
-              <Ionicons name="trash-outline" size={size.icon} color={colors.textMuted} />
+              <Icon name="trash-2" size={size.icon} color={colors.textMuted} />
             </Pressable>
           </Pressable>
         )}

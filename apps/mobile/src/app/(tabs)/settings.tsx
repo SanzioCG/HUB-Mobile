@@ -34,7 +34,7 @@ export default function SettingsScreen() {
           <Row label={uz.settings.viewerVersion} value={VIEWER_VERSION} />
           <Row label={uz.settings.contractVersion} value={VIEWER_CONTRACT} />
         </Section>
-        <Button label={uz.settings.unpair} onPress={() => void unpair()} />
+        <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
         {__DEV__ && (
           <Section label={uz.settings.dev}>
             <Button

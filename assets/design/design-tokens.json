@@ -1,0 +1,27 @@
+{
+  "color": {
+    "background": "#0B0D0F",
+    "panel": "#15181C",
+    "surface": "#22262B",
+    "border": "#333A41",
+    "text": "#F3F5F6",
+    "textMuted": "#9AA3AD",
+    "accent": "#3988FF",
+    "accentAlt": "#6A5CFF",
+    "accentCyan": "#00C2FF",
+    "success": "#67C99A",
+    "warning": "#E9B45F",
+    "danger": "#ED8F8F"
+  },
+  "typography": {
+    "interface": "Inter",
+    "technical": "DM Mono"
+  },
+  "iconStyle": {
+    "grid": "24x24",
+    "stroke": "1.8px",
+    "linecap": "round",
+    "linejoin": "round"
+  },
+  "contract": "uhub-mobile/1"
+}

@@ -4,6 +4,7 @@
 import type { ArCallbacks, ArState } from './ar.js';
 import { clipButtons, guardXrSelect } from './ar-math.js';
 import type { Bridge, HostMessage } from './bridge.js';
+import { clipIconName, iconEl, type ViewerIconName } from './icons.js';
 
 export const AR_TEXT = {
   start: "AR'ni boshlash",
@@ -56,6 +57,16 @@ const el = <K extends keyof HTMLElementTagNameMap>(
   return e;
 };
 
+/** M-A6: tugma — ikonka (assets/icons, bundle ichida) + yorliq. */
+function iconBtn(cls: string, icon: ViewerIconName, label: string): HTMLButtonElement {
+  const b = el('button', cls);
+  b.append(iconEl(icon), el('span', 'ar-label', label));
+  return b;
+}
+
+const setBtn = (b: HTMLButtonElement, icon: ViewerIconName, label: string) =>
+  b.replaceChildren(iconEl(icon), el('span', 'ar-label', label));
+
 export function mountArUi(
   viewer: ArViewer,
   bridge: Bridge,
@@ -67,21 +78,27 @@ export function mountArUi(
   const top = el('div', 'ar-top');
   const hint = el('div', 'ar-hint', AR_TEXT.loading(null));
   const xr = el('div', 'ar-xr');
-  top.append(el('div', 'ar-title', title || 'U-HUB'), hint, xr);
+  // AR boshida yo'riqnoma rasmi (polni topguncha); AR yo'q bo'lsa — "qo'llanmaydi" rasmi.
+  const coach = iconEl('ar-coach', 'ar-art');
+  coach.hidden = true;
+  const unsupportedArt = iconEl('ar-unsupported', 'ar-art');
+  unsupportedArt.hidden = true;
+  top.append(el('div', 'ar-title', title || 'U-HUB'), hint, xr, coach);
 
   const start = el('div', 'ar-start');
   const startBtn = el('button', 'ar-btn primary', AR_TEXT.start);
   startBtn.disabled = true;
   const to3dBtn = el('button', 'ar-btn', AR_TEXT.to3d);
   to3dBtn.hidden = true;
-  start.append(startBtn, to3dBtn);
+  setBtn(to3dBtn, 'rotate-ccw', AR_TEXT.to3d);
+  start.append(unsupportedArt, startBtn, to3dBtn);
 
   const panel = el('div', 'ar-panel');
   const clipsRow = el('div', 'ar-row');
-  const allBtn = el('button', 'ar-btn', AR_TEXT.openAll);
-  const zonesBtn = el('button', 'ar-btn', AR_TEXT.zones);
-  const replaceBtn = el('button', 'ar-btn ar-only', AR_TEXT.replace);
-  const exitBtn = el('button', 'ar-btn ar-only', AR_TEXT.exit);
+  const allBtn = iconBtn('ar-btn', 'open-all', AR_TEXT.openAll);
+  const zonesBtn = iconBtn('ar-btn', 'swing-zone', AR_TEXT.zones);
+  const replaceBtn = iconBtn('ar-btn ar-only', 'rotate-ccw', AR_TEXT.replace);
+  const exitBtn = iconBtn('ar-btn ar-only', 'x', AR_TEXT.exit);
   const toolsRow = el('div', 'ar-row');
   toolsRow.append(allBtn, zonesBtn, replaceBtn, exitBtn);
   panel.append(clipsRow, toolsRow);
@@ -94,15 +111,19 @@ export function mountArUi(
   document.body.append(root);
 
   const open = new Set<string>();
-  let clipBtns: { clip: string; btn: HTMLButtonElement }[] = [];
+  let clipBtns: { clip: string; label: string; btn: HTMLButtonElement }[] = [];
   let allOpen = false;
   let zonesOn = false;
   let loaded = false;
   let canAr = false;
 
   const syncClips = () => {
-    for (const { clip, btn } of clipBtns) btn.classList.toggle('active', open.has(clip));
-    allBtn.textContent = allOpen ? AR_TEXT.closeAll : AR_TEXT.openAll;
+    // Ikonka holatga qarab: ochiq bo'lsa — yopish (door-close / drawer-close).
+    for (const { clip, label, btn } of clipBtns) {
+      btn.classList.toggle('active', open.has(clip));
+      setBtn(btn, clipIconName(clip, open.has(clip)), label);
+    }
+    setBtn(allBtn, 'open-all', allOpen ? AR_TEXT.closeAll : AR_TEXT.openAll);
   };
   const showPanel = (ar: boolean) => {
     panel.hidden = false;
@@ -117,6 +138,8 @@ export function mountArUi(
     to3dBtn.hidden = canAr;
     startBtn.disabled = !loaded;
     if (loaded) hint.textContent = canAr ? AR_TEXT.ready : AR_TEXT.unsupported;
+    unsupportedArt.hidden = !loaded || canAr;
+    coach.hidden = true;
   };
 
   allBtn.onclick = () => {
@@ -131,12 +154,16 @@ export function mountArUi(
   exitBtn.onclick = () => viewer.arExit();
   to3dBtn.onclick = () => {
     hint.textContent = '';
+    unsupportedArt.hidden = true;
     showPanel(false);
   };
   startBtn.onclick = () => {
     startBtn.disabled = true;
     const cb: ArCallbacks = {
-      onState: (s: ArState) => (hint.textContent = AR_TEXT[s]),
+      onState: (s: ArState) => {
+        hint.textContent = AR_TEXT[s];
+        coach.hidden = s !== 'scanning';
+      },
       onEnd: () => {
         xr.textContent = '';
         showStart();
@@ -160,10 +187,10 @@ export function mountArUi(
     } else if (m.type === 'loaded') {
       loaded = true;
       clipBtns = clipButtons(m.item.clips).map(({ clip, label }) => {
-        const btn = el('button', 'ar-btn', label);
+        const btn = iconBtn('ar-btn', clipIconName(clip, false), label);
         // Holat viewer'dan (`clipState`): ichki tortma eshikni ham ochadi/yopadi (kontrakt 1.6, 2.2).
         btn.onclick = () => viewer.handle({ type: 'toggle', clip });
-        return { clip, btn };
+        return { clip, label, btn };
       });
       clipsRow.replaceChildren(...clipBtns.map((c) => c.btn));
       allBtn.hidden = clipBtns.length === 0;

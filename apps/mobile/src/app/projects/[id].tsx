@@ -65,7 +65,7 @@ export default function ProjectScreen() {
             ) : undefined
           }
           renderItem={({ item }) => <ItemRow projectId={id} item={item} cached={cached[item.revision_id]} />}
-          ListEmptyComponent={<EmptyState text={uz.project.empty} />}
+          ListEmptyComponent={<EmptyState text={uz.project.empty} illustration="empty-projects" />}
         />
       )}
     </SafeAreaView>
