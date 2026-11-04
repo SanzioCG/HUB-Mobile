@@ -16,6 +16,8 @@ import { hapticError, hapticSuccess } from '../scan/haptics';
 import { createDebouncer } from '../scan/qr';
 import { addRecent, loadRecent, type RecentScan } from '../scan/recent';
 import { resolveLabel } from '../scan/resolveLabel';
+import { fileIndexes } from '../files/store';
+import { fileLabelTarget } from '../files/resolveFile';
 import { emitSelection, itemKey, putSelection, type ScanSelection } from '../scan/selection';
 
 const FRAME = 240;
@@ -86,13 +88,29 @@ export default function ScanScreen() {
     try {
       const kind = classifyQr(data);
       if (kind === 'pair') return await onPairQr(data);
+      // Kontrakt 1.6 (10.4): juftlanmagan — etiketka telefondagi `.uhub` fayllaridan.
       if (kind === 'label' && !paired) {
-        hapticError();
-        setMessage(uz.pair.needPair);
+        const ft = fileLabelTarget(data, await fileIndexes());
+        if (!ft.ok) {
+          hapticError();
+          setMessage(ft.message);
+          return;
+        }
+        hapticSuccess();
+        setMessage(null);
+        router.push({ pathname: '/files/view', params: ft.params });
         return;
       }
       const res = await resolveLabel(client, data);
       if (!res.ok) {
+        // Server topmadi yoki oflayn — shu loyiha fayli telefonda bo'lsa, fayldan.
+        const ft = fileLabelTarget(data, await fileIndexes());
+        if (ft.ok) {
+          hapticSuccess();
+          setMessage(null);
+          router.push({ pathname: '/files/view', params: ft.params });
+          return;
+        }
         hapticError();
         setMessage(res.message); // ekranda qoladi, skaner davom etadi
         return;

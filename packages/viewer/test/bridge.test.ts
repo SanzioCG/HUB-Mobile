@@ -56,3 +56,24 @@ describe('parseIncoming', () => {
     expect(parseIncoming(raw).ok).toBe(false);
   });
 });
+
+describe('loadProject (kontrakt 1.6, 10.4 — "Butun loyiha")', () => {
+  it('buyumlar kaliti, GLB va transform bilan', () => {
+    const items = [
+      { key: 'a', glbUrl: 'viewer/a.glb', transform: { translation: [0.3, 0, 0], rotation: [0, 0, 0, 1] } },
+      { key: 'b', glbUrl: 'viewer/b.glb' },
+    ];
+    expect(parseIncoming({ type: 'loadProject', items, token: '' })).toEqual({
+      ok: true,
+      msg: { type: 'loadProject', items, token: '' },
+    });
+  });
+
+  it('bo‘sh ro‘yxat yoki buzilgan transform — rad', () => {
+    expect(parseIncoming({ type: 'loadProject', items: [], token: '' }).ok).toBe(false);
+    const bad = [
+      { key: 'a', glbUrl: 'viewer/a.glb', transform: { translation: [0, 0], rotation: [0, 0, 0, 1] } },
+    ];
+    expect(parseIncoming({ type: 'loadProject', items: bad, token: '' }).ok).toBe(false);
+  });
+});

@@ -14,7 +14,7 @@ import { WebView as RNWebView, type WebViewMessageEvent, type WebViewProps } fro
 import type { Delivery } from '../config';
 import { colors } from '../theme';
 import type { HostMessage, ViewerMessage } from './bridge';
-import { prepare, type Prepared } from './delivery';
+import { prepare, prepareLocal, type LocalSource, type Prepared } from './delivery';
 
 // react-native-webview 14 tiplari: `WebView<P = undefined>` → props `& undefined` = never (TS strict). Aniq tip bilan.
 interface WebViewRef {
@@ -44,6 +44,8 @@ interface Props {
   revisionId: string;
   token: string;
   delivery: Delivery;
+  /** Fayl rejimi (`.uhub`, kontrakt 10): berilsa server/token ishlatilmaydi. */
+  local?: LocalSource;
   onMessage?: (msg: ViewerMessage) => void;
   onPhase?: (phase: ViewerPhase, error?: string) => void;
   onTimings?: (t: ViewerTimings) => void;
@@ -51,10 +53,11 @@ interface Props {
 }
 
 export const ViewerView = forwardRef<ViewerHandle, Props>(function ViewerView(
-  { glbUrl, revisionId, token, delivery, onMessage, onPhase, onTimings, style },
+  { glbUrl, revisionId, token, delivery, local, onMessage, onPhase, onTimings, style },
   ref,
 ) {
   const web = useRef<WebViewRef>(null);
+  const localKey = local ? JSON.stringify(local) : '';
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const t = useRef({ start: 0, loadSent: 0 });
   // Callback'lar o'zgarsa WebView qayta yaratilmasin.
@@ -69,14 +72,16 @@ export const ViewerView = forwardRef<ViewerHandle, Props>(function ViewerView(
     setPrepared(null);
     t.current.start = Date.now();
     cb.current.onPhase?.('preparing');
-    prepare(delivery, glbUrl, revisionId, token).then(
+    (local ? prepareLocal(local) : prepare(delivery, glbUrl, revisionId, token)).then(
       (p) => alive && setPrepared(p),
       (e: unknown) => alive && cb.current.onPhase?.('error', e instanceof Error ? e.message : String(e)),
     );
     return () => {
       alive = false;
     };
-  }, [delivery, glbUrl, revisionId, token]);
+    // `local` — obyekt; o'zgarishi kalit bo'yicha (`localKey`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delivery, glbUrl, revisionId, token, localKey]);
 
   const onWebMessage = (e: WebViewMessageEvent) => {
     let msg: ViewerMessage;
@@ -89,7 +94,8 @@ export const ViewerView = forwardRef<ViewerHandle, Props>(function ViewerView(
     if (msg.type === 'ready') {
       t.current.loadSent = Date.now();
       cb.current.onPhase?.('loading');
-      send({ type: 'load', glbUrl: prepared.glbUrl, token: prepared.token });
+      if (prepared.project) send({ type: 'loadProject', items: prepared.project, token: '' });
+      else send({ type: 'load', glbUrl: prepared.glbUrl, token: prepared.token });
     } else if (msg.type === 'loaded') {
       const now = Date.now();
       cb.current.onPhase?.('loaded');

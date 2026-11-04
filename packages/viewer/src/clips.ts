@@ -1,10 +1,18 @@
 // Kliplar: ochish — oldinga ijro, yopish — xuddi shu action teskari (kontrakt 2.2).
 import { AnimationMixer, LoopOnce, type AnimationAction, type AnimationClip, type Object3D } from 'three';
 import { isOpenableClip } from './model.js';
+import { qualify } from './project.js';
 import type { Plan } from './sequence.js';
 
+/** Bitta buyumning kliplari; `prefix` — loyiha rejimida buyum kaliti (bitta buyumda ''). */
+export interface ClipGroup {
+  root: Object3D;
+  clips: readonly AnimationClip[];
+  prefix: string;
+}
+
 export class ClipPlayer {
-  readonly mixer: AnimationMixer;
+  private readonly mixers: AnimationMixer[] = [];
   private readonly actions = new Map<string, AnimationAction>();
   private readonly open = new Set<string>();
   private readonly pending = new Map<AnimationAction, () => void>();
@@ -13,22 +21,27 @@ export class ClipPlayer {
   /** Ochiq kliplar to'plami o'zgarganda (host tugmalari holati uchun). */
   onChange: ((open: string[]) => void) | null = null;
 
-  constructor(root: Object3D, clips: readonly AnimationClip[]) {
-    this.mixer = new AnimationMixer(root);
-    for (const clip of clips) {
-      if (!isOpenableClip(clip.name)) continue;
-      const a = this.mixer.clipAction(clip);
-      a.setLoop(LoopOnce, 1);
-      a.clampWhenFinished = true;
-      a.play();
-      a.paused = true; // yopiq holat: time = 0
-      this.actions.set(clip.name, a);
+  /** Bitta buyum: `(root, clips)`; loyiha (`.uhub`, 10.4): har buyum o'z mixer'i bilan, nomlar kalit bilan. */
+  constructor(root: Object3D | readonly ClipGroup[], clips: readonly AnimationClip[] = []) {
+    const groups = Array.isArray(root) ? root : [{ root: root as Object3D, clips, prefix: '' }];
+    for (const g of groups) {
+      const mixer = new AnimationMixer(g.root);
+      this.mixers.push(mixer);
+      for (const clip of g.clips) {
+        if (!isOpenableClip(clip.name)) continue;
+        const a = mixer.clipAction(clip);
+        a.setLoop(LoopOnce, 1);
+        a.clampWhenFinished = true;
+        a.play();
+        a.paused = true; // yopiq holat: time = 0
+        this.actions.set(qualify(g.prefix, clip.name), a);
+      }
+      mixer.addEventListener('finished', (e) => {
+        const done = this.pending.get(e.action);
+        this.pending.delete(e.action);
+        done?.();
+      });
     }
-    this.mixer.addEventListener('finished', (e) => {
-      const done = this.pending.get(e.action);
-      this.pending.delete(e.action);
-      done?.();
-    });
   }
 
   get names(): string[] {
@@ -96,12 +109,12 @@ export class ClipPlayer {
   }
 
   update(dt: number): void {
-    this.mixer.update(dt);
+    for (const m of this.mixers) m.update(dt);
   }
 
   dispose(): void {
     for (const done of this.pending.values()) done();
     this.pending.clear();
-    this.mixer.stopAllAction();
+    for (const m of this.mixers) m.stopAllAction();
   }
 }

@@ -69,6 +69,11 @@ export default function PairScreen() {
           <T muted style={styles.hint}>
             {uz.pair.scanHint}
           </T>
+          <Button
+            label={uz.files.serverless}
+            onPress={() => router.push('/files')}
+            right={<Ionicons name="folder-open-outline" size={size.icon} color={colors.text} />}
+          />
           <T style={styles.manual}>{uz.pair.manual}</T>
           <T muted style={styles.hint}>
             {uz.pair.hint}

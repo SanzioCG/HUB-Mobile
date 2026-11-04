@@ -25,6 +25,7 @@
   },
   "exports": {
     "./bridge": "./src/bridge.ts",
-    "./version": "./src/version.ts"
+    "./version": "./src/version.ts",
+    "./uhub": "./src/uhub.ts"
   }
 }
