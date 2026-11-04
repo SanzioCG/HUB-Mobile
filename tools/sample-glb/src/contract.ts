@@ -22,7 +22,7 @@ export interface MaterialExtras {
   supplier: string;
   name: string;
   kind: 'ldsp' | 'mdf' | 'mdf_painted' | 'veneer' | 'hpl' | 'abs' | 'metal' | 'plastic' | 'glass';
-  /** TODO(contract): metall furnitura uchun qalinlik ma'nosi kontraktda yo'q — null. */
+  /** Kontrakt 1.4: ma'nosiz bo'lsa (`metal`, `plastic`) — null. */
   thickness_mm: number | null;
 }
 
@@ -71,7 +71,7 @@ export const NODE_NAME_RE = /^[a-z0-9_-]+$/;
 /** 2.1: nomda o'zicha turadigan id — shu ifodaga mos va ichida `__` yo'q. */
 export const PLAIN_ID_RE = /^[a-z0-9-]+(_[a-z0-9-]+)*$/;
 
-/** 2.1 kodlash: mos id — o'zi, aks holda `x` + base32 (UTF-8, RFC 4648, kichik, `=` siz). `A/1` → `xiextc` (kontrakt misolidagi `xifxte` RFC 4648 ga mos emas — TODO(contract)). */
+/** 2.1 kodlash: mos id — o'zi, aks holda `x` + base32 (UTF-8, RFC 4648, kichik, `=` siz). `A/1` → `xiextc` (kontrakt 1.4 misoli). */
 export const encodeId = (id: string) =>
   PLAIN_ID_RE.test(id) && !id.includes('__') ? id : `x${base32Encode(id)}`;
 

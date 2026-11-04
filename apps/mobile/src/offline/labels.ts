@@ -60,6 +60,7 @@ export function offlineResolve(qr: string, data: OfflineData): ResolveResponse |
     return {
       ...rec,
       approved: latest?.revision_id === rec.revision_id ? latest.approved : false,
+      usdz_url: null,
       is_latest: true,
       part_in_latest: true,
       latest_revision_id: rec.revision_id,
@@ -71,6 +72,7 @@ export function offlineResolve(qr: string, data: OfflineData): ResolveResponse |
   return {
     ...rec,
     approved: false,
+    usdz_url: null,
     is_latest: false,
     part_in_latest: latestLabels.length ? latestLabels.some((l) => l.part_uid === rec.part_uid) : true,
     latest_revision_id: latest.revision_id,

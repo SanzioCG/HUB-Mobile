@@ -53,7 +53,7 @@ const fromScan = ({ result: r }: ScanSelection): ViewTarget => ({
   revisionId: r.revision_id,
   revisionLabel: r.revision_label,
   approved: null,
-  usdzUrl: null, // resolve javobida usdz_url yo'q
+  usdzUrl: r.usdz_url,
   updatedAt: null,
 });
 

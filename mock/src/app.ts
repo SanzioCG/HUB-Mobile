@@ -41,8 +41,6 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
 const QR_RE = /^uhub:p\/(\d+)\/(.+)\/([^/]+)$/;
 /** Kontrakt 4: `ar-link` muddati 10 daqiqa. */
 export const AR_LINK_TTL_MS = 10 * 60 * 1000;
-const AR_FORMATS = ['usdz', 'glb'] as const;
-type ArFormat = (typeof AR_FORMATS)[number];
 
 /** Kontrakt 4: xato tanasi har doim `{ error, message }` (o'zbekcha `message`). */
 const fail = (reply: FastifyReply, status: number, error: string, message: string) =>
@@ -115,8 +113,8 @@ export function buildApp(opts: AppOptions) {
           'pair_code_expired',
           'Kod muddati o‘tgan yoki ishlatilgan. Desktopda yangi kod oling.',
         );
-      // TODO(contract): noto'g'ri juftlash kodi uchun `error` kodi kontraktda yo'q (4-bo'lim jadvali) — `invalid_code`.
-      return fail(reply, 401, 'invalid_code', 'Kod noto‘g‘ri.');
+      // Kontrakt 1.4 (4): noto'g'ri kod — 400 (401 faqat token uchun, ilova 401 da tokenni o'chiradi).
+      return fail(reply, 400, 'pair_code_invalid', 'Kod noto‘g‘ri.');
     }
     const token = randomBytes(24).toString('hex');
     tokens.add(token);
@@ -190,6 +188,8 @@ export function buildApp(opts: AppOptions) {
         part_uid: uid,
         part_name: part.name,
         glb_url: glbUrl(req, rev.revision_id),
+        // Kontrakt 1.4: V-1b gacha doim null.
+        usdz_url: null,
         is_latest: cur === rev,
         part_in_latest: cur.parts.has(uid),
         latest_revision_id: cur.revision_id,
@@ -205,34 +205,30 @@ export function buildApp(opts: AppOptions) {
   const sign = (file: string, exp: number) =>
     createHmac('sha256', opts.signSecret).update(`${file}|${exp}`).digest('hex');
 
-  // Kontrakt 4: so'rov tanasi `{item_id, revision_id, format: "glb"|"usdz"}`.
-  app.post<{ Body: { item_id?: unknown; revision_id?: unknown; format?: unknown } | null }>(
+  // Kontrakt 1.4 (4): so'rov `{item_id, revision_id}` → `{launch_url, glb_url, usdz_url, expires_at}`, 10 daqiqa.
+  app.post<{ Body: { item_id?: unknown; revision_id?: unknown } | null }>(
     '/mobile/ar-link',
     async (req, reply) => {
-      const { item_id, revision_id, format } = req.body ?? {};
-      if (
-        typeof item_id !== 'string' ||
-        typeof revision_id !== 'string' ||
-        !AR_FORMATS.includes(format as ArFormat)
-      )
-        return fail(reply, 400, 'bad_request', 'item_id, revision_id va format (usdz|glb) kerak');
+      const { item_id, revision_id } = req.body ?? {};
+      if (typeof item_id !== 'string' || typeof revision_id !== 'string')
+        return fail(reply, 400, 'bad_request', 'item_id va revision_id kerak');
       const rev: RevisionData | undefined = ownItems()
         .find((it) => it.item_id === item_id)
         ?.revisions.find((r) => r.revision_id === revision_id);
       if (!rev) return notFound(reply, 'Buyum yoki reviziya topilmadi');
-      if (format === 'usdz') return notFound(reply, 'USDZ mock’da yo‘q (V-1b)');
       if (!opts.glbs[revision_id]) return notFound(reply, 'Reviziya GLB’i topilmadi');
       const exp = Math.floor((now() + AR_LINK_TTL_MS) / 1000);
       const pub = opts.publicUrl ?? base(req);
-      // `url` — statik ko'ruvchilar uchun AR varianti (animatsiyasiz, M-A3); bo'lmasa asosiy GLB.
-      // TODO(contract): kontraktda AR varianti yo'q — taklif (1.4, 4-band).
+      // `glb_url` — AR varianti (animatsiyasiz, kontrakt 3); bo'lmasa (og'ir namuna) asosiy GLB.
+      // Mock fayl nomi `<revision_id>-ar.glb` (kontraktda `<revision_id>.ar.glb` — U-HUB ichki nomi, URL shaffof).
       const file = opts.glbs[`${revision_id}-ar`] ? `${revision_id}-ar.glb` : `${revision_id}.glb`;
       return {
-        url: `${pub}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
-        expires_at: new Date(exp * 1000).toISOString(),
-        // M-A5: AR sahifasi — viewer bundle `mode: "ar"`, asosiy GLB (kliplar bilan).
-        // TODO(contract): `launch_url` kontraktda yo'q — 1.4 taklifi 6-bo'lim.
+        // M-A5 (founder qarori): AR sahifasi — viewer bundle `mode: "ar"`, asosiy GLB (kliplar bilan, AR ichida ochish).
+        // TODO(contract): kontrakt 3 da sahifa — `<model-viewer>` + AR GLB (statik); farq hisobotda savol.
         launch_url: `${pub}/ar/${revision_id}.${exp}.${sign(`launch:${revision_id}`, exp)}`,
+        glb_url: `${pub}/files/ar/${file}?exp=${exp}&sig=${sign(file, exp)}`,
+        usdz_url: null,
+        expires_at: new Date(exp * 1000).toISOString(),
       };
     },
   );

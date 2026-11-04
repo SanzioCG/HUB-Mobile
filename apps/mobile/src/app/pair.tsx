@@ -4,6 +4,7 @@ import { useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, errorMessage } from '../api/errors';
+import { ERROR } from '../api/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Button, Spinner, T } from '../components/ui';
 import { uz } from '../i18n/uz';
@@ -15,7 +16,8 @@ const CODE_LENGTH = 6;
 /** Kontrakt 4: mantiq `error` kodiga (410 pair_code_expired, 429 rate_limited — server `message` i bilan). */
 function pairErrorText(e: unknown): string {
   if (e instanceof ApiError && e.kind === 'http') {
-    if (e.status === 401) return uz.pair.invalidCode;
+    // Kontrakt 1.4: noto'g'ri kod — 400 pair_code_invalid (401 faqat token uchun).
+    if (e.code === ERROR.pairCodeInvalid) return uz.pair.invalidCode;
     // /mobile/pair yo'q — manzil boshqa serverga qaraydi.
     if (e.status === 404) return uz.errors.serverNotFound;
   }

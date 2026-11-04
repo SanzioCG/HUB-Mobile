@@ -16,6 +16,7 @@ const result = (over: Partial<ResolveResponse>): ResolveResponse => ({
   part_uid: 'm0p06',
   part_name: 'Polka',
   glb_url: `${BASE}/m0-r3.glb`,
+  usdz_url: null,
   is_latest: false,
   part_in_latest: true,
   latest_revision_id: 'm0-r5',

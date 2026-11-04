@@ -4,7 +4,6 @@ import { ApiError } from './errors';
 import {
   normalizeStatus,
   parseErrorBody,
-  type ArFormat,
   type ArLinkResponse,
   type PairResponse,
   type ProjectDetail,
@@ -90,9 +89,9 @@ export function createClient(opts: ClientOptions) {
       })),
     resolve: (qr: string) => request<ResolveResponse>('GET', `/mobile/resolve?qr=${q(qr)}`),
     unpairDevice: () => request<void>('DELETE', '/mobile/device'),
-    arLink: (itemId: string, revisionId: string, format: ArFormat) =>
+    arLink: (itemId: string, revisionId: string) =>
       request<ArLinkResponse>('POST', '/mobile/ar-link', {
-        body: { item_id: itemId, revision_id: revisionId, format },
+        body: { item_id: itemId, revision_id: revisionId },
       }),
   };
 }

@@ -85,6 +85,8 @@ export interface ResolveResponse {
   part_uid: string;
   part_name: string;
   glb_url: string;
+  /** Kontrakt 1.4: V-1b gacha null. */
+  usdz_url: string | null;
   is_latest: boolean;
   /** false — detal oxirgi reviziyada o'chirilgan. */
   part_in_latest: boolean;
@@ -94,19 +96,17 @@ export interface ResolveResponse {
   latest_glb_url: string;
 }
 
-/** Kontrakt 4: `POST /mobile/ar-link` — imzolangan 10 daqiqalik havola. */
+/** Kontrakt 1.4 (4): `POST /mobile/ar-link {item_id, revision_id}` — hammasi imzolangan, 10 daqiqa. */
 export interface ArLinkResponse {
-  url: string;
+  /** AR sahifasi (3-bo'lim) — ilova uni tizim brauzerida ochadi. */
+  launch_url: string;
+  /** AR varianti (animatsiyasiz). */
+  glb_url: string;
+  /** V-1b gacha null. */
+  usdz_url: string | null;
   /** ISO-8601. */
   expires_at: string;
-  /**
-   * M-A5: AR sahifasi (viewer bundle `mode: "ar"`, asosiy GLB kliplar bilan). Bo'lmasa — eski `/ar/launch` sahifasi.
-   * TODO(contract): kontraktda yo'q — 1.4 taklifi 6-bo'lim.
-   */
-  launch_url?: string;
 }
-
-export type ArFormat = 'usdz' | 'glb';
 
 /** Kontrakt 4: xato tanasi har doim `{ error, message }`; mantiq faqat `error` ga, matn `message` dan. */
 export interface ErrorBody {
@@ -121,6 +121,7 @@ export const ERROR = {
   tokenInvalid: 'token_invalid',
   tokenRevoked: 'token_revoked',
   notFound: 'not_found',
+  pairCodeInvalid: 'pair_code_invalid',
   pairCodeExpired: 'pair_code_expired',
   rateLimited: 'rate_limited',
   serverError: 'server_error',

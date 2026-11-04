@@ -76,8 +76,8 @@ describe('POST /mobile/pair', () => {
     );
   });
 
-  it.each(['000000', 123456, undefined])('noto‘g‘ri kod %j → 401', async (code) => {
-    expectError(await pair(code, '10.0.0.2'), 401, 'invalid_code');
+  it.each(['000000', 123456, undefined])('noto‘g‘ri kod %j → 400 pair_code_invalid', async (code) => {
+    expectError(await pair(code, '10.0.0.2'), 400, 'pair_code_invalid');
   });
 
   it('muddati o‘tgan / ishlatilgan kod → 410 pair_code_expired', async () => {
@@ -86,7 +86,7 @@ describe('POST /mobile/pair', () => {
 
   it('1 daqiqada 5 tadan ko‘p muvaffaqiyatsiz urinish → 429 rate_limited; daqiqadan keyin yana mumkin', async () => {
     const ip = '10.0.0.9';
-    for (let i = 0; i < PAIR_RATE.maxFailures; i++) expect((await pair('000000', ip)).statusCode).toBe(401);
+    for (let i = 0; i < PAIR_RATE.maxFailures; i++) expect((await pair('000000', ip)).statusCode).toBe(400);
     expectError(await pair('123456', ip), 429, 'rate_limited');
     expect((await pair('123456', '10.0.0.10')).statusCode).toBe(200); // boshqa IP
     clock = T0 + PAIR_RATE.windowMs + 1;
@@ -171,6 +171,7 @@ describe('GET /mobile/resolve', () => {
       part_uid: SHELF_UID,
       part_name: 'Polka',
       glb_url: `${BASE}/files/glb/m0-r5.glb`,
+      usdz_url: null, // kontrakt 1.4
       is_latest: true,
       part_in_latest: true,
       latest_revision_id: 'm0-r5',
@@ -229,14 +230,28 @@ describe('POST /mobile/ar-link', () => {
   const linkFor = async (payload: object) => {
     const res = await arLink(payload);
     expect(res.statusCode).toBe(200);
-    return res.json() as { url: string; expires_at: string };
+    return res.json() as {
+      url: string;
+      glb_url: string;
+      usdz_url: null;
+      launch_url: string;
+      expires_at: string;
+    };
   };
   const path = (url: string) => url.replace(BASE, '');
 
   it('imzolangan havola AR variantiga (animatsiyasiz): 10 daqiqa, Bearer’siz ishlaydi', async () => {
     clock = T0;
-    const { url, expires_at } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' });
+    const {
+      glb_url: url,
+      expires_at,
+      usdz_url,
+      launch_url,
+    } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3' });
     expect(Date.parse(expires_at) - T0).toBe(AR_LINK_TTL_MS);
+    // Kontrakt 1.4: launch_url, glb_url, usdz_url (V-1b gacha null), expires_at
+    expect(usdz_url).toBeNull();
+    expect(launch_url).toContain('/ar/m0-r3.');
     expect(url).toMatch(/^http:\/\/localhost:80\/files\/ar\/m0-r3-ar\.glb\?exp=\d+&sig=[0-9a-f]{64}$/);
     const file = await get(path(url), {});
     expect(file.statusCode).toBe(200);
@@ -257,10 +272,10 @@ describe('POST /mobile/ar-link', () => {
     const res = await tunneled.inject({
       method: 'POST',
       url: '/mobile/ar-link',
-      payload: { item_id: 'm0', revision_id: 'm0-r5', format: 'glb' },
+      payload: { item_id: 'm0', revision_id: 'm0-r5' },
       headers: auth,
     });
-    const { url } = res.json() as { url: string };
+    const { glb_url: url } = res.json() as { glb_url: string };
     expect(url).toMatch(
       /^https:\/\/abc\.trycloudflare\.com\/files\/ar\/m0-r5-ar\.glb\?exp=\d+&sig=[0-9a-f]{64}$/,
     );
@@ -275,30 +290,25 @@ describe('POST /mobile/ar-link', () => {
 
   it('muddati o‘tgan havola → 404', async () => {
     clock = T0;
-    const { url } = await linkFor({ item_id: 'm0', revision_id: 'm0-r5', format: 'glb' });
+    const { glb_url: url } = await linkFor({ item_id: 'm0', revision_id: 'm0-r5' });
     clock = T0 + AR_LINK_TTL_MS + 1000;
     expectError(await get(path(url), {}), 404, 'not_found');
     clock = T0;
   });
 
   it('buzilgan imzo yoki boshqa fayl → 404', async () => {
-    const { url } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' });
+    const { glb_url: url } = await linkFor({ item_id: 'm0', revision_id: 'm0-r3' });
     expectError(await get(path(url).replace(/sig=[0-9a-f]+/, `sig=${'0'.repeat(64)}`), {}), 404, 'not_found');
     expectError(await get(path(url).replace('m0-r3-ar.glb', 'm0-r5-ar.glb'), {}), 404, 'not_found');
     expectError(await get(path(url).replace('m0-r3-ar.glb', 'm0-r3.glb'), {}), 404, 'not_found');
     expectError(await get('/files/ar/m0-r3-ar.glb', {}), 404, 'not_found');
   });
 
-  it('noto‘g‘ri tana → 400; noma’lum reviziya, USDZ (mock’da yo‘q) → 404; tokensiz → 401', async () => {
-    expectError(await arLink({ item_id: 'm0', revision_id: 'm0-r3', format: 'obj' }), 400, 'bad_request');
+  it('noto‘g‘ri tana → 400; noma’lum reviziya → 404; tokensiz → 401', async () => {
+    expectError(await arLink({ revision_id: 'm0-r3' }), 400, 'bad_request');
     expectError(await arLink({ item_id: 'm0' }), 400, 'bad_request');
-    expectError(await arLink({ item_id: 'm0', revision_id: 'm0-r9', format: 'glb' }), 404, 'not_found');
-    expectError(await arLink({ item_id: 'm0', revision_id: 'm0-r3', format: 'usdz' }), 404, 'not_found');
-    expectError(
-      await arLink({ item_id: 'm0', revision_id: 'm0-r3', format: 'glb' }, {}),
-      401,
-      'token_invalid',
-    );
+    expectError(await arLink({ item_id: 'm0', revision_id: 'm0-r9' }), 404, 'not_found');
+    expectError(await arLink({ item_id: 'm0', revision_id: 'm0-r3' }, {}), 401, 'token_invalid');
   });
 });
 
@@ -372,10 +382,10 @@ describe('GET /ar/launch (AR zaxira sahifasi)', () => {
     const link = await a.inject({
       method: 'POST',
       url: '/mobile/ar-link',
-      payload: { item_id: 'm0', revision_id: 'm0-r5', format: 'glb' },
+      payload: { item_id: 'm0', revision_id: 'm0-r5' },
       headers: auth,
     });
-    const url = (link.json() as { url: string }).url.replace(PUBLIC, '');
+    const url = (link.json() as { glb_url: string }).glb_url.replace(PUBLIC, '');
     const file = await a.inject({ method: 'GET', url });
     expect(file.statusCode).toBe(200);
     expect(file.headers['access-control-allow-origin']).toBe('*');
@@ -413,7 +423,7 @@ describe('GET /ar/<imzo> (M-A5: viewer AR sahifasi)', () => {
     const res = await a.inject({
       method: 'POST',
       url: '/mobile/ar-link',
-      payload: { item_id: 'm0', revision_id, format: 'glb' },
+      payload: { item_id: 'm0', revision_id },
       headers: auth,
     });
     expect(res.statusCode).toBe(200);
