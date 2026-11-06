@@ -39,6 +39,22 @@ export async function clearSession(): Promise<void> {
 }
 
 export const loadApiUrl = () => SecureStore.getItemAsync(KEY.apiUrl);
+
+/**
+ * Ilova ochilganda: sessiya va server manzili. Hech qachon rad etilmaydi — Android Keystore'da kalit buzilsa
+ * (zaxiradan tiklash, qayta o'rnatish) `getItemAsync` xato beradi; unda juftlanmagan deb hisoblanadi
+ * (buzilgan yozuvlar o'chiriladi), aks holda ilova yuklanish holatida qotib qoladi.
+ */
+export async function loadStartup(): Promise<{ session: StoredSession | null; apiUrl: string | null }> {
+  const [session, apiUrl] = await Promise.all([
+    loadSession().catch(async () => {
+      await clearSession().catch(() => undefined);
+      return null;
+    }),
+    loadApiUrl().catch(() => null),
+  ]);
+  return { session, apiUrl };
+}
 export const saveApiUrl = (url: string) => SecureStore.setItemAsync(KEY.apiUrl, url);
 
 /**
