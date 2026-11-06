@@ -65,6 +65,16 @@ Tayyorlash vaqtida qilingan o'zgarishlar:
 
 Hali TMP qolgan: **`brand/loading-bg.png`**. Kit'da yuklanish ekrani foni yo'q.
 
+## Holat (2026-11-06): yangi logotip — 3D kub (founder)
+Manba: founder SVG'si "Минималистичный лаймово-белый 3D-куб на тёмном фоне" (VTracer, 1536×1024): "U" shaklidagi oq yon,
+laym `#C1EF1B` yuqori tomon, ikki tortmali oq old tomon. Eski "U" + ko'k (`#3988FF`) belgi o'rniga.
+- Fon (`#05060B`) va kuzatish qoldig'i olib tashlandi; oq → `#F3F5F6`, tortma tirqishlari → `#0B0D0F`.
+- Almashtirildi: `logo-mark.svg`, `logo-mark-mono.svg` (tirqishlar — mask bilan teshik), `logo-full.svg` (matn o'sha),
+  `favicon.svg`, `web/favicon.svg`; PNG'lar shulardan chizildi: `icon.png` (RGB), `adaptive-foreground.png`,
+  `adaptive-monochrome.png`, `splash-icon.png`, `favicon-48.png`, `web/*.png`.
+- Ilova aksent rangi (`#3988FF`, ilova temasi) o'zgarmadi — logoga moslash alohida qaror.
+- Ikonka va splash yangi APK'da ko'rinadi (OTA bilan emas); ilova ichidagi `LogoFull`/`LogoMark` — OTA bilan ham.
+
 Dizaynerga qaytariladigan izohlar:
 1. `logo-full.svg` va `wordmark.svg` ichida `<text>` bor. Inter shrifti yuklanmagan joyda boshqa shrift chiqadi. Matnni **kontur (path)** ga aylantirish kerak.
 2. `door-open` / `door-close` va `drawer-open` / `drawer-close` faqat kichik strelka bilan farq qiladi, 24 px da deyarli bir xil ko'rinadi. Holatni farqlash kerak: masalan ochiq holat ikonkasida eshik/tortma siljigan bo'lsin.
