@@ -193,6 +193,9 @@ export const uz = {
     thickness: 'Qalinlik',
     open: 'Ochish',
     close: 'Yopish',
+    /** V-110 (kontrakt 1.10, 2.2): pantograf (`lift__<id>__open`). */
+    liftDown: 'Pantografni tushirish',
+    liftUp: 'Pantografni ko‘tarish',
   },
   time: {
     now: 'hozirgina',
@@ -219,6 +222,7 @@ export const uz = {
     next: 'Keyingisi',
     behindDoor: 'Eshik orqasida',
     inDrawer: 'Tortma ichida',
+    onLift: 'Pantografda',
     loadingPercent: (p: number) => `Model yuklanmoqda… ${p}%`,
   },
   scan: {

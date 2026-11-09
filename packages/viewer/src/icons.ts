@@ -13,10 +13,16 @@ import { stripSvgMetadata } from './brand.js';
 const lucide = (body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 
-/** Lucide (ISC) — ASSETS.md ro'yxatidagi `x`, `rotate-ccw`, `triangle-alert`; maxsus fayli yo'q. */
+/**
+ * Lucide (ISC) — ASSETS.md ro'yxatidagi `x`, `rotate-ccw`, `triangle-alert`; maxsus fayli yo'q.
+ * V-110: pantograf (`lift__`) — Brand Kit'da ikonka yo'q: Lucide `arrow-down-to-line` (tushirish) va
+ * `arrow-up-to-line` (ko'tarish). Dizaynerdan maxsus ikonka so'ralgan (V-110 hisoboti).
+ */
 const LUCIDE = {
   x: lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
   'rotate-ccw': lucide('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
+  'lift-down': lucide('<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>'),
+  'lift-up': lucide('<path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/>'),
   'triangle-alert': lucide(
     '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   ),
@@ -45,6 +51,12 @@ export function iconEl(name: ViewerIconName, cls = 'icon'): HTMLSpanElement {
   return span;
 }
 
-/** Klip tugmasi ikonkasi: eshik/tortma, ochiq yoki yopiq holatga qarab (ochiq bo'lsa — yopish). */
-export const clipIconName = (clip: string, open: boolean): ViewerIconName =>
-  clip.includes('door__') ? (open ? 'door-close' : 'door-open') : open ? 'drawer-close' : 'drawer-open';
+/**
+ * Klip tugmasi ikonkasi: eshik/tortma/pantograf, ochiq yoki yopiq holatga qarab (ochiq bo'lsa — yopish amali).
+ * Loyiha rejimidagi `<item>::` prefiksi bilan ham ishlaydi (`includes`).
+ */
+export const clipIconName = (clip: string, open: boolean): ViewerIconName => {
+  if (clip.includes('lift__')) return open ? 'lift-up' : 'lift-down';
+  if (clip.includes('door__')) return open ? 'door-close' : 'door-open';
+  return open ? 'drawer-close' : 'drawer-open';
+};
