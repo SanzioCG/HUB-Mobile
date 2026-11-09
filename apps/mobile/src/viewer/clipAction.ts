@@ -10,9 +10,11 @@ import type { PartExtras } from './bridge';
  * TODO(contract): aniq joylashuv ("2-tortma ichida") kontraktda yo'q — tartib raqami bilinmaydi.
  */
 export function locationOf(part: PartExtras): string | null {
-  if (part.reveal.some((c) => c.includes('lift__'))) return uz.select.onLift;
-  if (part.reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
-  if (part.reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
+  // Kontrakt 2.6: furnitura tugunida `reveal` bo'lmasligi mumkin (U-HUB V-1, loyiha №47).
+  const reveal = part.reveal ?? [];
+  if (reveal.some((c) => c.includes('lift__'))) return uz.select.onLift;
+  if (reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
+  if (reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
   return null;
 }
 

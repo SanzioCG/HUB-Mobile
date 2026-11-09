@@ -1,11 +1,42 @@
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { useEffect } from 'react';
+import { ScrollView, View } from 'react-native';
+import { Button, T } from '../components/ui';
+import { installGlobalErrorCapture, saveLastError } from '../diag/lastError';
+import { uz } from '../i18n/uz';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Boot } from '../boot/Boot';
 import { SHOW_DEV_UI } from '../config';
 import { SessionProvider, useSession } from '../session/SessionProvider';
-import { colors } from '../theme';
+import { colors, space } from '../theme';
+
+// Ushlanmagan JS xatolari — sababi saqlanadi (Sozlamalar → "Oxirgi xato"); telefonda log yo'q.
+installGlobalErrorCapture(
+  (globalThis as { ErrorUtils?: Parameters<typeof installGlobalErrorCapture>[0] }).ErrorUtils,
+);
+
+/**
+ * Ekran chizishdagi xato ilovani yopmaydi: xato matni va "Qayta urinish" (expo-router ErrorBoundary).
+ * Matn saqlanadi — keyin Sozlamalar → "Oxirgi xato".
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    void saveLastError('screen', error);
+  }, [error]);
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={{ padding: space.lg, paddingTop: space.lg * 3, gap: space.md }}
+    >
+      <T>{uz.diag.crashTitle}</T>
+      <T mono muted selectable>
+        {`${error.name}: ${error.message}`}
+      </T>
+      <Button label={uz.diag.retry} icon="rotate-ccw" onPress={() => void retry()} />
+    </ScrollView>
+  );
+}
 
 export default function RootLayout() {
   return (

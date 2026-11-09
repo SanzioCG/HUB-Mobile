@@ -1,7 +1,7 @@
 // Kontrakt 1.10, 8-bo'lim: bundle versiyasi va qo'llaydigan kontrakt versiyasi bundle ichida.
 
 /** Viewer bundle versiyasi (semver). Reliz: `npm run release:viewer` → releases/viewer/<VIEWER_VERSION>/. */
-export const VIEWER_VERSION = '0.6.1';
+export const VIEWER_VERSION = '0.6.2';
 
 /** Viewer qo'llaydigan kontrakt versiyasi. */
 export const VIEWER_CONTRACT = '1.10';

@@ -177,7 +177,8 @@ function ItemViewer({
         // Oflayn: etiketkalar (QR → detal) va onlayn ochilgan reviziya fonda keshga.
         void saveLabels(
           labelsFromParts(m.parts, {
-            project_id: Number(projectId),
+            // Kontrakt 4: id shaffof satr (U-HUB — UUID); `Number()` UUID'ni NaN qilardi.
+            project_id: projectId,
             item_id: target.itemId,
             item_name: target.name,
             revision_id: target.revisionId,
@@ -199,7 +200,7 @@ function ItemViewer({
         const byScan = expectUid.current === m.uid;
         expectUid.current = null;
         setSelected({ part: m.extras, clip: m.clip, byScan, material: m.material });
-        if (byScan && scan) void setRecentNumber(scan.qr, m.extras.number);
+        if (byScan && scan && m.extras.number) void setRecentNumber(scan.qr, m.extras.number);
         break;
       }
       case 'deselected':

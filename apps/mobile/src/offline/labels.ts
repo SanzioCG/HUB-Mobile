@@ -28,7 +28,7 @@ export interface OfflineData {
 
 /** Model yuklanganda: har detalning `qr` matnidan etiketka yozuvi. */
 export function labelsFromParts(
-  parts: readonly { uid: string; name: string; qr: string }[],
+  parts: readonly { uid: string; name: string; qr: string | null }[],
   ctx: Omit<LabelRecord, 'part_uid' | 'part_name' | 'project_number'>,
 ): Record<string, LabelRecord> {
   const out: Record<string, LabelRecord> = {};

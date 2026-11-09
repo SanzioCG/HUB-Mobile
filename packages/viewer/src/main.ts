@@ -106,10 +106,10 @@ function devPanel(
   const showCard = (x: PartExtras) => {
     card.innerHTML = '';
     const lines = [
-      `№ ${x.number} · ${x.name}`,
-      x.material,
-      `${x.size_mm.join(' × ')} mm`,
-      Object.entries(x.edges)
+      `№ ${x.number ?? '—'} · ${x.name}`,
+      x.material ?? [x.supplier, x.model].filter(Boolean).join(' · '),
+      x.size_mm?.length ? `${x.size_mm.join(' × ')} mm` : '',
+      Object.entries(x.edges ?? {})
         .map(([k, v]) => `${k}: ${v}`)
         .join('; ') || "kromka yo'q",
       `uid ${x.uid}`,

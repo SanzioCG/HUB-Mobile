@@ -135,6 +135,12 @@ export const uz = {
     updateFailed: (m: string) => `Yangilanishni tekshirib bo‘lmadi: ${m}`,
     dev: 'Dasturchi',
   },
+  diag: {
+    crashTitle: 'Ekranda xato yuz berdi. Matnini founder/dasturchiga yuboring:',
+    retry: 'Qayta urinish',
+    lastError: 'Oxirgi xato',
+    clear: 'Tozalash',
+  },
   roles: {
     designer: 'Dizayner',
     manager: 'Menejer',

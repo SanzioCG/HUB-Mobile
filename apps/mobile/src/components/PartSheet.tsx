@@ -80,7 +80,7 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
       )}
 
       <Row label={uz.part.size}>
-        <T mono>{part.size_mm.join(' × ')} mm</T>
+        <T mono>{part.size_mm?.length ? `${part.size_mm.join(' × ')} mm` : uz.common.dash}</T>
       </Row>
       <Row label={uz.part.material}>
         <T>{part.material}</T>
