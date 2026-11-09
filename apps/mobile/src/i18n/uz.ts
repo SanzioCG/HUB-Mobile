@@ -70,6 +70,7 @@ export const uz = {
     projects: 'Loyihalar',
     scanner: 'Skaner',
     offline: 'Offline',
+    files: 'Fayllar',
     settings: 'Sozlamalar',
   },
   offline: {
@@ -170,6 +171,9 @@ export const uz = {
     layerHardware: 'Furnitura',
     fit: "Sig'dirish",
     zones: 'Ochilish zonalari',
+    /** Viewer relsidagi qisqa yorliq. */
+    zonesShort: 'Zonalar',
+    infoSize: "O'lcham",
     info: "Ma'lumot",
     infoRevision: 'Reviziya',
     infoStatus: 'Holat',

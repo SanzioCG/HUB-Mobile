@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   headText: { flex: 1, gap: space.xs },
-  number: { fontFamily: fonts.monoMedium, fontSize: fontSize.number, color: colors.white },
+  number: { fontFamily: fonts.monoMedium, fontSize: fontSize.number, color: colors.text },
   name: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
   close: {
     width: hit,

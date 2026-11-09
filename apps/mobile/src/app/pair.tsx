@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cellActive: { backgroundColor: colors.border },
-  cellText: { fontSize: fontSize.title, color: colors.white },
+  cellText: { fontSize: fontSize.title, color: colors.text },
   hidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   status: { minHeight: hit, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
