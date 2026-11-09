@@ -5,6 +5,11 @@
 // - Tortmani yopish: teskari (avval tortma, keyin eshik — agar eshik ortida boshqa ochiq tortma qolmasa).
 // - Eshikni yopish: avval uning ortidagi ochiq tortmalar, keyin eshik. "Ortidagi" — `reveal` ida shu eshik bor tortmalar.
 // - Hammasini ochish: avval eshiklar, keyin ichki tortmalar; yopish — teskari.
+//
+// Kontrakt 1.10 (2.2): pantograf (`lift__<id>__open`) — xuddi ichki tortma qoidasi: `reveal` i
+// (`pivot__lift__<id>` dagi `extras.uhub.lift.reveal`) — undan oldin ochiladigan eshiklar. Ochishda avval eshiklar,
+// keyin pantograf; yopishda teskari; eshik yopilishidan oldin uning ortidagi tushgan pantograf ko'tariladi.
+// "Hammasini ochish" da pantograflar eshiklardan keyin (`reveal` bo'sh bo'lsa ham — `all__open` kabi).
 
 export type Dir = 1 | -1;
 export interface Move {
@@ -14,7 +19,10 @@ export interface Move {
 /** Bosqichlar ketma-ket; bir bosqich ichidagi harakatlar birga. */
 export type Plan = Move[][];
 
-/** Detal: o'z klipi (`pivot__door`/`slide__drawer` ostida bo'lsa) va `reveal` ro'yxati. */
+/**
+ * Detal: o'z klipi (`pivot__door`/`slide__drawer`/`pivot__lift` ostida bo'lsa) va `reveal` ro'yxati.
+ * Pantograf tugunining o'zi ham shu shaklda keladi: `kind: 'lift'`, `reveal` — `extras.uhub.lift.reveal`.
+ */
 export interface RevealPart {
   clip: string | null;
   kind: string;
@@ -24,16 +32,20 @@ export interface RevealPart {
 export class RevealIndex {
   /** klip → undan oldin ochilishi kerak bo'lgan kliplar (tartib bilan, o'zisiz). */
   private readonly prereq = new Map<string, string[]>();
+  /** Pantograf kliplari — "hammasini ochish" da eshiklardan keyin. */
+  private readonly lifts = new Set<string>();
 
   constructor(
     parts: readonly RevealPart[],
     private readonly clips: readonly string[],
   ) {
     const known = new Set(clips);
-    // Fasad (`drawer_front`/`door`) ning `reveal` i ustun; bo'lmasa — o'sha klipdagi istalgan detal.
-    const rank = (k: string) => (k === 'drawer_front' || k === 'door' ? 0 : 1);
+    // Pantograf tuguni (`lift`) va fasad (`drawer_front`/`door`) ning `reveal` i ustun; bo'lmasa — o'sha klipdagi
+    // istalgan detal (pantograf furniturasida `reveal` yo'q).
+    const rank = (k: string) => (k === 'lift' || k === 'drawer_front' || k === 'door' ? 0 : 1);
     const sorted = [...parts].sort((a, b) => rank(a.kind) - rank(b.kind));
     for (const p of sorted) {
+      if (p.kind === 'lift' && p.clip && known.has(p.clip)) this.lifts.add(p.clip);
       if (!p.clip || !known.has(p.clip) || this.prereq.has(p.clip)) continue;
       const before: string[] = [];
       for (const c of p.reveal) {
@@ -53,12 +65,29 @@ export class RevealIndex {
     return this.clips.filter((c) => this.prerequisites(c).includes(clip));
   }
 
-  /** Bog'liqlik chuqurligi: eshik va tashqi tortma — 0, ichki tortma — 1 … */
+  /** Bog'liqlik chuqurligi: eshik va tashqi tortma — 0, ichki tortma va pantograf — 1 … */
   depth(clip: string, seen = new Set<string>()): number {
     if (seen.has(clip)) return 0;
     seen.add(clip);
     const pre = this.prerequisites(clip);
-    return pre.length ? 1 + Math.max(...pre.map((c) => this.depth(c, seen))) : 0;
+    const d = pre.length ? 1 + Math.max(...pre.map((c) => this.depth(c, seen))) : 0;
+    return this.lifts.has(clip) ? Math.max(1, d) : d;
+  }
+
+  /**
+   * Kliplar ro'yxatini ochish tartibida to'ldiradi: har klipdan oldin uning ochilmagan oldingi kliplari
+   * (masalan detal `reveal` ida faqat pantograf bo'lsa ham — avval uning eshiklari). Takrorlar yo'q.
+   */
+  expand(clips: readonly string[]): string[] {
+    const out: string[] = [];
+    const add = (c: string, seen: Set<string>) => {
+      if (out.includes(c) || seen.has(c)) return;
+      seen.add(c);
+      for (const p of this.prerequisites(c)) add(p, seen);
+      out.push(c);
+    };
+    for (const c of clips) add(c, new Set());
+    return out;
   }
 
   /** Bitta klipni ochish. */

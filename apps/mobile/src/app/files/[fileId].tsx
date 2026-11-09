@@ -93,6 +93,16 @@ export default function FileProjectScreen() {
                   ))}
                 </View>
               )}
+              {/* 1.9 (10.2): izohlar — kulrang, belgisiz. Eski saqlangan fayllarda `notes` yo'q. */}
+              {(it.notes ?? []).length > 0 && (
+                <View style={styles.notes}>
+                  {(it.notes ?? []).map((n) => (
+                    <T key={n} muted style={styles.noteText}>
+                      {n}
+                    </T>
+                  ))}
+                </View>
+              )}
             </View>
             <Icon name="chevron-right" size={size.icon} color={colors.textMuted} />
           </Pressable>
@@ -132,5 +142,7 @@ const styles = StyleSheet.create({
   },
   warnTitle: { color: colors.yellow, fontFamily: fonts.semibold },
   warnText: { fontSize: fontSize.sm },
+  notes: { marginTop: space.xs, gap: space.xxs },
+  noteText: { fontSize: fontSize.sm },
   pressed: { backgroundColor: colors.surface },
 });

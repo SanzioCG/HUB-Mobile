@@ -1,10 +1,10 @@
-// Kontrakt 1.6, 8-bo'lim: bundle versiyasi va qo'llaydigan kontrakt versiyasi bundle ichida.
+// Kontrakt 1.10, 8-bo'lim: bundle versiyasi va qo'llaydigan kontrakt versiyasi bundle ichida.
 
 /** Viewer bundle versiyasi (semver). Reliz: `npm run release:viewer` → releases/viewer/<VIEWER_VERSION>/. */
-export const VIEWER_VERSION = '0.5.1';
+export const VIEWER_VERSION = '0.6.0';
 
 /** Viewer qo'llaydigan kontrakt versiyasi. */
-export const VIEWER_CONTRACT = '1.6';
+export const VIEWER_CONTRACT = '1.10';
 
 const major = (v: string) => Number.parseInt(v.split('.')[0] ?? '', 10);
 

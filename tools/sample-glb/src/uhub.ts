@@ -19,6 +19,8 @@ export interface UhubItem {
   sizeMm: { width: number; height: number; depth: number };
   transform: { translation: [number, number, number]; rotation: [number, number, number, number] };
   warnings?: string[];
+  /** 1.9 (10.2): ma'lumot uchun izohlar. */
+  notes?: string[];
 }
 
 export interface UhubSpec {
@@ -73,6 +75,7 @@ export async function uhubEntries(spec: UhubSpec): Promise<Record<string, Uint8A
       thumb: null,
       parts: partsOf(it.doc),
       ...(it.warnings ? { warnings: it.warnings } : {}),
+      ...(it.notes ? { notes: it.notes } : {}),
     });
   }
   files['viewer/index.json'] = json({

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { NodeIO } from '@gltf-transform/core';
-import { AnimationClip, Group, Mesh, Object3D, Vector3 } from 'three';
+import { AnimationClip, Group, Mesh, Object3D, Quaternion, QuaternionKeyframeTrack, Vector3 } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { buildM0 } from '@hub-mobile/sample-glb/build';
 import type { PartExtras } from '../src/bridge.js';
@@ -17,6 +17,9 @@ import {
   partMaterialInfo,
   partExtras,
   revealPlan,
+  liftNodes,
+  selectionTarget,
+  bendsOf,
 } from '../src/model.js';
 
 let gltf: GLTF;
@@ -330,5 +333,119 @@ describe('ClipPlayer (M-0)', () => {
     const p = new ClipPlayer(gltf.scene, [new AnimationClip('door__zz__open', 1, [])]);
     await expect(p.play('drawer__nope__open', 1)).resolves.toBeUndefined();
     p.dispose();
+  });
+});
+
+// Kontrakt 1.10 (2.1/2.2): pantograf. Tuzilma U-HUB F-HG1 GLB'i kabi:
+// pivot__lift__p (extras.uhub.lift) → yelka detali + hang__lift__p__handle (→ tutqich detali).
+describe('pantograf (1.10)', () => {
+  const part = (uid: string, kind = 'hardware') => {
+    const o = new Mesh();
+    o.name = `part__${uid}`;
+    o.userData = { uhub: { kind, uid, name: uid } };
+    return o;
+  };
+  const build = () => {
+    const root = new Group();
+    const pivot = new Group();
+    pivot.name = 'pivot__lift__p';
+    pivot.userData = {
+      uhub: { lift: { angle_deg: 90, axis: 'x', reveal: ['door__l__open', 'door__r__open'] } },
+    };
+    pivot.position.set(0, 1.8, 0.3);
+    const hang = new Group();
+    hang.name = 'hang__lift__p__handle';
+    hang.userData = { uhub: { hang: { axis: 'x' } } };
+    hang.position.set(0, -0.5, 0);
+    const arm = part('lift_p_arm_left');
+    const handle = part('lift_p_handle_grip');
+    hang.add(handle);
+    pivot.add(arm, hang);
+    root.add(pivot);
+    // U-HUB kabi: bitta klip — pivot +90° x atrofida, hang −90° (osilib turadi).
+    const q = (deg: number) => new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (deg * Math.PI) / 180);
+    const track = (node: string, deg: number) =>
+      new QuaternionKeyframeTrack(`${node}.quaternion`, [0, 0.8], [...q(0).toArray(), ...q(deg).toArray()]);
+    const clip = new AnimationClip('lift__p__open', 0.8, [
+      track('pivot__lift__p', 90),
+      track('hang__lift__p__handle', -90),
+    ]);
+    return { root, pivot, hang, arm, handle, clip };
+  };
+
+  it('lift__<id>__open ochiladigan klip; all__open va boshqalar emas', () => {
+    expect(isOpenableClip('lift__p__open')).toBe(true);
+    expect(isOpenableClip('lift__1fb61146-d1c5-53b5-92d0-3a491fc84797__open')).toBe(true);
+    expect(isOpenableClip('lift__p__close')).toBe(false);
+    expect(isOpenableClip('hang__lift__p__handle')).toBe(false);
+    expect(openableClipNames([new AnimationClip('lift__p__open'), new AnimationClip('all__open')])).toEqual([
+      'lift__p__open',
+    ]);
+  });
+
+  it('ownClipName: yelka va osilgan tutqich → lift__p__open', () => {
+    const { arm, handle } = build();
+    expect(ownClipName(arm)).toBe('lift__p__open');
+    expect(ownClipName(handle)).toBe('lift__p__open');
+  });
+
+  it('liftNodes: klip nomi va reveal pivot tugunidan', () => {
+    const { root } = build();
+    expect(liftNodes(root)).toEqual([
+      {
+        clip: 'lift__p__open',
+        lift: { angle_deg: 90, axis: 'x', reveal: ['door__l__open', 'door__r__open'] },
+      },
+    ]);
+  });
+
+  it('klip ijrosi: pantograf 90° tushadi, tutqich osilib qoladi (dunyo burilishi o‘zgarmaydi)', async () => {
+    const { root, pivot, handle, clip } = build();
+    const player = new ClipPlayer(root, [clip]);
+    expect(player.names).toEqual(['lift__p__open']);
+    const done = player.play('lift__p__open', 1);
+    player.update(1);
+    await done;
+    root.updateMatrixWorld(true);
+    const angle = (o: Object3D) => o.getWorldQuaternion(new Quaternion()).angleTo(new Quaternion());
+    expect(angle(pivot)).toBeCloseTo(Math.PI / 2, 4);
+    expect(angle(handle)).toBeCloseTo(0, 4);
+    expect(player.isOpen('lift__p__open')).toBe(true);
+  });
+});
+
+describe('1.9 ramkali eshik va bukilgan yon devor', () => {
+  it('doorInfo: ramka/shisha bo‘lagidagi `door` (tabaqa uid, satr) o‘tkazib yuboriladi, pivot ma’lumoti olinadi', () => {
+    const pivot = new Group();
+    pivot.name = 'pivot__door__d';
+    const info = { hinge_side: 'left', open_angle_deg: 105, leaf: 1, leaves: 1 };
+    pivot.userData = { uhub: { door: info } };
+    const frame = new Mesh();
+    frame.userData = { uhub: { kind: 'frame', uid: 'frame_d_top', door: 'd' } };
+    pivot.add(frame);
+    expect(doorInfo(frame)).toEqual(info);
+    expect(ownClipName(frame)).toBe('door__d__open');
+  });
+
+  it('yoy (`bend_of`) tanlanganda tekis detal tanlanadi; yoylari birga', () => {
+    const mk = (uid: string, bendOf?: string) => {
+      const o = new Mesh();
+      o.userData = { uhub: { kind: 'panel', uid, ...(bendOf ? { bend_of: bendOf } : {}) } };
+      return o;
+    };
+    const flat = mk('side');
+    const b1 = mk('side_bend1', 'side');
+    const b2 = mk('side_bend2', 'side');
+    const lone = mk('x_bend1', 'yoq');
+    const parts = new Map<string, Object3D>([
+      ['side', flat],
+      ['side_bend1', b1],
+      ['side_bend2', b2],
+      ['x_bend1', lone],
+    ]);
+    expect(selectionTarget(b1, parts)).toBe(flat);
+    expect(selectionTarget(flat, parts)).toBe(flat);
+    expect(selectionTarget(lone, parts)).toBe(lone);
+    expect(bendsOf('side', parts)).toEqual([b1, b2]);
   });
 });

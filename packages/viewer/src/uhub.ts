@@ -100,6 +100,11 @@ export interface UhubItem {
   parts: UhubPart[];
   /** 1.6: eksport ogohlantirishlari; bo'lmasa — bo'sh. */
   warnings: string[];
+  /**
+   * 1.9: ma'lumot uchun izohlar (ogohlantirish emas, kulrang); `openUhub` doim to'ldiradi (bo'lmasa — bo'sh,
+   * takrorlarsiz). Ixtiyoriy — ilovada avval saqlangan fayllarda yo'q.
+   */
+  notes?: string[];
 }
 
 export interface UhubIndex {
@@ -206,6 +211,9 @@ function parseItem(raw: unknown, files: Map<string, Uint8Array>): UhubItem {
           }))
       : [],
     warnings: Array.isArray(r.warnings) ? r.warnings.filter((w): w is string => typeof w === 'string') : [],
+    notes: Array.isArray(r.notes)
+      ? [...new Set(r.notes.filter((n): n is string => typeof n === 'string' && n.trim() !== ''))]
+      : [],
   };
 }
 

@@ -75,3 +75,55 @@ describe('ichki tortma tartibi', () => {
     expect(idx.depth(D)).toBe(0);
   });
 });
+
+// Kontrakt 1.10 (2.2): pantograf — `pivot__lift__<id>` dagi `extras.uhub.lift.reveal` (oldin ochiladigan eshiklar).
+// Tuzilma U-HUB F-HG1 kabi: ikki tabaqali eshik (L, R) ortida pantograf; furnitura detallarida `reveal` yo'q.
+describe('pantograf tartibi (1.10)', () => {
+  const L = 'door__l__open';
+  const R = 'door__r__open';
+  const P = 'lift__p__open';
+  const lift = (reveal: string[], doors = [L, R]) =>
+    new RevealIndex(
+      [
+        // furnitura (yelka, truba, tutqich) — `reveal` yo'q, pantograf tugunidan oldin kelsa ham ustun emas
+        { clip: P, kind: 'hardware', reveal: [] },
+        { clip: P, kind: 'lift', reveal: [...reveal, P] },
+        ...doors.map((d) => ({ clip: d, kind: 'door', reveal: [] })),
+      ],
+      [...doors, P],
+    );
+
+  it('ochish: avval eshiklar reveal tartibida, keyin pantograf', () => {
+    expect(flat(lift([L, R]).planOpen(P, state()))).toEqual([[`+${L}`], [`+${R}`], [`+${P}`]]);
+    expect(flat(lift([L, R]).planOpen(P, state(L)))).toEqual([[`+${R}`], [`+${P}`]]);
+    expect(lift([L, R]).prerequisites(P)).toEqual([L, R]);
+  });
+
+  it('yopish teskari: avval pantograf ko‘tariladi, keyin eshiklar', () => {
+    expect(flat(lift([L, R]).planClose(P, state(L, R, P)))).toEqual([[`-${P}`], [`-${R}`], [`-${L}`]]);
+    expect(flat(lift([L, R]).toggle(P, state(L, R, P)))).toEqual([[`-${P}`], [`-${R}`], [`-${L}`]]);
+  });
+
+  it('pantograf tushgan holda eshikni yopish: avval pantograf, keyin eshik', () => {
+    expect(flat(lift([L, R]).planClose(L, state(L, R, P)))).toEqual([[`-${P}`], [`-${L}`]]);
+    expect(flat(lift([L, R]).planClose(L, state(L, R)))).toEqual([[`-${L}`]]);
+  });
+
+  it('hammasini ochish: eshiklar birga, keyin pantograf; yopish — teskari', () => {
+    expect(flat(lift([L, R]).planAll(1, state()))).toEqual([[`+${L}`, `+${R}`].sort(), [`+${P}`]]);
+    expect(flat(lift([L, R]).planAll(-1, state(L, R, P)))).toEqual([[`-${P}`], [`-${L}`, `-${R}`].sort()]);
+  });
+
+  it('reveal bo‘sh (oldida eshik yo‘q): yolg‘iz ochiladi, "hammasini ochish" da baribir eshiklardan keyin', () => {
+    expect(flat(lift([]).planOpen(P, state()))).toEqual([[`+${P}`]]);
+    expect(flat(lift([]).planAll(1, state()))).toEqual([[`+${L}`, `+${R}`].sort(), [`+${P}`]]);
+    expect(flat(lift([], []).planAll(1, state()))).toEqual([[`+${P}`]]);
+  });
+
+  it('expand: reveal da faqat pantograf bo‘lsa ham — avval uning eshiklari', () => {
+    expect(lift([L, R]).expand([P])).toEqual([L, R, P]);
+    expect(lift([L, R]).expand([R, P])).toEqual([R, L, P]);
+    expect(lift([]).expand([P])).toEqual([P]);
+    expect(index().expand([T2])).toEqual([D, T2]);
+  });
+});

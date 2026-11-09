@@ -47,6 +47,19 @@ function corruptEntryData(zip: Uint8Array, name: string): Uint8Array {
   throw new Error(`yozuv topilmadi: ${name}`);
 }
 
+describe('1.9: izohlar (`notes`)', () => {
+  it('yo‘q bo‘lsa — bo‘sh; bor bo‘lsa — satrlar, takrorlarsiz, bo‘shlari tashlanadi', async () => {
+    expect(openUhub(good).index.items.map((i) => i.notes)).toEqual([[], []]);
+    const spec = sampleUhubSpec();
+    spec.contract = '1.10';
+    spec.items[1]!.notes = ['Blum: petlyalar orasi ≤ 600 mm', '', 'Blum: petlyalar orasi ≤ 600 mm'];
+    const { index } = openUhub(zipEntries(await uhubEntries(spec)));
+    expect(index.contract).toBe('1.10');
+    expect(index.items[1]!.notes).toEqual(['Blum: petlyalar orasi ≤ 600 mm']);
+    expect(index.items[1]!.warnings).toEqual([]);
+  });
+});
+
 describe('to‘g‘ri fayl', () => {
   it('index va faqat viewer/* fayllari; ogohlantirishlar; approved eksport paytidagi', () => {
     const { index, files } = openUhub(good);

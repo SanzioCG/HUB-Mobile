@@ -301,6 +301,11 @@ body {
   height: 100%;
 }
 
+.file-notes {
+  font-size: 12px;
+  color: #9aa3ad;
+}
+
 .file-warn-line {
   display: flex;
   align-items: center;

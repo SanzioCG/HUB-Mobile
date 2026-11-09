@@ -40,6 +40,14 @@ describe('AR rejimi konfiguratsiyadan tanlanadi', () => {
 });
 
 describe('overlay tugmalari kliplar ro‘yxatidan', () => {
+  it('1.10: pantograf o‘z nomi bilan raqamlanadi', () => {
+    expect(clipButtons(['door__l__open', 'lift__p__open', 'drawer__t__open'])).toEqual([
+      { clip: 'door__l__open', label: 'Eshik 1' },
+      { clip: 'lift__p__open', label: 'Pantograf 1' },
+      { clip: 'drawer__t__open', label: 'Tortma 1' },
+    ]);
+  });
+
   it('eshik va tortmalar alohida raqamlanadi, all__open kirmaydi', () => {
     expect(
       clipButtons(['door__d1__open', 'drawer__d2__open', 'all__open', 'drawer__d3__open', 'door__d9__open']),

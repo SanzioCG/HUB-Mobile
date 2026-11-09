@@ -96,6 +96,12 @@ export function mountFileUi(viewer: FileViewer, bridge: Bridge): void {
           }
           row.append(w);
         }
+        // 1.9 (10.2): izohlar — kulrang, belgisiz (ogohlantirish emas).
+        if (it.notes?.length) {
+          const n = el('div', 'file-notes');
+          for (const t of it.notes) n.append(el('div', 'file-note-line', t));
+          row.append(n);
+        }
         return row;
       }),
     );

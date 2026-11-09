@@ -50,9 +50,10 @@ export type Zone =
 
 /** `door__<id>__open` → `pivot__door__<id>`, `drawer__<id>__open` → `slide__drawer__<id>` (kontrakt 2.1/2.2). */
 export function movingNodeName(clip: string): string | null {
-  const m = /^(door|drawer)__(.+)__open$/.exec(clip);
+  const m = /^(door|drawer|lift)__(.+)__open$/.exec(clip);
   if (!m) return null;
-  return m[1] === 'door' ? `pivot__door__${m[2]}` : `slide__drawer__${m[2]}`;
+  // 1.10: pantograf — `pivot__lift__<id>`; zonasi tortmaniki kabi quti (yurish davomidagi gabarit).
+  return m[1] === 'drawer' ? `slide__drawer__${m[2]}` : `pivot__${m[1]}__${m[2]}`;
 }
 
 /** Tugun ostidagi har mesh bounding box burchaklari — `node` fazosida (tugun burilishiga bog'liq emas). */

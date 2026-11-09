@@ -43,6 +43,7 @@ import { RevealIndex } from './sequence.js';
 import { fetchBytes } from './fetch-bytes.js';
 import { Look } from './look.js';
 import {
+  bendsOf,
   doorInfo,
   findItemNode,
   findPartAncestor,
@@ -51,7 +52,9 @@ import {
   ownClipName,
   partExtras,
   partMaterialInfo,
+  revealParts,
   revealPlan,
+  selectionTarget,
 } from './model.js';
 import { BG, FOCUS_DURATION_S } from './theme.js';
 import { VIEWER_CONTRACT, isContractCompatible } from './version.js';
@@ -74,6 +77,12 @@ const itemKeyOf = (o: Object3D | null): string => {
     if (typeof k === 'string') return k;
   }
   return '';
+};
+
+/** Tugun va uning hamma ota tugunlari ko'rinadimi. */
+const isShown = (o: Object3D): boolean => {
+  for (let n: Object3D | null = o; n; n = n.parent) if (!n.visible) return false;
+  return true;
 };
 
 /** Detalning eshik/tortma klipi (loyiha rejimida buyum kaliti bilan), faqat GLB'da mavjud bo'lsa. */
@@ -116,7 +125,7 @@ interface Loaded {
   container: Group;
   parts: Map<string, Object3D>;
   clips: ClipPlayer;
-  /** Kontrakt 1.6 (2.2): ichki tortma tartibi — `reveal` dan. */
+  /** Kontrakt 1.6 / 1.10 (2.2): ichki tortma va pantograf tartibi — `reveal` dan. */
   reveal: RevealIndex;
   look: Look;
   /** AR: birinchi buyumning poli (fayldan AR yo'q — server rejimida doim bitta buyum). */
@@ -356,6 +365,9 @@ export class Viewer {
       const root = gltf.scene;
       (root.userData as Record<string, unknown>)[ITEM_KEY] = src.key;
       root.traverse((o) => {
+        // Kontrakt 1.7/1.8 (2.6): "Teshiklar" qatlami standart o'chiq — `holes__<uid>` guruhlari yashirin
+        // (qatlam tugmasi va teshik kartasi — A-1v).
+        if (o.name.startsWith('holes__')) o.visible = false;
         const mesh = o as Mesh;
         if (!mesh.isMesh) return;
         mesh.castShadow = true;
@@ -416,16 +428,9 @@ export class Viewer {
       items,
       container,
       parts,
+      // 1.10: pantograf tuguni — uning `reveal` i (eshiklar) furnitura detallaridan ustun.
       reveal: new RevealIndex(
-        [...parts.values()].map((node) => {
-          const x = partExtras(node)!;
-          const key = itemKeyOf(node);
-          return {
-            clip: ownClip(node, clips),
-            kind: x.kind,
-            reveal: (x.reveal ?? []).map((c) => qualify(key, c)),
-          };
-        }),
+        revealParts(items, (c) => clips.has(c)),
         clips.names,
       ),
       clips,
@@ -474,20 +479,24 @@ export class Viewer {
 
   /** Kontrakt 6-bo'lim, 4-qadam: reveal kliplari ketma-ket, qolganlar shaffof, kontur, kamera. */
   private async selectByUid(m: Loaded, uid: string): Promise<void> {
-    const node = m.parts.get(uid);
-    if (!node) return this.error('part_not_found', `Detal modelda topilmadi: ${uid}`);
+    const found = m.parts.get(uid);
+    if (!found) return this.error('part_not_found', `Detal modelda topilmadi: ${uid}`);
+    const node = selectionTarget(found, m.parts);
     const seq = ++this.selectSeq;
     const extras = partExtras(node)!;
     this.postSelected(m, node, extras);
-    m.look.selected = node;
+    this.highlight(m, node);
     m.look.ghost = true;
     m.look.apply();
 
     const key = itemKeyOf(node);
-    const { clips, missing } = revealPlan(
+    const plan = revealPlan(
       { ...extras, reveal: (extras.reveal ?? []).map((c) => qualify(key, c)) },
       new Set(m.clips.names),
     );
+    const { missing } = plan;
+    // 1.10: `reveal` dagi pantografdan oldin uning eshiklari (`extras.uhub.lift.reveal`) — ro'yxatda bo'lmasa ham.
+    const clips = m.reveal.expand(plan.clips);
     if (missing.length) this.error('clip_not_found', `reveal kliplari topilmadi: ${missing.join(', ')}`);
     // Avvalgi tanlovdan ochiq qolgan, endi kerak bo'lmagan kliplar yopiladi.
     // Kontrakt 1.6 (2.2): avval ichki tortmalar, keyin eshiklar.
@@ -550,9 +559,12 @@ export class Viewer {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const targets = m.look.meshList.filter((mesh) => !m.look.isGhosted(mesh));
+    // Yashirin (qatlam o'chiq, teshiklar) meshlar bosilmaydi — Raycaster ko'rinishni tekshirmaydi.
+    const targets = m.look.meshList.filter((mesh) => !m.look.isGhosted(mesh) && isShown(mesh));
     const hit = this.raycaster.intersectObjects(targets, false)[0];
-    const part = findPartAncestor(hit?.object ?? null);
+    const found = findPartAncestor(hit?.object ?? null);
+    // Bukilgan yon devorning yoyi — tekis detal tanlanadi (yoylari bilan birga).
+    const part = found && selectionTarget(found, m.parts);
     if (!part) {
       if (!m.look.ghost && m.look.selected) {
         m.look.selected = null;
@@ -562,9 +574,16 @@ export class Viewer {
       return;
     }
     const extras = partExtras(part)!;
-    m.look.selected = part;
+    this.highlight(m, part);
     m.look.apply();
     this.postSelected(m, part, extras);
+  }
+
+  /** Tanlangan detal va (bukilgan yon devor bo'lsa) uning yoylari ajratiladi. */
+  private highlight(m: Loaded, node: Object3D): void {
+    m.look.selected = node;
+    const uid = partExtras(node)?.uid;
+    m.look.also = uid ? bendsOf(uid, m.parts) : [];
   }
 
   private installTapHandling(el: HTMLElement): void {

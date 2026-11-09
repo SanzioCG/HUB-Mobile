@@ -29,9 +29,15 @@ describe('uhub-config', () => {
 });
 
 describe('versiya', () => {
-  it('VIEWER_VERSION semver, kontrakt 1.3', () => {
+  it('VIEWER_VERSION semver, kontrakt 1.10', () => {
     expect(VIEWER_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(VIEWER_CONTRACT).toBe('1.6');
+    expect(VIEWER_CONTRACT).toBe('1.10');
+  });
+
+  it('1.10 GLB qabul qilinadi (major 1; "1.10" > "1.9", satr sifatida solishtirilmaydi)', () => {
+    expect(isContractCompatible('1.10')).toBe(true);
+    expect(isContractCompatible('1.9')).toBe(true);
+    expect(isContractCompatible('10.1')).toBe(false);
   });
 
   it('kontrakt major mosligi', () => {

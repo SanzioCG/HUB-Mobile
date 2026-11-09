@@ -45,6 +45,8 @@ export class Look {
   mode: ViewMode = 'solid';
   /** Tanlangan detal (tugun va uning ichidagi meshlar). */
   selected: Object3D | null = null;
+  /** Tanlov bilan birga ajratiladigan tugunlar (bukilgan yon devorning yoylari). */
+  also: readonly Object3D[] = [];
   /** QR oqimi: qolgan detallar shaffof. */
   ghost = false;
 
@@ -69,7 +71,9 @@ export class Look {
   }
 
   private inSelected(o: Object3D): boolean {
-    for (let p: Object3D | null = o; p; p = p.parent) if (p === this.selected) return true;
+    if (!this.selected) return false;
+    for (let p: Object3D | null = o; p; p = p.parent)
+      if (p === this.selected || this.also.includes(p)) return true;
     return false;
   }
 

@@ -57,13 +57,16 @@ export interface ClipButton {
   label: string;
 }
 
-/** Overlay tugmalari: GLB tartibida, eshiklar va tortmalar alohida raqamlanadi ("Eshik 1", "Tortma 2"). */
+/**
+ * Overlay tugmalari: GLB tartibida, eshiklar, tortmalar va pantograflar (1.10) alohida raqamlanadi
+ * ("Eshik 1", "Tortma 2", "Pantograf 1").
+ */
 export function clipButtons(clips: readonly string[]): ClipButton[] {
-  let doors = 0;
-  let drawers = 0;
+  const n = { door: 0, drawer: 0, lift: 0 };
   return clips.filter(isOpenableClip).map((clip) => {
-    const door = clip.startsWith('door__');
-    return { clip, label: door ? `Eshik ${++doors}` : `Tortma ${++drawers}` };
+    if (clip.startsWith('door__')) return { clip, label: `Eshik ${++n.door}` };
+    if (clip.startsWith('lift__')) return { clip, label: `Pantograf ${++n.lift}` };
+    return { clip, label: `Tortma ${++n.drawer}` };
   });
 }
 
