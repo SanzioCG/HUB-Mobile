@@ -1,7 +1,8 @@
 // Ekranlar uchun bo'laklar: sarlavha, eskiz, holat qatori.
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { usePairedSession } from '../session/SessionProvider';
 import type { StatusTone } from '../api/types';
 import { uz } from '../i18n/uz';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
@@ -51,7 +52,30 @@ export function Thumb({ uri }: { uri: string | null }) {
         <Icon name="cabinet" size={size.icon + 4} color={colors.textMuted} />
       </View>
     );
-  return <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />;
+  return <AuthImage uri={uri} />;
+}
+
+/**
+ * Server eskizi: kontrakt 4 — server fayllari ham `Authorization: Bearer <device_token>` bilan (U-HUB V-1
+ * `/mobile/files/*` tokensiz 401 qaytaradi). Yuklanmasa — ikonka.
+ */
+function AuthImage({ uri }: { uri: string }) {
+  const token = usePairedSession()?.token;
+  const [failed, setFailed] = useState(false);
+  if (failed)
+    return (
+      <View style={[styles.thumb, styles.thumbEmpty]}>
+        <Icon name="cabinet" size={size.icon + 4} color={colors.textMuted} />
+      </View>
+    );
+  return (
+    <Image
+      source={{ uri, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
+      style={styles.thumb}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export function StatusLine({ tone, label }: { tone: StatusTone; label: string }) {

@@ -4,13 +4,14 @@ import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { roleLabel } from '../../api/types';
 import { Button, T } from '../../components/ui';
 import { SHOW_DEV_UI } from '../../config';
 import { checkAndFetch } from '../../updates/checkUpdate';
+import { clearLastError, loadLastError, type LastError } from '../../diag/lastError';
 import { uz } from '../../i18n/uz';
 import { usePairedSession, useSession } from '../../session/SessionProvider';
 import { colors, fontSize, fonts, radius, space } from '../../theme';
@@ -20,6 +21,10 @@ export default function SettingsScreen() {
   const { apiUrl, unpair } = useSession();
   const [checking, setChecking] = useState(false);
   const [updateNote, setUpdateNote] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<LastError | null>(null);
+  useEffect(() => {
+    void loadLastError().then(setLastError);
+  }, []);
 
   // M-A8: OTA — qo'lda tekshirish; yuklansa qayta ishga tushirishni taklif qiladi.
   const checkUpdate = async () => {
@@ -76,6 +81,19 @@ export default function SettingsScreen() {
           {/* M-A8: OTA sinovi — faqat JS o'zgarishi (APK qayta o'rnatilmaydi). */}
           <T muted>OTA sinovi 1</T>
         </Section>
+        {/* Oxirgi JS xatosi (ilova yopilgan bo'lsa ham) — telefonda log yo'q, sababini shu yerdan o'qiymiz. */}
+        {lastError && (
+          <Section label={`${uz.diag.lastError} · ${lastError.at.slice(0, 16).replace('T', ' ')}`}>
+            <T mono muted selectable>
+              {`[${lastError.where}] ${lastError.message}`}
+            </T>
+            <Button
+              label={uz.diag.clear}
+              icon="x"
+              onPress={() => void clearLastError().then(() => setLastError(null))}
+            />
+          </Section>
+        )}
         <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
         {SHOW_DEV_UI && (
           <Section label={uz.settings.dev}>

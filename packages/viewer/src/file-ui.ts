@@ -170,8 +170,11 @@ function showCard(card: HTMLElement, x: PartExtras): void {
     .map(([k, v]) => `${k}: ${v ?? 'kromkasiz'}`)
     .join('; ');
   card.replaceChildren(
-    ...[`№ ${x.number} · ${x.name}`, `${x.size_mm.join(' × ')} mm`, x.material, edges].map((t) =>
-      el('div', '', t),
-    ),
+    ...[
+      `№ ${x.number ?? '—'} · ${x.name}`,
+      x.size_mm?.length ? `${x.size_mm.join(' × ')} mm` : '',
+      x.material ?? [x.supplier, x.model].filter(Boolean).join(' · '),
+      edges,
+    ].map((t) => el('div', '', t)),
   );
 }

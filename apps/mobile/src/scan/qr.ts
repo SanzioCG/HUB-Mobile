@@ -10,7 +10,9 @@ const QR_RE = /^uhub:p\/(\d+)\/(.+)\/([^/]+)$/;
 
 export const isUhubQr = (text: string) => text.startsWith('uhub:');
 
-export function parseQr(text: string): ParsedQr | null {
+/** Kontrakt 2.6: furniturada `qr: null` — satr bo'lmasa null (U-HUB GLB'ida bor, mock'da yo'q edi). */
+export function parseQr(text: unknown): ParsedQr | null {
+  if (typeof text !== 'string') return null;
   const m = QR_RE.exec(text.trim());
   if (!m) return null;
   return { projectNumber: Number(m[1]), uid: m[2]!, snapshot: m[3]! };

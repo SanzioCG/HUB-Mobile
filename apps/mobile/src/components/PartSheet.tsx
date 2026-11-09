@@ -32,8 +32,10 @@ interface Props {
  * TODO(contract): aniq joylashuv ("2-tortma ichida") kontraktda yo'q — tartib raqami bilinmaydi.
  */
 export function locationOf(part: PartExtras): string | null {
-  if (part.reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
-  if (part.reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
+  // Kontrakt 2.6: furnitura (pantograf ham) tugunida `reveal` bo'lmasligi mumkin.
+  const reveal = part.reveal ?? [];
+  if (reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
+  if (reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
   return null;
 }
 
@@ -86,7 +88,7 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
       )}
 
       <Row label={uz.part.size}>
-        <T mono>{part.size_mm.join(' × ')} mm</T>
+        <T mono>{part.size_mm?.length ? `${part.size_mm.join(' × ')} mm` : uz.common.dash}</T>
       </Row>
       <Row label={uz.part.material}>
         <T>{part.material}</T>

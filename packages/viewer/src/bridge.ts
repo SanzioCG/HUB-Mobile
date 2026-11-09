@@ -1,18 +1,25 @@
 // Host (React Native WebView yoki brauzer oynasi) bilan tiplangan xabarlar.
 // Xabar shakli: { type, ...maydonlar }. Transport: JSON satr yoki obyekt.
 
-/** Kontrakt 2.1: `part__<uid>` tugunidagi extras.uhub. */
+/**
+ * Kontrakt 2.1: `part__<uid>` tugunidagi extras.uhub. Furniturada (2.6, `kind: "hardware"`) `number` va `qr` — null,
+ * `edges` va (pantograf qismlarida) `reveal` bo'lmasligi mumkin; `material` o'rnida `supplier`/`model`.
+ */
 export interface PartExtras {
   kind: string;
   uid: string;
-  number: string;
+  number: string | null;
   name: string;
-  material: string;
-  size_mm: number[];
-  edges: Record<string, string>;
-  article: string | null;
-  reveal: string[];
-  qr: string;
+  material?: string;
+  size_mm?: number[];
+  edges?: Record<string, string | null>;
+  article?: string | null;
+  reveal?: string[];
+  qr: string | null;
+  supplier?: string;
+  model?: string;
+  parent_part?: string;
+  bend_of?: string;
 }
 
 export interface DimensionLine {

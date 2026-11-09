@@ -5,14 +5,20 @@ import { uz } from '../i18n/uz';
 /** Kontrakt 4: `role` ∈ designer | manager | shop | admin. Email/telefon yo'q. */
 export type UserRole = 'designer' | 'manager' | 'shop' | 'admin';
 
+/**
+ * Kontrakt 4: identifikatorlar — shaffof satrlar (U-HUB: UUID). Mock va avval saqlangan ma'lumotda son bo'lishi
+ * mumkin — faqat tenglik bo'yicha solishtiriladi, son sifatida o'qilmaydi.
+ */
+export type Id = string | number;
+
 export interface User {
-  id: number;
+  id: Id;
   name: string;
   role: UserRole;
 }
 
 export interface Company {
-  id: number;
+  id: Id;
   name: string;
 }
 
@@ -30,7 +36,7 @@ export function normalizeStatus(s: unknown): ProjectStatus {
 }
 
 export interface ProjectSummary {
-  id: number;
+  id: Id;
   number: number;
   name: string;
   status: ProjectStatus;
@@ -66,7 +72,7 @@ export interface ProjectItem {
 }
 
 export interface ProjectDetail {
-  id: number;
+  id: Id;
   number: number;
   name: string;
   status: ProjectStatus;
@@ -75,7 +81,7 @@ export interface ProjectDetail {
 }
 
 export interface ResolveResponse {
-  project_id: number;
+  project_id: Id;
   project_number: number;
   item_id: string;
   item_name: string;
