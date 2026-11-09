@@ -1,7 +1,7 @@
 # HUB-Mobile
 
 U-HUB mobil viewer'i: iOS + Android ilova (Expo), three.js viewer va mock API.
-Yagona manba — [kontrakt `uhub-mobile/1.1`](docs/contract/uhub-mobile-1.1.md).
+Yagona manba — [kontrakt `uhub-mobile/1.10`](docs/contract/uhub-mobile-1.10.md) (asli: U-HUB `docs/mobile/VIEWER-CONTRACT.md`).
 Nega alohida repo — [ADR-M001](docs/adr/ADR-M001-separate-repo.md).
 
 ## Struktura
