@@ -10,7 +10,7 @@ import { openArAndroid, openArIos } from '../../../ar/openAr';
 import { useProject } from '../../../api/hooks';
 import { formatSize, type ProjectItem } from '../../../api/types';
 import { ViewerRail } from '../../../components/ViewerRail';
-import { BackButton } from '../../../components/parts';
+import { BackButton, StatusPill } from '../../../components/parts';
 import { locationOf, PartSheet } from '../../../components/PartSheet';
 import { BarButton, Dot, ErrorState, Segmented, SkeletonList, Spinner, T } from '../../../components/ui';
 import { AR_OPEN, SHOW_DEV_UI, type Delivery } from '../../../config';
@@ -305,12 +305,18 @@ function ItemViewer({
             <T style={styles.title} numberOfLines={1}>
               {target.name}
             </T>
-            <T mono muted>
+            <T mono muted numberOfLines={1}>
               {target.sizeMm
                 ? `${formatSize(target.sizeMm)} · ${target.revisionLabel}`
                 : target.revisionLabel}
             </T>
           </View>
+          {target.approved !== null && (
+            <StatusPill
+              tone={target.approved ? 'green' : 'yellow'}
+              label={target.approved ? uz.status.approved : uz.status.unapproved}
+            />
+          )}
         </View>
         {banner && (
           <View style={styles.banner}>
@@ -327,12 +333,6 @@ function ItemViewer({
                 <T style={styles.bannerActionText}>{banner.action}</T>
               </Pressable>
             )}
-          </View>
-        )}
-        {!banner && target.approved === false && (
-          <View style={styles.badge}>
-            <Dot color={colors.yellow} />
-            <T style={styles.badgeText}>{uz.viewer.unapproved(target.revisionLabel)}</T>
           </View>
         )}
         {notice && (
@@ -383,6 +383,7 @@ function ItemViewer({
             revisionLabel: target.revisionLabel,
             approved: target.approved,
             updatedAt: target.updatedAt,
+            size: target.sizeMm ? formatSize(target.sizeMm) : null,
           }}
         />
       )}
@@ -459,23 +460,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    marginHorizontal: space.md,
-    paddingRight: space.lg,
+    marginHorizontal: space.sm,
+    marginTop: space.xs,
+    paddingRight: space.md,
     borderRadius: radius.lg,
     backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  headerText: { flex: 1, paddingVertical: space.sm },
-  title: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
+  headerText: { flex: 1, paddingVertical: space.sm, gap: space.xxs },
+  title: { fontFamily: fonts.semibold, fontSize: fontSize.lg, color: colors.text },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    marginHorizontal: space.md,
+    marginHorizontal: space.sm,
     padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.panel,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.yellow,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   bannerText: { flex: 1, gap: space.xxs },
   bannerLine: { fontSize: fontSize.sm },
@@ -484,32 +488,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
-    backgroundColor: colors.border,
+    backgroundColor: colors.accent,
   },
-  bannerActionText: { fontFamily: fonts.bold, color: colors.white, fontSize: fontSize.sm },
+  bannerActionText: { fontFamily: fonts.semibold, color: colors.onAccent, fontSize: fontSize.sm },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     alignSelf: 'flex-start',
-    marginHorizontal: space.md,
+    marginHorizontal: space.sm,
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
     borderRadius: radius.pill,
     backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   badgeText: { fontSize: fontSize.sm },
-  modes: { marginHorizontal: space.md },
+  /** Rejim tanlagich — ixcham, markazda (modelni kam to'sadi). */
+  modes: { alignSelf: 'center', width: '80%', maxWidth: 320 },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: space.md },
   errorBox: { ...StyleSheet.absoluteFill, backgroundColor: colors.bg },
   overlayBottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   bar: {
     flexDirection: 'row',
-    gap: space.sm,
-    margin: space.md,
-    padding: space.sm,
+    gap: space.xxs,
+    marginHorizontal: space.sm,
+    marginBottom: space.sm,
+    padding: space.xs,
     borderRadius: radius.lg,
     backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   grow: { flex: 1 },
   arNote: { textAlign: 'center', marginHorizontal: space.md },

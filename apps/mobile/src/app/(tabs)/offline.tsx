@@ -11,6 +11,10 @@ import { cachedEntries, clearCache, removeCached } from '../../offline/glbCache'
 import { formatMb, usageOf, type CacheEntry } from '../../offline/policy';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
 
+/** Chegaraga nisbat 0…1: hajm yoki reviziya soni (qaysi biri yaqinroq). */
+const fill = (u: { count: number; bytes: number }) =>
+  Math.min(1, Math.max(u.bytes / CACHE_LIMITS.maxBytes, u.count / CACHE_LIMITS.maxRevisions));
+
 export default function OfflineScreen() {
   const [entries, setEntries] = useState<CacheEntry[] | null>(null);
 
@@ -27,11 +31,20 @@ export default function OfflineScreen() {
         <T muted>{uz.offline.hint}</T>
         <View style={styles.usage}>
           <T mono>{uz.offline.usage(usage.count, formatMb(usage.bytes))}</T>
+          {/* Xotira chizig'i: hajm yoki reviziya soni chegarasiga yaqinligi (qaysi biri ko'p bo'lsa). */}
+          <View
+            style={styles.meter}
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: 100, now: Math.round(100 * fill(usage)) }}
+          >
+            <View style={[styles.meterFill, { width: `${Math.round(100 * fill(usage))}%` }]} />
+          </View>
           <T muted>{uz.offline.limits(CACHE_LIMITS.maxRevisions, formatMb(CACHE_LIMITS.maxBytes))}</T>
         </View>
         <Button
           label={uz.offline.clearAll}
           icon="trash-2"
+          danger
           disabled={!usage.count}
           onPress={() => void clearCache().then(refresh)}
           style={styles.clear}
@@ -71,7 +84,16 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   top: { padding: space.lg, gap: space.sm },
   title: { fontFamily: fonts.semibold, fontSize: fontSize.title },
-  usage: { backgroundColor: colors.panel, borderRadius: radius.md, padding: space.md, gap: space.xs },
+  usage: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.md,
+    gap: space.sm,
+  },
+  meter: { height: 4, borderRadius: 2, backgroundColor: colors.surface, overflow: 'hidden' },
+  meterFill: { height: '100%', backgroundColor: colors.accent },
   clear: { alignSelf: 'flex-start' },
   list: { paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.sm, flexGrow: 1 },
   row: {

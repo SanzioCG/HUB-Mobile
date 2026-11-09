@@ -7,9 +7,12 @@ import {
   ChevronRight,
   CloudDownload,
   Ellipsis,
+  Eye,
+  EyeOff,
   Flashlight,
   FlashlightOff,
   FolderOpen,
+  Info,
   Layers,
   LayoutGrid,
   LogOut,
@@ -56,6 +59,9 @@ const LUCIDE = {
   'layout-grid': LayoutGrid,
   ellipsis: Ellipsis,
   square: Square,
+  eye: Eye,
+  'eye-off': EyeOff,
+  info: Info,
   'square-check': SquareCheck,
 } as const;
 

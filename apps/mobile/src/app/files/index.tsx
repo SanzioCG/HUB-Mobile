@@ -102,7 +102,7 @@ export default function FilesScreen() {
           primary
           disabled={busy}
           onPress={() => void pick()}
-          right={busy ? <Spinner /> : <Icon name="folder-open" size={size.icon} color={colors.white} />}
+          right={busy ? <Spinner /> : <Icon name="folder-open" size={size.icon} color={colors.onAccent} />}
         />
         {error && (
           <View style={styles.error}>
