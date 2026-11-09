@@ -35,6 +35,13 @@ export async function listFiles(): Promise<OpenedFile[]> {
 
 const saveList = (list: OpenedFile[]) => AsyncStorage.setItem(KEY, JSON.stringify(list));
 
+/**
+ * Buyum izohlari (kontrakt 1.9, 10.2) — kulrang, belgisiz. 1.9 dan oldin saqlangan fayllarda `notes` yo'q
+ * (AsyncStorage'dagi eski yozuv) — bo'sh ro'yxat, xato emas.
+ */
+export const itemNotes = (it: Pick<UhubItem, 'notes'>): string[] =>
+  Array.isArray(it.notes) ? it.notes.filter((n) => typeof n === 'string' && n.trim() !== '') : [];
+
 export async function getFile(id: string): Promise<OpenedFile | null> {
   return (await listFiles()).find((f) => f.id === id) ?? null;
 }
