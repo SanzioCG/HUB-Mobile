@@ -26,8 +26,10 @@ export function Dot({ color }: { color: string }) {
 
 type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   label: string;
-  /** Rangli urg'u faqat asosiy amal uchun. */
+  /** Laym urg'u faqat asosiy amal uchun (ekranda bittadan ko'p emas). */
   primary?: boolean;
+  /** Qaytarib bo'lmaydigan amal (tozalash, uzish): qizil matn, oddiy fon. */
+  danger?: boolean;
   active?: boolean;
   style?: StyleProp<ViewStyle>;
   /** M-A6: tugma ikonkasi (chapda). */
@@ -35,7 +37,18 @@ type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   right?: ReactNode;
 };
 
-export function Button({ label, primary, active, disabled, style, icon, right, ...rest }: ButtonProps) {
+export function Button({
+  label,
+  primary,
+  danger,
+  active,
+  disabled,
+  style,
+  icon,
+  right,
+  ...rest
+}: ButtonProps) {
+  const fg = primary ? colors.onAccent : active ? colors.accent : danger ? colors.danger : colors.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -44,16 +57,18 @@ export function Button({ label, primary, active, disabled, style, icon, right, .
         styles.button,
         primary && styles.buttonPrimary,
         active && styles.buttonActive,
+        danger && styles.buttonDanger,
         pressed && !disabled && styles.pressed,
         disabled && styles.disabled,
         style,
       ]}
       {...rest}
     >
-      {icon && (
-        <Icon name={icon} size={size.icon - 2} color={active || primary ? colors.white : colors.text} />
-      )}
-      <T style={[styles.buttonText, (active || primary) && styles.buttonTextStrong]} numberOfLines={1}>
+      {icon && <Icon name={icon} size={size.icon - 2} color={fg} />}
+      <T
+        style={[styles.buttonText, { color: fg }, (active || primary) && styles.buttonTextStrong]}
+        numberOfLines={1}
+      >
         {label}
       </T>
       {right}
@@ -86,20 +101,25 @@ export function BarButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.barButton,
-        active && styles.buttonActive,
+        active && styles.barButtonActive,
         pressed && !disabled && styles.pressed,
         disabled && styles.disabled,
       ]}
     >
-      <Icon name={icon} size={size.icon} color={active ? colors.white : colors.text} />
-      <T style={styles.barLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+      <Icon name={icon} size={size.icon} color={active ? colors.accent : colors.text} />
+      <T
+        style={[styles.barLabel, active && styles.barLabelActive]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {label}
       </T>
     </Pressable>
   );
 }
 
-/** Segment: faol — och fon + oq qalin matn. */
+/** Segment: faol — ko'tarilgan fon + laym qalin matn. */
 export function Segmented<K extends string>({
   options,
   value,
@@ -121,7 +141,9 @@ export function Segmented<K extends string>({
             onPress={() => onChange(o.key)}
             style={[styles.segmentItem, on && styles.segmentItemOn]}
           >
-            <T style={[styles.segmentText, on && styles.buttonTextStrong]}>{o.label}</T>
+            <T style={[styles.segmentText, on && styles.segmentTextOn]} numberOfLines={1}>
+              {o.label}
+            </T>
           </Pressable>
         );
       })}
@@ -195,7 +217,8 @@ export const styles = StyleSheet.create({
     gap: space.sm,
   },
   buttonPrimary: { backgroundColor: colors.accent },
-  buttonActive: { backgroundColor: colors.border },
+  buttonActive: { backgroundColor: colors.accentSoft },
+  buttonDanger: { backgroundColor: colors.surface },
   buttonText: { fontFamily: fonts.medium, fontSize: fontSize.md, flexShrink: 1 },
   barButton: {
     flex: 1,
@@ -203,33 +226,37 @@ export const styles = StyleSheet.create({
     paddingVertical: space.xs,
     paddingHorizontal: space.xs,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.xxs,
   },
-  barLabel: { fontFamily: fonts.medium, fontSize: fontSize.sm - 2 },
+  barButtonActive: { backgroundColor: colors.accentSoft },
+  barLabel: { fontFamily: fonts.medium, fontSize: fontSize.label, color: colors.textMuted },
+  barLabelActive: { color: colors.accent },
   emptyText: { textAlign: 'center' },
-  buttonTextStrong: { fontFamily: fonts.bold, color: colors.white },
-  pressed: { opacity: 0.7 },
+  buttonTextStrong: { fontFamily: fonts.semibold },
+  pressed: { opacity: 0.75 },
   disabled: { opacity: 0.4 },
   segment: {
     flexDirection: 'row',
     backgroundColor: colors.panel,
     borderRadius: radius.md,
-    padding: space.xs,
-    gap: space.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.xxs,
+    gap: space.xxs,
   },
   segmentItem: {
     flex: 1,
-    minHeight: hit - space.sm,
+    minHeight: hit - space.xs,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.sm,
   },
-  segmentItemOn: { backgroundColor: colors.border },
+  segmentItemOn: { backgroundColor: colors.raised },
   segmentText: { fontFamily: fonts.medium, fontSize: fontSize.sm, color: colors.textMuted },
+  segmentTextOn: { fontFamily: fonts.semibold, color: colors.accent },
   skeleton: { backgroundColor: colors.panel, borderRadius: radius.md },
   list: { padding: space.lg, gap: space.sm },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.lg },

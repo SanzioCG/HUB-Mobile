@@ -2,14 +2,19 @@
 // `npm run icons` → ./generated) bitta tiplangan nomlar ro'yxatida. `<Icon name="door-open" size={24} color={…} />`.
 // Chiziq qalinligi 1.8 (Brand Kit, design-tokens.json `iconStyle.stroke`).
 import {
+  ArrowDownToLine,
+  ArrowUpToLine,
   Box,
   ChevronLeft,
   ChevronRight,
   CloudDownload,
   Ellipsis,
+  Eye,
+  EyeOff,
   Flashlight,
   FlashlightOff,
   FolderOpen,
+  Info,
   Layers,
   LayoutGrid,
   LogOut,
@@ -34,6 +39,9 @@ import { customIcons } from './generated';
 /** ASSETS.md ro'yxati + ilovaga kerak bo'lgan qo'shimchalar (folder-open, layout-grid, chevron-right, …). */
 const LUCIDE = {
   'scan-qr-code': ScanQrCode,
+  /** V-110: pantograf (Brand Kit'da ikonka yo'q). */
+  'arrow-down-to-line': ArrowDownToLine,
+  'arrow-up-to-line': ArrowUpToLine,
   ruler: Ruler,
   box: Box,
   'rotate-ccw': RotateCcw,
@@ -56,6 +64,9 @@ const LUCIDE = {
   'layout-grid': LayoutGrid,
   ellipsis: Ellipsis,
   square: Square,
+  eye: Eye,
+  'eye-off': EyeOff,
+  info: Info,
   'square-check': SquareCheck,
 } as const;
 

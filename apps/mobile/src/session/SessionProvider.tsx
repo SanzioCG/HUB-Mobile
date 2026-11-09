@@ -4,8 +4,7 @@ import { defaultApiUrl, trimSlash } from '../config';
 import {
   clearSession,
   createUnauthorizedHandler,
-  loadApiUrl,
-  loadSession,
+  loadStartup,
   saveApiUrl,
   saveSession,
   type StoredSession,
@@ -32,7 +31,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const [session, savedUrl] = await Promise.all([loadSession(), loadApiUrl()]);
+      const { session, apiUrl: savedUrl } = await loadStartup();
       if (savedUrl) setApiUrlState(savedUrl);
       setState(session ? { status: 'paired', session } : { status: 'unpaired' });
     })();

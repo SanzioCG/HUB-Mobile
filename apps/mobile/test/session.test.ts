@@ -1,6 +1,13 @@
 // 401 oqimi: istalgan so'rovda 401 → token secure-store'dan o'chiriladi → juftlash ekraniga qaytish.
 import { createClient } from '../src/api/client';
-import { createUnauthorizedHandler, loadSession, saveSession } from '../src/session/storage';
+import * as SecureStore from 'expo-secure-store';
+import {
+  createUnauthorizedHandler,
+  loadSession,
+  loadStartup,
+  saveApiUrl,
+  saveSession,
+} from '../src/session/storage';
 
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();
@@ -49,5 +56,25 @@ it('bir vaqtdagi bir nechta 401 — bitta tozalash', async () => {
   const handler = createUnauthorizedHandler(onCleared);
   await Promise.all([handler(), handler(), handler()]);
   expect(onCleared).toHaveBeenCalledTimes(1);
+  expect(await loadSession()).toBeNull();
+});
+
+it('ilova ochilishi: sessiya va server manzili o‘qiladi', async () => {
+  await saveApiUrl('http://lan:8787');
+  expect(await loadStartup()).toEqual({ session: SESSION, apiUrl: 'http://lan:8787' });
+});
+
+it('ilova ochilishi: SecureStore xato bersa — qotmaydi, juftlanmagan, buzilgan yozuv o‘chiriladi', async () => {
+  const get = jest.mocked(SecureStore.getItemAsync);
+  get.mockRejectedValue(new Error('Could not decrypt the value'));
+  try {
+    expect(await loadStartup()).toEqual({ session: null, apiUrl: null });
+  } finally {
+    get.mockReset();
+    get.mockImplementation(
+      async (k: string) =>
+        (SecureStore as unknown as { __store: Map<string, string> }).__store.get(k) ?? null,
+    );
+  }
   expect(await loadSession()).toBeNull();
 });

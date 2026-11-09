@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { itemKey } from '@hub-mobile/viewer/uhub';
 import { BackButton } from '../../components/parts';
 import { Dot, ErrorState, Spinner, T } from '../../components/ui';
-import { getFile, type OpenedFile } from '../../files/store';
+import { getFile, itemNotes, type OpenedFile } from '../../files/store';
 import { formatSize } from '../../api/types';
 import { uz } from '../../i18n/uz';
 import { Icon } from '../../ui/Icon';
@@ -94,9 +94,9 @@ export default function FileProjectScreen() {
                 </View>
               )}
               {/* 1.9 (10.2): izohlar — kulrang, belgisiz. Eski saqlangan fayllarda `notes` yo'q. */}
-              {(it.notes ?? []).length > 0 && (
+              {itemNotes(it).length > 0 && (
                 <View style={styles.notes}>
-                  {(it.notes ?? []).map((n) => (
+                  {itemNotes(it).map((n) => (
                     <T key={n} muted style={styles.noteText}>
                       {n}
                     </T>

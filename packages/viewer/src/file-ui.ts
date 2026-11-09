@@ -5,7 +5,7 @@ import type { Bridge, HostMessage, PartExtras } from './bridge.js';
 import { unqualify } from './project.js';
 import { UhubError, itemKey, openUhub, type UhubFile, type UhubItem } from './uhub.js';
 import type { ItemSource } from './viewer.js';
-import { iconEl } from './icons.js';
+import { clipIconName, iconEl } from './icons.js';
 
 export interface FileViewer {
   handle(msg: HostMessage): void;
@@ -134,7 +134,11 @@ export function mountFileUi(viewer: FileViewer, bridge: Bridge): void {
         const labels = clipButtons(clips.map(unqualify));
         clips.forEach((c, i) => {
           const label = labels[i]?.label ?? c;
-          const b = el('button', 'file-btn', k ? `${names.get(k) ?? k}: ${label}` : label);
+          const b = el('button', 'file-btn file-btn-clip');
+          b.append(
+            iconEl(clipIconName(c, false)),
+            el('span', '', k ? `${names.get(k) ?? k}: ${label}` : label),
+          );
           b.dataset.clip = c;
           b.onclick = () => viewer.handle({ type: 'toggle', clip: c });
           buttons.push(b);
@@ -151,8 +155,11 @@ export function mountFileUi(viewer: FileViewer, bridge: Bridge): void {
     } else if (m.type === 'clipState') {
       const open = new Set(m.open);
       allOpen = m.open.length > 0;
-      for (const b of controls.querySelectorAll<HTMLButtonElement>('button[data-clip]'))
-        b.classList.toggle('active', open.has(b.dataset.clip!));
+      for (const b of controls.querySelectorAll<HTMLButtonElement>('button[data-clip]')) {
+        const on = open.has(b.dataset.clip!);
+        b.classList.toggle('active', on);
+        b.firstElementChild?.replaceWith(iconEl(clipIconName(b.dataset.clip!, on)));
+      }
       const first = controls.firstElementChild;
       if (first) first.textContent = allOpen ? 'Hammasini yopish' : 'Hammasini ochish';
     } else if (m.type === 'selected') {

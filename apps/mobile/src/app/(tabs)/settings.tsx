@@ -76,7 +76,7 @@ export default function SettingsScreen() {
           {/* M-A8: OTA sinovi — faqat JS o'zgarishi (APK qayta o'rnatilmaydi). */}
           <T muted>OTA sinovi 1</T>
         </Section>
-        <Button label={uz.settings.unpair} icon="log-out" onPress={() => void unpair()} />
+        <Button label={uz.settings.unpair} icon="log-out" danger onPress={() => void unpair()} />
         {SHOW_DEV_UI && (
           <Section label={uz.settings.dev}>
             <Button
@@ -113,7 +113,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   body: { padding: space.lg, gap: space.md },
   title: { fontFamily: fonts.semibold, fontSize: fontSize.title },
-  section: { backgroundColor: colors.panel, borderRadius: radius.md, padding: space.lg, gap: space.xs },
+  section: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.lg,
+    gap: space.sm,
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   devBtn: { alignSelf: 'flex-start', marginTop: space.xs },
   updateBtn: { alignSelf: 'flex-start', marginTop: space.sm },

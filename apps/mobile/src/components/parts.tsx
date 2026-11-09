@@ -63,6 +63,18 @@ export function StatusLine({ tone, label }: { tone: StatusTone; label: string })
   );
 }
 
+/** Ixcham holat chipi (sarlavhada, kartada): nuqta + rangli matn. */
+export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
+  return (
+    <View style={styles.pill} accessibilityRole="text" accessibilityLabel={label}>
+      <Dot color={toneColor[tone]} />
+      <T style={[styles.pillText, { color: toneColor[tone] }]} numberOfLines={1}>
+        {label}
+      </T>
+    </View>
+  );
+}
+
 export const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
@@ -72,7 +84,7 @@ export const styles = StyleSheet.create({
     minHeight: hit + space.md,
   },
   headerText: { flex: 1, gap: space.xxs },
-  headerTitle: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
+  headerTitle: { fontFamily: fonts.semibold, fontSize: fontSize.lg, color: colors.text },
   iconButton: {
     width: hit,
     height: hit,
@@ -80,8 +92,21 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { backgroundColor: colors.surface },
+  pressed: { backgroundColor: colors.raised },
   thumb: { width: size.thumb, height: size.thumb, borderRadius: radius.sm, backgroundColor: colors.surface },
   thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
   status: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space.xs + 2,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pillText: { fontFamily: fonts.medium, fontSize: fontSize.label },
 });

@@ -1,18 +1,23 @@
-// U-HUB mobil dizayn palitrasi (docs/design/mobile-design-concept.png, M-A4). Komponentlarda rang va o'lcham faqat shu yerdan.
+// U-HUB mobil dizayn palitrasi — "Graphite Engineering" (laym aksent, yangi 3D-kub logosi bilan).
+// Komponentlarda rang va o'lcham faqat shu yerdan.
+// Laym kam ishlatiladi: tanlangan holat, asosiy amal, faol indikator. Ustidagi matn — `onAccent` (to'q).
 
 export const colors = {
-  /** Asosiy tugmalar, faol holat, tanlov konturi. */
-  accent: '#3988FF',
-  /** Faqat brend elementlari (logo, splash, onboarding). */
-  accentSecondary: '#6A5CFF',
-  accentTertiary: '#00C2FF',
+  /** Asosiy amal, tanlangan holat, faol indikator, tanlov konturi. */
+  accent: '#C6F542',
+  /** Aksent ustidagi matn va ikonka (laym fonda oq o'qilmaydi). Kontrast 14:1. */
+  onAccent: '#0B0D0F',
+  /** Tanlangan holat foni (aksentning past shaffof varianti). */
+  accentSoft: 'rgba(198,245,66,0.12)',
   bg: '#0B0D0F',
   panel: '#15181C',
-  surface: '#22262B',
-  border: '#333A41',
-  text: '#F3F5F6',
-  /** Ikkinchi matn: fon 7.6:1, panel 7.0:1, surface 6.0:1 (WCAG AA). */
-  textMuted: '#9AA3AD',
+  surface: '#1C2025',
+  /** Faol (bosilgan, tanlangan) yuza. */
+  raised: '#252A30',
+  border: '#2A2F36',
+  text: '#F4F5F2',
+  /** Ikkinchi matn: fon 6.6:1, panel 6.1:1, surface 5.6:1 (WCAG AA). */
+  textMuted: '#9299A3',
   /**
    * Holat ranglari — Brand Kit v1 tokenlari (assets/design/design-tokens.json: warning, success, danger; ASSETS.md 6-izoh).
    * Panel ustida: sariq 9.5:1, yashil 8.8:1, qizil 7.6:1. TODO(contract): kontrakt 1-bo'limida hali #F2C14E / #4CC38A.
@@ -35,6 +40,8 @@ export const fonts = {
 
 /** Matn 14–16 px; sarlavha va karta raqami — alohida. */
 export const fontSize = {
+  /** Panel tugmalari yorlig'i, holat chipi. */
+  label: 12,
   sm: 14,
   md: 15,
   lg: 16,
@@ -46,8 +53,8 @@ export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } a
 
 export const radius = { sm: 8, md: 12, lg: 16, pill: 999 } as const;
 
-/** Bosiladigan nishon kamida 44 px. */
-export const hit = 44;
+/** Bosiladigan nishon kamida 48 dp (Android Material). */
+export const hit = 48;
 
 export const size = {
   dot: 8,

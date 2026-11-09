@@ -3,9 +3,13 @@ import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { uz } from '../i18n/uz';
 import { Icon } from '../ui/Icon';
+import { clipAction } from '../viewer/clipAction';
 import { colors, duration, fontSize, fonts, hit, radius, size, space } from '../theme';
 import type { MaterialInfo, PartExtras } from '../viewer/bridge';
 import { Button, T } from './ui';
+
+// V-110: `locationOf` va `clipAction` — `viewer/clipAction.ts` (native importsiz, jest testi uchun).
+export { locationOf } from '../viewer/clipAction';
 
 /** Skaner tanlovi kartasi (kontrakt 6, maket): joylashuv, "Hammasini ko'rsatish", "Keyingisi". */
 export interface ScanCardActions {
@@ -25,16 +29,6 @@ interface Props {
   scan?: ScanCardActions;
   /** Plita materiali `extras.uhub` (kontrakt 2.5) — viewer `selected.material`. */
   material?: MaterialInfo | null;
-}
-
-/**
- * Detal joylashuvi `reveal` kliplaridan (eshik orqasida / tortma ichida).
- * TODO(contract): aniq joylashuv ("2-tortma ichida") kontraktda yo'q — tartib raqami bilinmaydi.
- */
-export function locationOf(part: PartExtras): string | null {
-  if (part.reveal.some((c) => c.startsWith('drawer__'))) return uz.select.inDrawer;
-  if (part.reveal.some((c) => c.startsWith('door__'))) return uz.select.behindDoor;
-  return null;
 }
 
 export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, material }: Props) {
@@ -121,17 +115,9 @@ export function PartSheet({ part, clip, clipOpen, onToggle, onClose, scan, mater
 
       {clip && (
         <Button
-          label={clipOpen ? uz.part.close : uz.part.open}
-          // M-A6: eshik/tortma — ochish yoki yopish ikonkasi (klip nomidan).
-          icon={
-            clip.includes('door__')
-              ? clipOpen
-                ? 'door-close'
-                : 'door-open'
-              : clipOpen
-                ? 'drawer-close'
-                : 'drawer-open'
-          }
+          // M-A6 / V-110: eshik, tortma yoki pantograf — yozuv va ikonka klip nomidan.
+          label={clipAction(clip, clipOpen).label}
+          icon={clipAction(clip, clipOpen).icon}
           active={clipOpen}
           onPress={() => onToggle(clip)}
           style={styles.toggle}
@@ -167,7 +153,7 @@ const styles = StyleSheet.create({
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   headText: { flex: 1, gap: space.xs },
-  number: { fontFamily: fonts.monoMedium, fontSize: fontSize.number, color: colors.white },
+  number: { fontFamily: fonts.monoMedium, fontSize: fontSize.number, color: colors.text },
   name: { fontFamily: fonts.semibold, fontSize: fontSize.lg },
   close: {
     width: hit,
