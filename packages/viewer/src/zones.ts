@@ -20,7 +20,7 @@ import {
   type Object3D,
   Vector3,
 } from 'three';
-import { isOpenableClip } from './model.js';
+import { doorInfo, isOpenableClip } from './model.js';
 import { wrapAngle } from './ar-math.js';
 import { ACCENT } from './theme.js';
 
@@ -88,7 +88,9 @@ export function computeZones(root: Object3D, clips: readonly AnimationClip[], st
     const name = movingNodeName(clip.name);
     const node = name ? root.getObjectByName(name) : undefined;
     if (!node) continue;
-    const corners = clip.name.startsWith('door__') ? localCorners(node) : [];
+    // Sirpanuvchi eshik (`hinge_side: "sliding"`, TopLine XL) aylanmaydi — zonasi tortmadek, surilish qutisi.
+    const swings = clip.name.startsWith('door__') && doorInfo(node)?.hinge_side !== 'sliding';
+    const corners = swings ? localCorners(node) : [];
     const action = mixer.clipAction(clip);
     action.setLoop(LoopOnce, 1);
     action.clampWhenFinished = true;
