@@ -52,8 +52,7 @@
     "doctor": "npx -y expo-doctor",
     "eas-build-post-install": "npm --prefix ../.. run build -w @hub-mobile/viewer && npm run copy-viewer",
     "build:android:preview": "npx -y eas-cli@27.4.1 build -p android --profile preview",
-    "update:preview": "node scripts/eas-update.mjs preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "update:preview": "node scripts/eas-update.mjs preview"
   },
   "private": true,
   "jest": {
