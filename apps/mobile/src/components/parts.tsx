@@ -1,12 +1,13 @@
 // Ekranlar uchun bo'laklar: sarlavha, eskiz, holat qatori.
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View, type ImageStyle, type StyleProp } from 'react-native';
 import { usePairedSession } from '../session/SessionProvider';
 import type { StatusTone } from '../api/types';
 import { uz } from '../i18n/uz';
 import { colors, fontSize, fonts, hit, radius, size, space } from '../theme';
 import { Icon } from '../ui/Icon';
+import { ProjectThumbIllustration } from '../ui/generated/ProjectThumbIllustration';
 import { Dot, T } from './ui';
 
 export const toneColor: Record<StatusTone, string> = {
@@ -44,6 +45,21 @@ export function Header({ title, meta, right }: { title: string; meta?: ReactNode
   );
 }
 
+/**
+ * Figma 06 "03 — Welcome": so'nggi loyiha kartasidagi 84 × 84 eskiz — server rasmi yoki chizilgan shkaf (58 × 58).
+ */
+export function ProjectThumb({ uri }: { uri: string | null }) {
+  return (
+    <View style={styles.projectThumb}>
+      {uri ? (
+        <AuthImage uri={uri} style={styles.projectThumbImage} />
+      ) : (
+        <ProjectThumbIllustration size={58} />
+      )}
+    </View>
+  );
+}
+
 export function Thumb({ uri }: { uri: string | null }) {
   // Eskiz (`thumb_url`) yo'q — `cabinet` ikonkasi `surface` fonda (M-A6).
   if (!uri)
@@ -59,7 +75,7 @@ export function Thumb({ uri }: { uri: string | null }) {
  * Server eskizi: kontrakt 4 — server fayllari ham `Authorization: Bearer <device_token>` bilan (U-HUB V-1
  * `/mobile/files/*` tokensiz 401 qaytaradi). Yuklanmasa — ikonka.
  */
-function AuthImage({ uri }: { uri: string }) {
+function AuthImage({ uri, style = styles.thumb }: { uri: string; style?: StyleProp<ImageStyle> }) {
   const token = usePairedSession()?.token;
   const [failed, setFailed] = useState(false);
   if (failed)
@@ -71,7 +87,7 @@ function AuthImage({ uri }: { uri: string }) {
   return (
     <Image
       source={{ uri, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
-      style={styles.thumb}
+      style={style}
       resizeMode="cover"
       onError={() => setFailed(true)}
     />
@@ -100,6 +116,16 @@ export function StatusPill({ tone, label }: { tone: StatusTone; label: string })
 }
 
 export const styles = StyleSheet.create({
+  projectThumb: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  projectThumbImage: { width: 84, height: 84 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

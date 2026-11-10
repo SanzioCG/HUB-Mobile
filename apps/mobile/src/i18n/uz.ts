@@ -1,6 +1,12 @@
 // Ilovaning barcha matnlari (o'zbekcha).
 
 export const uz = {
+  /** Figma 06 Mobile Viewer: 02 Splash, 03 bosh ekran. */
+  brand: {
+    product: 'MOBILE VIEWER',
+    tagline: 'Mebel. Ko‘z oldingizda.',
+    version: (v: string) => `VERSIYA ${v}`,
+  },
   common: {
     back: 'Orqaga',
     retry: 'Qayta urinish',
@@ -82,6 +88,19 @@ export const uz = {
     remove: "O'chirish",
     clearAll: 'Hammasini tozalash',
     unknownItem: 'Buyum',
+  },
+  home: {
+    title: 'Loyihani oching',
+    lead: 'Loyiha QR kodini skanerlang yoki 3D modelni ko‘rish uchun .uhub faylini oching.',
+    scanTitle: 'QR kodni skanerlash',
+    scanHint: 'Etiketka yoki ulash kodini darhol o‘qing',
+    fileTitle: '.uhub faylini ochish',
+    fileHint: 'Shu qurilmadagi fayllardan tanlang',
+    recent: 'So‘nggi loyihalar',
+    seeAll: 'BARCHASI',
+    recentEmpty: 'Hali loyihalar yo‘q',
+    privacy: 'Fayldan ochilgan loyihalar faqat shu qurilmada saqlanadi.',
+    footer: (v: string) => `U-HUB MOBILE  ·  VERSIYA ${v}`,
   },
   projects: {
     title: 'Loyihalar',
@@ -232,9 +251,13 @@ export const uz = {
     loadingPercent: (p: number) => `Model yuklanmoqda… ${p}%`,
   },
   scan: {
-    title: 'Etiketkani skanerlash',
-    hint: 'QR kodni ramka ichiga joylang. Etiketka o‘zi o‘qiladi.',
+    title: 'QR kodni skanerlash',
+    subtitle: 'Kodni ramka ichiga joylang',
+    chip: 'QR kod to‘liq ko‘rinib tursin',
+    auto: 'Skanerlash avtomatik boshlanadi',
     torch: 'Chiroq',
+    gallery: 'Rasmdan tanlash',
+    galleryNone: 'Rasmda QR kod topilmadi',
     recent: 'Oxirgi skanerlar',
     recentEmpty: 'Hali skanerlanmagan',
     notUhub: 'Bu U-HUB etiketkasi emas',
@@ -242,10 +265,26 @@ export const uz = {
     badQr: "Etiketka o'qilmadi",
     resolving: 'Etiketka tekshirilmoqda…',
     offlineMissing: 'Oflayn: bu etiketka keshda yo‘q',
-    permissionTitle: 'Kameraga ruxsat kerak',
-    permissionText: 'Etiketkadagi QR kodni o‘qish uchun ilovaga kameradan foydalanishga ruxsat bering.',
-    permissionAsk: 'Ruxsat berish',
-    permissionSettings: 'Sozlamalarni ochish',
+    permissionEyebrow: 'QR SKANER',
+    permissionTitle: 'Kamera o‘chirilgan',
+    permissionText:
+      'QR kodni o‘qish uchun U-HUB kameradan foydalanishi kerak. Uni qurilma sozlamalarida yoqing yoki QR kod rasmini tanlang.',
+    permissionAsk: 'Kameraga ruxsat berish',
+    permissionSettings: 'Qurilma sozlamalarini ochish',
+    notNow: 'Hozir emas',
+    permissionNote: 'Kamera faqat QR kodni o‘qish uchun ishlatiladi.',
+    found: {
+      title: 'QR skaner',
+      subtitle: 'Kod topildi',
+      heading: 'Loyiha topildi',
+      hint: 'Ochishdan oldin tekshirib oling.',
+      project: 'LOYIHA',
+      part: 'DETAL',
+      file: 'FAYL',
+      fromFile: '.uhub  •  shu qurilmada',
+      open: 'Loyihani ochish',
+      again: 'Boshqa kodni skanerlash',
+    },
     meta: (projectNumber: number, item: string, rev: string) => `№ ${projectNumber} · ${item} · ${rev}`,
   },
   spike: {

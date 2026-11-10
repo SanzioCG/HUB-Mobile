@@ -4,11 +4,11 @@
 
 export const colors = {
   /** Asosiy amal, tanlangan holat, faol indikator, tanlov konturi. */
-  accent: '#C6F542',
+  accent: '#C1EF1B',
   /** Aksent ustidagi matn va ikonka (laym fonda oq o'qilmaydi). Kontrast 14:1. */
   onAccent: '#0B0D0F',
   /** Tanlangan holat foni (aksentning past shaffof varianti). */
-  accentSoft: 'rgba(198,245,66,0.12)',
+  accentSoft: 'rgba(193,239,27,0.12)',
   bg: '#0B0D0F',
   panel: '#15181C',
   surface: '#1C2025',
@@ -26,6 +26,20 @@ export const colors = {
   green: '#67C99A',
   danger: '#ED8F8F',
   white: '#FFFFFF',
+  /** Figma 06 Mobile Viewer — pastki tab bar (220:2). */
+  tabBar: '#15171A',
+  tabBorder: '#2B3036',
+  tabInactive: '#878F94',
+  /** Figma 06: kamera ustidagi qorong'i qatlamlar (04 QR skaner) va undagi tugmalar. */
+  cameraScrim: 'rgba(6,8,10,0.82)',
+  cameraChip: 'rgba(6,8,10,0.78)',
+  cameraControls: 'rgba(6,8,10,0.9)',
+  cameraButton: '#131619',
+  cameraButtonBorder: '#363D42',
+  cameraHint: '#B8C2C9',
+  /** Figma 06: QR topildi belgisi (06), versiya qatori (03). */
+  success: '#47BF73',
+  faint: '#596169',
   scrim: 'rgba(0,0,0,0.5)',
 } as const;
 

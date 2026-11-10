@@ -1,174 +1,223 @@
-// Loyihalar (Graphite Engineering): logo + kompaniya holati, sarlavha, qidiruv (ikonkali), segment filtr, kartalar ro'yxati,
-// pull-to-refresh. "Fayldan ochilganlar" — pastki tab barda (Fayllar).
+// Loyihalar tabi — Figma 06 Mobile Viewer, "03 — Welcome / Start Screen" (141:2): brend sarlavhasi, "Loyihani oching",
+// ikki amal (QR skaner — laym; `.uhub` fayli), so'nggi loyihalar (serverdan, oxirgi o'zgarish bo'yicha) va "BARCHASI"
+// (to'liq ro'yxat — `/projects/all`), pastda maxfiylik izohi va versiya.
+import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorMessage } from '../../api/errors';
 import { useProjectList } from '../../api/hooks';
-import { filterProjects } from '../../api/projects';
-import { statusLabel, statusTone, type ProjectSummary, type StatusFilter } from '../../api/types';
-import { StatusPill, Thumb } from '../../components/parts';
-import { Dot, EmptyState, ErrorState, Segmented, SkeletonList, T } from '../../components/ui';
+import { statusLabel, statusTone, type ProjectSummary } from '../../api/types';
+import { ProjectThumb, toneColor } from '../../components/parts';
+import { ErrorState, Skeleton, T } from '../../components/ui';
 import { uz } from '../../i18n/uz';
-import { Icon } from '../../ui/Icon';
-import { LogoMark } from '../../ui/generated';
-import { usePairedSession } from '../../session/SessionProvider';
-import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
+import { colors, fonts, radius } from '../../theme';
+import { Icon, type IconName } from '../../ui/Icon';
 import { relativeTime } from '../../utils/time';
 
-const FILTERS = [
-  { key: 'all', label: uz.projects.filterAll },
-  { key: 'approved', label: uz.projects.filterApproved },
-  { key: 'unapproved', label: uz.projects.filterUnapproved },
-] as const satisfies readonly { key: StatusFilter; label: string }[];
+const RECENT = 3;
+const version = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '';
 
-export default function ProjectsScreen() {
-  const session = usePairedSession();
-  const { state, refreshing, online, reload, refresh } = useProjectList();
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<StatusFilter>('all');
-
-  const visible = useMemo(
-    () => (state.status === 'ok' ? filterProjects(state.data, query, filter) : []),
-    [state, query, filter],
+export default function HomeScreen() {
+  const { state, refreshing, reload, refresh } = useProjectList();
+  const recent = useMemo(
+    () =>
+      state.status === 'ok'
+        ? [...state.data].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, RECENT)
+        : [],
+    [state],
   );
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.top}>
-        <View style={styles.brandRow}>
-          <LogoMark size={28} />
-          <T style={styles.brand}>
-            U-HUB <T style={styles.brandSub}>VIEWER</T>
-          </T>
-          <View style={styles.company}>
-            <Dot color={online === false ? colors.yellow : colors.green} />
-            <T style={styles.companyText} numberOfLines={1}>
-              {online === false ? uz.projects.offline : session?.company.name}
-            </T>
-          </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.textMuted} />
+        }
+      >
+        <View style={styles.brand}>
+          <T style={styles.wordmark}>U-HUB</T>
+          <T style={styles.product}>{uz.brand.product}</T>
         </View>
+        <View style={styles.divider} />
+
         <T style={styles.title} accessibilityRole="header">
-          {uz.projects.title}
+          {uz.home.title}
         </T>
-        <View style={styles.search}>
-          <Icon name="search" size={size.icon - 2} color={colors.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={uz.projects.search}
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            accessibilityLabel={uz.projects.search}
-          />
-          {query !== '' && (
-            <Pressable
-              onPress={() => setQuery('')}
-              accessibilityRole="button"
-              accessibilityLabel={uz.common.close}
-              hitSlop={space.sm}
-            >
-              <Icon name="x" size={size.icon - 4} color={colors.textMuted} />
+        <T style={styles.lead}>{uz.home.lead}</T>
+
+        <Action
+          primary
+          icon="qr-scan"
+          title={uz.home.scanTitle}
+          hint={uz.home.scanHint}
+          onPress={() => router.push('/scan')}
+        />
+        <Action
+          icon="file-open"
+          title={uz.home.fileTitle}
+          hint={uz.home.fileHint}
+          onPress={() => router.push('/files')}
+        />
+
+        <View style={styles.recentHead}>
+          <T style={styles.recentTitle}>{uz.home.recent}</T>
+          {state.status === 'ok' && state.data.length > 0 && (
+            <Pressable onPress={() => router.push('/projects/all')} accessibilityRole="button" hitSlop={12}>
+              <T style={styles.seeAll}>{uz.home.seeAll}</T>
             </Pressable>
           )}
         </View>
-        <Segmented options={FILTERS} value={filter} onChange={setFilter} />
-      </View>
+        {state.status === 'loading' && <Skeleton height={112} style={styles.cardRadius} />}
+        {state.status === 'error' && <ErrorState message={errorMessage(state.error)} onRetry={reload} />}
+        {state.status === 'ok' && recent.length === 0 && <T style={styles.empty}>{uz.home.recentEmpty}</T>}
+        <View style={styles.recentList}>
+          {recent.map((p) => (
+            <RecentCard key={String(p.id)} project={p} />
+          ))}
+        </View>
 
-      {state.status === 'loading' && <SkeletonList />}
-      {state.status === 'error' && <ErrorState message={errorMessage(state.error)} onRetry={reload} />}
-      {state.status === 'ok' && (
-        <FlatList
-          data={visible}
-          keyExtractor={(p) => String(p.id)}
-          renderItem={({ item }) => <ProjectRow project={item} />}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.textMuted} />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              text={state.data.length ? uz.projects.emptySearch : uz.projects.empty}
-              illustration="empty-projects"
-            />
-          }
-        />
-      )}
+        <View style={styles.footer}>
+          <View style={styles.divider} />
+          <View style={styles.privacy}>
+            <Icon name="secure-local" size={15} color={colors.textMuted} />
+            <T style={styles.privacyText}>{uz.home.privacy}</T>
+          </View>
+          {version !== '' && <T style={styles.version}>{uz.home.footer(version)}</T>}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function ProjectRow({ project: p }: { project: ProjectSummary }) {
+function Action({
+  icon,
+  title,
+  hint,
+  primary,
+  onPress,
+}: {
+  icon: IconName;
+  title: string;
+  hint: string;
+  primary?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
-      onPress={() => router.push(`/projects/${p.id}`)}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={({ pressed }) => [
+        styles.action,
+        primary ? styles.actionPrimary : styles.actionSecondary,
+        pressed && styles.pressed,
+      ]}
     >
-      <Thumb uri={p.thumb_url} />
-      <View style={styles.rowText}>
-        <T mono style={styles.number}>
-          № {p.number}
-        </T>
-        <T style={styles.name} numberOfLines={2}>
-          {p.name}
-        </T>
-        <T muted numberOfLines={1}>
-          {uz.projects.items(p.items_count)} · {relativeTime(p.updated_at)}
-        </T>
-      </View>
-      <View style={styles.rowSide}>
-        <StatusPill tone={statusTone(p.status)} label={statusLabel(p.status)} />
-        <Icon name="chevron-right" size={size.icon - 4} color={colors.textMuted} />
+      <Icon name={icon} size={primary ? 28 : 26} color={primary ? colors.onAccent : colors.text} />
+      <View style={styles.actionText}>
+        <T style={[styles.actionTitle, primary && styles.actionTitlePrimary]}>{title}</T>
+        <T style={[styles.actionHint, primary && styles.actionHintPrimary]}>{hint}</T>
       </View>
     </Pressable>
   );
 }
 
+function RecentCard({ project: p }: { project: ProjectSummary }) {
+  return (
+    <Pressable
+      onPress={() => router.push(`/projects/${p.id}`)}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      <ProjectThumb uri={p.thumb_url} />
+      <View style={styles.cardText}>
+        <T style={styles.cardName} numberOfLines={1}>
+          {p.name}
+        </T>
+        <T style={styles.cardDetail} numberOfLines={1}>
+          № {p.number} · {uz.projects.items(p.items_count)} · {relativeTime(p.updated_at)}
+        </T>
+        <View style={styles.status}>
+          <View style={[styles.statusDot, { backgroundColor: toneColor[statusTone(p.status)] }]} />
+          <T style={styles.cardDetail}>{statusLabel(p.status)}</T>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// O'lchamlar — Figma 141:2 (390 × 844, chetlar 24).
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  top: { padding: space.lg, gap: space.md },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  brand: { flex: 1, fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text, letterSpacing: 0.5 },
-  brandSub: { fontFamily: fonts.medium, fontSize: fontSize.label, color: colors.textMuted, letterSpacing: 2 },
-  title: { fontFamily: fonts.semibold, fontSize: fontSize.title + 4, color: colors.text },
-  company: { flexDirection: 'row', alignItems: 'center', gap: space.sm, maxWidth: '50%' },
-  companyText: { fontFamily: fonts.medium, fontSize: fontSize.sm, color: colors.textMuted },
-  search: {
-    minHeight: hit,
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 28 },
+  brand: { gap: 1 },
+  wordmark: { fontFamily: fonts.semibold, fontSize: 22, color: colors.text },
+  product: { fontFamily: fonts.semibold, fontSize: 10, color: colors.accent },
+  divider: { height: 1, backgroundColor: colors.border, marginTop: 24 },
+  title: { marginTop: 31, fontFamily: fonts.semibold, fontSize: 25, color: colors.text },
+  lead: { marginTop: 8, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.textMuted },
+  action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    backgroundColor: colors.surface,
+    gap: 14,
     borderRadius: radius.md,
+    paddingHorizontal: 20,
+  },
+  actionPrimary: { marginTop: 23, minHeight: 82, backgroundColor: colors.accent },
+  actionSecondary: {
+    marginTop: 14,
+    minHeight: 72,
+    backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: space.md,
   },
-  searchInput: {
-    flex: 1,
-    minHeight: hit,
-    color: colors.text,
-    fontFamily: fonts.regular,
-    fontSize: fontSize.md,
-  },
-  list: { paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.sm, flexGrow: 1 },
-  row: {
+  actionText: { flex: 1, gap: 4 },
+  actionTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
+  actionTitlePrimary: { fontSize: 16, color: colors.onAccent },
+  actionHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted },
+  actionHintPrimary: { fontFamily: fonts.medium, color: '#2E381A' },
+  pressed: { opacity: 0.85 },
+  recentHead: {
+    marginTop: 37,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
+    justifyContent: 'space-between',
+  },
+  recentTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors.text },
+  seeAll: { fontFamily: fonts.semibold, fontSize: 10, color: colors.accent, letterSpacing: 0.5 },
+  recentList: { gap: 10 },
+  empty: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+  cardRadius: { borderRadius: radius.md },
+  card: {
+    flexDirection: 'row',
+    gap: 14,
+    padding: 14,
+    minHeight: 112,
     borderRadius: radius.md,
     backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: hit,
   },
-  rowPressed: { backgroundColor: colors.surface },
-  rowText: { flex: 1, gap: space.xxs, justifyContent: 'center' },
-  rowSide: { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch', gap: space.sm },
-  number: { fontFamily: fonts.monoMedium, fontSize: fontSize.sm, color: colors.textMuted },
-  name: { fontFamily: fonts.medium, fontSize: fontSize.lg, color: colors.text },
+  cardPressed: { backgroundColor: colors.surface },
+  cardText: { flex: 1, paddingTop: 6, gap: 6 },
+  cardName: { fontFamily: fonts.semibold, fontSize: 13, color: colors.text },
+  cardDetail: { fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted },
+  status: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  footer: { marginTop: 'auto', paddingTop: 32, paddingBottom: 16 },
+  privacy: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  privacyText: { flex: 1, fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted },
+  version: {
+    marginTop: 14,
+    textAlign: 'center',
+    fontFamily: fonts.medium,
+    fontSize: 9,
+    color: colors.faint,
+    letterSpacing: 0.5,
+  },
 });

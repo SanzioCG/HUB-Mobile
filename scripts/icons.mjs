@@ -55,7 +55,12 @@ const viewBoxOf = (svg) => {
 const SOURCES = [
   { dir: 'assets/icons', kind: 'icon', suffix: 'Icon' },
   { dir: 'assets/illustrations', kind: 'illustration', suffix: 'Illustration' },
-  { dir: 'assets/brand', kind: 'brand', suffix: '', only: ['logo-full.svg', 'logo-mark.svg'] },
+  {
+    dir: 'assets/brand',
+    kind: 'brand',
+    suffix: '',
+    only: ['logo-full.svg', 'logo-mark.svg', 'logo-master.svg'],
+  },
 ];
 
 function component(src, kind, comp, svg) {

@@ -1,13 +1,16 @@
-// M-A6: ilovaning o'z yuklanish ekrani (tizim splash'idan keyin): to'liq ekran `loading-bg.png` (cover), markazda
-// `logo-full.svg`, pastda progress chizig'i (ekran enining ~45 %, 4 px, fon `surface`, to'lishi `accent`).
-// Rasmlar repo ildizidagi assets/brand dan — fayl shu nom bilan almashtirilsa kod o'zgarmaydi.
-import { Image } from 'expo-image';
+// M-A6: ilovaning o'z yuklanish ekrani (tizim splash'idan keyin) — Figma 06 Mobile Viewer, "02 — Splash Screen" (139:15):
+// markazda master logo (124 × 132), "U-HUB" va "MOBILE VIEWER", ingichka ajratgich, shior; pastda 60 × 3 progress
+// chizig'i (haqiqiy yuklanish bosqichlari) va versiya.
+import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
-import { LogoFull } from '../ui/generated';
+import { T } from '../components/ui';
+import { uz } from '../i18n/uz';
+import { colors, fonts } from '../theme';
+import { LogoMaster } from '../ui/generated';
 
-const BG = require('../../../../assets/brand/loading-bg.png') as number;
+const version = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '';
 
 export function LoadingScreen({ progress }: { progress: number }) {
   const [value] = useState(() => new Animated.Value(progress));
@@ -22,12 +25,18 @@ export function LoadingScreen({ progress }: { progress: number }) {
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
     >
-      <Image source={BG} style={StyleSheet.absoluteFill} contentFit="cover" />
       <View style={styles.center}>
-        <LogoFull size={64} />
+        <LogoMaster size={132} />
+        <T style={styles.wordmark}>U-HUB</T>
+        <T style={styles.product}>{uz.brand.product}</T>
+        <View style={styles.separator} />
+        <T style={styles.tagline}>{uz.brand.tagline}</T>
       </View>
-      <View style={styles.track}>
-        <Animated.View style={[styles.fill, { width }]} />
+      <View style={styles.bottom}>
+        <View style={styles.track}>
+          <Animated.View style={[styles.fill, { width }]} />
+        </View>
+        {version !== '' && <T style={styles.version}>{uz.brand.version(version)}</T>}
       </View>
     </View>
   );
@@ -36,15 +45,18 @@ export function LoadingScreen({ progress }: { progress: number }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  wordmark: { marginTop: 30, fontFamily: fonts.semibold, fontSize: 30, color: colors.text },
+  product: { marginTop: 1, fontFamily: fonts.semibold, fontSize: 11, color: colors.accent },
+  separator: { marginTop: 27, width: 48, height: 2, backgroundColor: colors.raised },
+  tagline: { marginTop: 26, fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted },
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 38, alignItems: 'center', gap: 21 },
   track: {
-    position: 'absolute',
-    bottom: '14%',
-    alignSelf: 'center',
-    width: '45%',
-    height: 4,
+    width: 60,
+    height: 3,
     borderRadius: 2,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.raised,
   },
   fill: { height: '100%', backgroundColor: colors.accent },
+  version: { fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted, letterSpacing: 0.5 },
 });

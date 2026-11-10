@@ -4,17 +4,33 @@ import { DoorCloseIcon } from './DoorCloseIcon';
 import { DoorOpenIcon } from './DoorOpenIcon';
 import { DrawerCloseIcon } from './DrawerCloseIcon';
 import { DrawerOpenIcon } from './DrawerOpenIcon';
+import { FileOpenIcon } from './FileOpenIcon';
+import { GalleryIcon } from './GalleryIcon';
 import { HotspotIcon } from './HotspotIcon';
 import { OpenAllIcon } from './OpenAllIcon';
+import { QrScanIcon } from './QrScanIcon';
+import { ScannerCloseIcon } from './ScannerCloseIcon';
+import { SecureLocalIcon } from './SecureLocalIcon';
 import { SwingZoneIcon } from './SwingZoneIcon';
+import { TabFilesIcon } from './TabFilesIcon';
+import { TabOfflineIcon } from './TabOfflineIcon';
+import { TabProjectsIcon } from './TabProjectsIcon';
+import { TabScannerIcon } from './TabScannerIcon';
+import { TabSettingsIcon } from './TabSettingsIcon';
+import { TorchIcon } from './TorchIcon';
 import { ArCoachIllustration } from './ArCoachIllustration';
 import { ArUnsupportedIllustration } from './ArUnsupportedIllustration';
 import { CameraDeniedIllustration } from './CameraDeniedIllustration';
+import { CameraDiscIllustration } from './CameraDiscIllustration';
+import { CameraLensIllustration } from './CameraLensIllustration';
 import { EmptyOfflineIllustration } from './EmptyOfflineIllustration';
 import { EmptyProjectsIllustration } from './EmptyProjectsIllustration';
 import { PairScanIllustration } from './PairScanIllustration';
+import { ProjectThumbIllustration } from './ProjectThumbIllustration';
+import { SuccessDiscIllustration } from './SuccessDiscIllustration';
 import { LogoFull } from './LogoFull';
 import { LogoMark } from './LogoMark';
+import { LogoMaster } from './LogoMaster';
 
 /** assets/icons — maxsus ikonkalar (24×24, currentColor). */
 export const customIcons = {
@@ -23,9 +39,20 @@ export const customIcons = {
   'door-open': DoorOpenIcon,
   'drawer-close': DrawerCloseIcon,
   'drawer-open': DrawerOpenIcon,
+  'file-open': FileOpenIcon,
+  gallery: GalleryIcon,
   hotspot: HotspotIcon,
   'open-all': OpenAllIcon,
+  'qr-scan': QrScanIcon,
+  'scanner-close': ScannerCloseIcon,
+  'secure-local': SecureLocalIcon,
   'swing-zone': SwingZoneIcon,
+  'tab-files': TabFilesIcon,
+  'tab-offline': TabOfflineIcon,
+  'tab-projects': TabProjectsIcon,
+  'tab-scanner': TabScannerIcon,
+  'tab-settings': TabSettingsIcon,
+  torch: TorchIcon,
 } as const;
 
 /** assets/illustrations. */
@@ -33,10 +60,14 @@ export const illustrations = {
   'ar-coach': ArCoachIllustration,
   'ar-unsupported': ArUnsupportedIllustration,
   'camera-denied': CameraDeniedIllustration,
+  'camera-disc': CameraDiscIllustration,
+  'camera-lens': CameraLensIllustration,
   'empty-offline': EmptyOfflineIllustration,
   'empty-projects': EmptyProjectsIllustration,
   'pair-scan': PairScanIllustration,
+  'project-thumb': ProjectThumbIllustration,
+  'success-disc': SuccessDiscIllustration,
 } as const;
 
-export { LogoFull, LogoMark };
+export { LogoFull, LogoMark, LogoMaster };
 export type { GeneratedSvgProps } from './types';

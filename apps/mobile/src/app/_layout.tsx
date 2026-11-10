@@ -65,6 +65,7 @@ function Routes() {
       </Stack.Protected>
       <Stack.Protected guard={paired}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="projects/all" />
         <Stack.Screen name="projects/[id]" />
         <Stack.Screen name="item/[projectId]/[itemId]" />
       </Stack.Protected>
