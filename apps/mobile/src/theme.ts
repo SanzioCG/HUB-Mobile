@@ -39,6 +39,8 @@ export const colors = {
   cameraHint: '#B8C2C9',
   /** Figma 06: QR topildi belgisi (06), versiya qatori (03). */
   success: '#47BF73',
+  /** Figma 06 (09): 3D maydon foni. */
+  viewerCanvas: '#111416',
   faint: '#596169',
   scrim: 'rgba(0,0,0,0.5)',
 } as const;

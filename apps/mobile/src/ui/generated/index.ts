@@ -25,6 +25,7 @@ import { CameraDiscIllustration } from './CameraDiscIllustration';
 import { CameraLensIllustration } from './CameraLensIllustration';
 import { EmptyOfflineIllustration } from './EmptyOfflineIllustration';
 import { EmptyProjectsIllustration } from './EmptyProjectsIllustration';
+import { FileDiscIllustration } from './FileDiscIllustration';
 import { PairScanIllustration } from './PairScanIllustration';
 import { ProjectThumbIllustration } from './ProjectThumbIllustration';
 import { SuccessDiscIllustration } from './SuccessDiscIllustration';
@@ -64,6 +65,7 @@ export const illustrations = {
   'camera-lens': CameraLensIllustration,
   'empty-offline': EmptyOfflineIllustration,
   'empty-projects': EmptyProjectsIllustration,
+  'file-disc': FileDiscIllustration,
   'pair-scan': PairScanIllustration,
   'project-thumb': ProjectThumbIllustration,
   'success-disc': SuccessDiscIllustration,

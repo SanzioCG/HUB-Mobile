@@ -1,19 +1,20 @@
-// "Fayldan ochilganlar" (kontrakt 1.6, 10.3): `.uhub` ni hujjat tanlash bilan ochish, ro'yxat, o'chirish.
-// Juftlashsiz ham ishlaydi. Tizim "Ulashish / Ochish" (intent filtri, UTI) — faqat dev build'da (Expo Go'da yo'q).
+// Fayllar — Figma 06 Mobile Viewer, "07 — Open Project from File" (152:59): sarlavha, `.uhub` tanlash maydoni,
+// so'nggi fayllar (bosib turish — o'chirish), format izohi, "Fayllarni ko'rish" va maxfiylik izohi.
+// Kontrakt 1.6, 10.3: juftlashsiz ham ishlaydi. Tizim "Ulashish / Ochish" (intent filtri, UTI) — faqat dev build'da.
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UHUB_LIMITS, UHUB_MESSAGES, isUhubError } from '@hub-mobile/viewer/uhub';
-import { BackButton } from '../../components/parts';
-import { Button, Dot, EmptyState, Spinner, T } from '../../components/ui';
+import { ListRow, ScreenTitle, SectionLabel, WideButton } from '../../components/screen';
+import { Dot, Spinner, T } from '../../components/ui';
 import { SHOW_DEV_UI } from '../../config';
 import { readPickedFile } from '../../files/readPicked';
 import { importUhub, listFiles, removeFile, type OpenedFile } from '../../files/store';
 import { uz } from '../../i18n/uz';
-import { Icon } from '../../ui/Icon';
-import { colors, fontSize, fonts, hit, radius, size, space } from '../../theme';
+import { FileDiscIllustration } from '../../ui/generated/FileDiscIllustration';
+import { colors, fonts, radius } from '../../theme';
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);
@@ -89,94 +90,123 @@ export default function FilesScreen() {
       { text: uz.files.remove, style: 'destructive', onPress: () => void removeFile(f.id).then(refresh) },
     ]);
 
+  const t = uz.filesUi;
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <View style={styles.top}>
-        <View style={styles.head}>
-          <BackButton />
-          <T style={styles.title}>{uz.files.title}</T>
-        </View>
-        <T muted>{uz.files.hint}</T>
-        <Button
-          label={busy ? uz.files.opening : uz.files.open}
-          primary
-          disabled={busy}
+      <ScrollView contentContainerStyle={styles.content}>
+        <ScreenTitle back title={t.title} subtitle={t.subtitle} />
+
+        <Pressable
           onPress={() => void pick()}
-          right={busy ? <Spinner /> : <Icon name="folder-open" size={size.icon} color={colors.onAccent} />}
-        />
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel={t.dropTitle}
+          style={({ pressed }) => [styles.drop, pressed && styles.pressed]}
+        >
+          <View style={styles.disc}>
+            <FileDiscIllustration size={58} />
+            <View style={styles.discGlyph}>{busy ? <Spinner /> : <T style={styles.arrow}>↥</T>}</View>
+          </View>
+          <T style={styles.dropTitle}>{busy ? uz.files.opening : t.dropTitle}</T>
+          <T style={styles.dropHint}>{t.dropHint}</T>
+        </Pressable>
+
         {error && (
           <View style={styles.error}>
             <Dot color={colors.yellow} />
             <T style={styles.errorText}>{error}</T>
           </View>
         )}
-      </View>
-      <FlatList
-        data={files ?? []}
-        keyExtractor={(f) => f.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          files ? <EmptyState text={uz.files.empty} illustration="empty-offline" /> : undefined
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push({ pathname: '/files/[fileId]', params: { fileId: item.id } })}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-            accessibilityRole="button"
-          >
-            <View style={styles.rowText}>
-              <T numberOfLines={1}>
-                <T mono>№ {item.project_number}</T> · {item.project_name}
-              </T>
-              <T muted>
-                {uz.files.items(item.items.length)} · {uz.files.exportedAt(formatDate(item.exported_at))}
-              </T>
+
+        {files !== null && files.length > 0 && (
+          <>
+            <SectionLabel style={styles.sectionGap}>{t.recent}</SectionLabel>
+            <View style={styles.list}>
+              {files.map((f) => (
+                <ListRow
+                  key={f.id}
+                  title={f.project_name || `№ ${f.project_number}`}
+                  detail={`№ ${f.project_number}  •  ${uz.files.items(f.items.length)}  •  ${formatDate(f.exported_at)}`}
+                  tag={t.local}
+                  onPress={() => router.push({ pathname: '/files/[fileId]', params: { fileId: f.id } })}
+                  onLongPress={() => confirmRemove(f)}
+                />
+              ))}
             </View>
-            <Pressable
-              onPress={() => confirmRemove(item)}
-              accessibilityRole="button"
-              accessibilityLabel={uz.files.remove}
-              style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
-            >
-              <Icon name="trash-2" size={size.icon} color={colors.textMuted} />
-            </Pressable>
-          </Pressable>
+            <T style={styles.note}>{t.removeHint}</T>
+          </>
         )}
-      />
+        {files !== null && files.length === 0 && <T style={styles.empty}>{uz.files.empty}</T>}
+
+        <T style={styles.format}>{t.format}</T>
+        <WideButton
+          primary
+          label={t.browse}
+          onPress={() => void pick()}
+          disabled={busy}
+          style={styles.browse}
+        />
+        <T style={styles.privacy}>{t.privacy}</T>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+// O'lchamlar — Figma 152:59 (chetlar 24).
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  top: { padding: space.lg, gap: space.sm },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  title: { fontFamily: fonts.semibold, fontSize: fontSize.title },
+  content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32 },
+  drop: {
+    marginTop: 36,
+    minHeight: 164,
+    borderRadius: 14,
+    backgroundColor: colors.tabBar,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    paddingTop: 23,
+    paddingBottom: 20,
+    paddingHorizontal: 18,
+  },
+  pressed: { opacity: 0.85 },
+  disc: { width: 58, height: 58 },
+  discGlyph: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  arrow: { fontFamily: fonts.semibold, fontSize: 27, color: colors.accent },
+  dropTitle: {
+    marginTop: 13,
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  dropHint: {
+    marginTop: 6,
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   error: {
+    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    padding: space.md,
+    gap: 8,
+    padding: 12,
     borderRadius: radius.md,
     backgroundColor: colors.panel,
   },
   errorText: { flex: 1 },
-  list: { paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.sm, flexGrow: 1 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.panel,
+  sectionGap: { marginTop: 31, marginBottom: 6 },
+  list: { gap: 10 },
+  note: { marginTop: 8, fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted },
+  empty: { marginTop: 31, fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+  format: { marginTop: 32, fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted },
+  browse: { marginTop: 36 },
+  privacy: {
+    marginTop: 20,
+    textAlign: 'center',
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.textMuted,
   },
-  rowText: { flex: 1, gap: space.xxs },
-  remove: {
-    width: hit,
-    height: hit,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-  },
-  pressed: { backgroundColor: colors.surface },
 });
